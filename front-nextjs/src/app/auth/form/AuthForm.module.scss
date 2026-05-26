@@ -1,0 +1,43 @@
+.input-field {
+	width: 100%;
+	margin-top: 0.25rem;
+	border: 1px solid rgb(63 63 70 / 60%);
+	border-radius: 0.25rem;
+	background: transparent;
+	padding: 0.5rem 0.75rem;
+	color: white;
+	transition: border-color var(--default-transition-duration)
+		var(--default-transition-timing-function);
+
+	&:focus {
+		border-color: var(--color-primary);
+		outline: none;
+	}
+}
+
+.btn-primary {
+	width: 100%;
+	margin-top: 0.25rem;
+	border-radius: 0.25rem;
+	padding-block: 0.5rem;
+	color: white;
+	font-weight: 600;
+	transition:
+		background-color 500ms ease-in-out,
+		opacity 500ms ease-in-out,
+		transform 500ms ease-in-out;
+
+	&:hover {
+		transform: scale(1.03);
+	}
+}
+
+.recaptcha {
+	margin-bottom: 1.25rem;
+	filter: invert(1) grayscale(1);
+	transform: scale(1.22);
+
+	> div > div {
+		margin-inline: auto;
+	}
+}
