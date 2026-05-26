@@ -1,10 +1,15 @@
+export type TRole = "USER" | "ADMIN" | "ORGANIZATOR";
+
 export interface IUser {
-	idUser: string
-	surname?: string
-	name?: string
-	patronymic?: string
-	email: string
-	verificationToken?: string
-	otpCode?: string
-	otpExpiresAt?: Date
+  idUser: string;
+  surname?: string;
+  name?: string;
+  patronymic?: string;
+  email: string;
+  phone?: string;
+  contact?: string;
+  role?: TRole;
+  verificationToken?: string;
+  otpCode?: string;
+  otpExpiresAt?: Date;
 }

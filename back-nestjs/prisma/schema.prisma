@@ -38,7 +38,7 @@ enum TeamFormat {
   ONLINE
 }
 
-enum StatusJoinRequest{
+enum StatusJoinRequest {
   PENDING
   ACCEPT
   REJECTED
@@ -46,10 +46,10 @@ enum StatusJoinRequest{
 }
 
 model User {
-  idUser   String  @id @default(cuid()) @map("id_user")
+  idUser String @id @default(cuid()) @map("id_user")
 
-  email    String  @unique
-  phone    String? @unique
+  email   String  @unique
+  phone   String? @unique
   contact String? @unique
 
   password String
@@ -63,46 +63,46 @@ model User {
   otpCode      String?   @map("otp_code")
   otpExpiresAt DateTime? @map("otp_expires_at")
 
-  role   Role @default(USER)
+  role Role @default(USER)
 
-  organizations UserOrganization[]
-  ownedOrganizations Organization[] @relation("OrganizationOwner")
+  organizations      UserOrganization[]
+  ownedOrganizations Organization[]     @relation("OrganizationOwner")
 
-  event Event[]
-  team  UserTeam[]
-  captionTeams Team[] @relation("TeamCaption")
+  event        Event[]
+  team         UserTeam[]
+  captionTeams Team[]     @relation("TeamCaption")
 
-  tags Tag[]
-  teamJoinRequest TeamJoinRequest[]
+  tags                    Tag[]
+  teamJoinRequest         TeamJoinRequest[]
   organizationJoinRequest OrganizationJoinRequest[]
-  solutions Solution[]
-  results Result[]
+  solutions               Solution[]
+  results                 Result[]
 
   @@map("users")
 }
 
 model UserOrganization {
-  userId String @map("user_id")
-  user User @relation(fields: [userId], references: [idUser], onDelete: Cascade)
-  organizationId String @map("organization_id")
-  organization Organization @relation(fields: [organizationId], references: [idOrganization], onDelete: Cascade)
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [idOrganization], onDelete: Cascade)
 
   @@unique([userId, organizationId])
   @@map("user_organization")
 }
 
-model Organization{
+model Organization {
   idOrganization String @id @default(cuid()) @map("id_organization")
 
-  name String
+  name        String
   description String?
-  city String?
+  address     String?
 
   ownerUserId String @map("owner_user_id")
-  owner User @relation("OrganizationOwner", fields: [ownerUserId], references: [idUser])
+  owner       User   @relation("OrganizationOwner", fields: [ownerUserId], references: [idUser])
 
-  users UserOrganization[]
-  events Event[]
+  users       UserOrganization[]
+  events      Event[]
   joinRequest OrganizationJoinRequest[]
 
   @@map("organizations")
@@ -112,9 +112,9 @@ model OrganizationJoinRequest {
   idJoinTeam String @id @default(cuid()) @map("id_join_organization")
 
   organizationId String
-  organization Organization @relation(fields: [organizationId], references: [idOrganization])
-  userId String
-  user User @relation(fields: [userId], references: [idUser])
+  organization   Organization @relation(fields: [organizationId], references: [idOrganization])
+  userId         String
+  user           User         @relation(fields: [userId], references: [idUser])
 
   status StatusJoinRequest @default(PENDING)
 
@@ -122,60 +122,60 @@ model OrganizationJoinRequest {
   @@map("organization_join_request")
 }
 
-model Event{
+model Event {
   idEvent String @id @default(cuid()) @map("id_event")
 
-  title String
+  title       String
   description String?
-  slug String @unique
-  type String
+  slug        String  @unique
+  type        String
 
   cordinatY Float
   cordinatX Float
 
-  dataStart DateTime
-  dataEnd DateTime
+  dataStart    DateTime
+  dataEnd      DateTime
   dateDeadLine DateTime?
 
   format EventFormat
   status EventStatus @default(PUBLISHED)
 
-  hasCases Boolean @default(false) @map("has_cases")
-  hasTeams Boolean @default(false) @map("has_teams")
+  hasCases            Boolean @default(false) @map("has_cases")
+  hasTeams            Boolean @default(false) @map("has_teams")
   hasParticipantLimit Boolean @default(false) @map("has_participant_limit")
-  hasLoadedSolution Boolean @default(false) @map("has_loaded_solution")
-  hasMaterials Boolean @default(false) @map("has_materials")
-  hasResualt Boolean @default(false) @map("has_resualt")
+  hasLoadedSolution   Boolean @default(false) @map("has_loaded_solution")
+  hasMaterials        Boolean @default(false) @map("has_materials")
+  hasResualt          Boolean @default(false) @map("has_resualt")
 
-  participantLimit Int? @map("participant_limit")
+  participantLimit      Int? @map("participant_limit")
   participanInTeamLimit Int? @map("participan_in_team_limit")
 
-  cases Case[]
-  teams Team[]
+  cases     Case[]
+  teams     Team[]
   materials Material[]
   solutions Solution[]
-  results Result[]
+  results   Result[]
 
-  organizationId String @map("organization_id")
-  organization Organization @relation(fields: [organizationId], references: [idOrganization])
-  userId String @map("user_id")
-  user User @relation(fields: [userId], references: [idUser])
-  tag EventTag[]
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [idOrganization])
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [idUser])
+  tag            EventTag[]
 
   @@map("events")
 }
 
 model EventTag {
   eventId String @map("event_id")
-  event Event @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
-  tagId String @map("tag_id")
-  tag Tag @relation(fields: [tagId], references: [idTag], onDelete: Cascade)
+  event   Event  @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
+  tagId   String @map("tag_id")
+  tag     Tag    @relation(fields: [tagId], references: [idTag], onDelete: Cascade)
 
   @@unique([eventId, tagId])
   @@map("event_tag")
 }
 
-model Tag{
+model Tag {
   idTag String @id @default(cuid()) @map("id_tag")
 
   name String
@@ -183,7 +183,7 @@ model Tag{
   type TagType
 
   userId String? @map("user_id")
-  user User? @relation(fields: [userId], references: [idUser])
+  user   User?   @relation(fields: [userId], references: [idUser])
 
   event EventTag[]
 
@@ -191,49 +191,49 @@ model Tag{
   @@map("tags")
 }
 
-model Case{
+model Case {
   idCase String @id @default(cuid()) @map("id_case")
 
-  title String
+  title       String
   description String?
-  holder String?
-  teamLimit Int?
-  isOpen Boolean @default(false)
+  holder      String?
+  teamLimit   Int?
+  isOpen      Boolean @default(false)
 
   dateForStartSelected DateTime
-  dateForEndSelected DateTime
-  dateStopCode DateTime
+  dateForEndSelected   DateTime
+  dateStopCode         DateTime
 
-  eventId String @map("event_id")
-  event Event @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
+  eventId   String     @map("event_id")
+  event     Event      @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
   materials Material[]
-  teams Team[]
+  teams     Team[]
   solutions Solution[]
-  results Result[]
+  results   Result[]
 
   @@map("cases")
 }
 
-model Material{
+model Material {
   idMaterial String @id @default(cuid()) @map("id_material")
 
-  title String
+  title       String
   description String?
-  url String
+  url         String
 
-  caseId String? @map("case_id")
-  case Case? @relation(fields: [caseId], references: [idCase], onDelete: Cascade)
-  eventId String @map("event_id")
-  event Event @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
+  caseId  String? @map("case_id")
+  case    Case?   @relation(fields: [caseId], references: [idCase], onDelete: Cascade)
+  eventId String  @map("event_id")
+  event   Event   @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
 
   @@map("materials")
 }
 
-model UserTeam{
+model UserTeam {
   userId String @map("user_id")
-  user User @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [idUser], onDelete: Cascade)
   teamId String @map("tag_id")
-  team Team @relation(fields: [teamId], references: [idTeam], onDelete: Cascade)
+  team   Team   @relation(fields: [teamId], references: [idTeam], onDelete: Cascade)
 
   role String?
 
@@ -241,26 +241,26 @@ model UserTeam{
   @@map("user_team")
 }
 
-model Team{
+model Team {
   idTeam String @id @default(cuid()) @map("id_team")
 
-  name String
+  name        String
   description String?
-  format TeamFormat
+  format      TeamFormat
 
   captionId String @map("caption_id")
-  caption User @relation("TeamCaption", fields: [captionId], references: [idUser])
+  caption   User   @relation("TeamCaption", fields: [captionId], references: [idUser])
 
   eventId String @map("event_id")
-  event Event @relation(fields: [eventId], references: [idEvent])
+  event   Event  @relation(fields: [eventId], references: [idEvent])
 
   caseId String? @map("case_id")
-  case Case? @relation(fields: [caseId], references: [idCase])
+  case   Case?   @relation(fields: [caseId], references: [idCase])
 
-  user UserTeam[]
+  user        UserTeam[]
   joinRequest TeamJoinRequest[]
-  solutions Solution[]
-  results Result[]
+  solutions   Solution[]
+  results     Result[]
 
   @@unique([name, eventId])
   @@map("teams")
@@ -270,9 +270,9 @@ model TeamJoinRequest {
   idJoinTeam String @id @default(cuid()) @map("id_join_team")
 
   teamId String
-  team Team @relation(fields: [teamId], references: [idTeam])
+  team   Team   @relation(fields: [teamId], references: [idTeam])
   userId String
-  user User @relation(fields: [userId], references: [idUser])
+  user   User   @relation(fields: [userId], references: [idUser])
 
   status StatusJoinRequest @default(PENDING)
 
@@ -283,43 +283,43 @@ model TeamJoinRequest {
 model Solution {
   idSolution String @id @default(cuid()) @map("id_solution")
 
-  urlSolution String @map("url_solution")
-  urlPresentation String @map("url_presentation")
-  description String?
+  urlSolution     String  @map("url_solution")
+  urlPresentation String  @map("url_presentation")
+  description     String?
 
   createdAt DateTime @default(now())
-  updateAt DateTime @updatedAt
+  updateAt  DateTime @updatedAt
 
   eventId String
-  event Event @relation(fields: [eventId], references: [idEvent])
-  caseId String?
-  case Case? @relation(fields: [caseId], references: [idCase])
-  teamId String?
-  team Team? @relation(fields: [teamId], references: [idTeam])
-  userId String?
-  user User? @relation(fields: [userId], references: [idUser])
+  event   Event   @relation(fields: [eventId], references: [idEvent])
+  caseId  String?
+  case    Case?   @relation(fields: [caseId], references: [idCase])
+  teamId  String?
+  team    Team?   @relation(fields: [teamId], references: [idTeam])
+  userId  String?
+  user    User?   @relation(fields: [userId], references: [idUser])
 
   @@unique([eventId, userId])
   @@unique([eventId, teamId])
   @@map("solutions")
 }
 
-model Result{
+model Result {
   idResult String @id @default(cuid()) @map("id_result")
 
-  title String
-  place Int
+  title       String
+  place       Int
   description String?
-  score Float?
+  score       Float?
 
   eventId String
-  event Event @relation(fields: [eventId], references: [idEvent])
-  caseId String?
-  case Case? @relation(fields: [caseId], references: [idCase])
-  teamId String?
-  team Team? @relation(fields: [teamId], references: [idTeam])
-  userId String?
-  user User? @relation(fields: [userId], references: [idUser])
+  event   Event   @relation(fields: [eventId], references: [idEvent])
+  caseId  String?
+  case    Case?   @relation(fields: [caseId], references: [idCase])
+  teamId  String?
+  team    Team?   @relation(fields: [teamId], references: [idTeam])
+  userId  String?
+  user    User?   @relation(fields: [userId], references: [idUser])
 
   @@unique([eventId, userId])
   @@unique([eventId, teamId])

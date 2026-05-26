@@ -12,7 +12,7 @@ import { JwtService } from "@nestjs/jwt";
 import { Role, type User } from "@prisma/client";
 import { verify } from "argon2";
 import { omit } from "lodash";
-import { AuthDto } from "./dto/auth.dto";
+import { AuthDto, RegisterDto } from "./dto/auth.dto";
 
 @Injectable()
 export class AuthService {
@@ -31,7 +31,7 @@ export class AuthService {
     return this.buildResponseObject(user);
   }
 
-  async register(dto: AuthDto) {
+  async register(dto: RegisterDto) {
     const userExists = await this.userService.getByEmail(dto.email);
     if (userExists) {
       throw new BadRequestException("User already exists");

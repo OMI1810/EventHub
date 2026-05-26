@@ -1,4 +1,4 @@
-import { AuthDto } from "@/auth/dto/auth.dto";
+import { RegisterDto } from "@/auth/dto/auth.dto";
 import { Injectable } from "@nestjs/common";
 import { Role, type User } from "@prisma/client";
 import { hash } from "argon2";
@@ -40,12 +40,53 @@ export class UserService {
     });
   }
 
-  async create(dto: AuthDto) {
+  async create(dto: RegisterDto) {
+    const password = await hash(dto.password);
+    const phone = this.optionalString(dto.phone);
+    const contact = this.optionalString(dto.contact);
+
+    if (dto.role === Role.ORGANIZATOR) {
+      return this.prisma.$transaction(async (prisma) => {
+        const user = await prisma.user.create({
+          data: {
+            email: dto.email,
+            phone,
+            contact,
+            password,
+            role: dto.role,
+          },
+        });
+
+        const organization = await prisma.organization.create({
+          data: {
+            name: dto.organizationName!.trim(),
+            description: this.optionalString(dto.organizationDescription),
+            address: dto.organizationAddress!.trim(),
+            ownerUserId: user.idUser,
+          },
+        });
+
+        await prisma.userOrganization.create({
+          data: {
+            userId: user.idUser,
+            organizationId: organization.idOrganization,
+          },
+        });
+
+        return user;
+      });
+    }
+
     return this.prisma.user.create({
       data: {
         email: dto.email,
-        password: await hash(dto.password),
-        role: Role.USER,
+        phone,
+        contact,
+        surname: this.optionalString(dto.surname),
+        name: this.optionalString(dto.name),
+        patronymic: this.optionalString(dto.patronymic),
+        password,
+        role: dto.role ?? Role.USER,
       },
     });
   }
@@ -57,5 +98,10 @@ export class UserService {
       },
       data,
     });
+  }
+
+  private optionalString(value?: string) {
+    const normalized = value?.trim();
+    return normalized ? normalized : undefined;
   }
 }
