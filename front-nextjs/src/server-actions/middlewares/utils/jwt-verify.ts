@@ -15,13 +15,7 @@ export async function jwtVerifyServer(accessToken: string) {
 
 		return transformUserToState(payload)
 	} catch (error) {
-		// Обработка ошибок, связанных с верификацией JWT
-		if (
-			error instanceof Error &&
-			error.message.includes('exp claim timestamp check failed')
-		) {
-			// Токен истек
-			console.log('Токен истек')
+		if (error instanceof jose.errors.JWTExpired) {
 			return null
 		}
 
