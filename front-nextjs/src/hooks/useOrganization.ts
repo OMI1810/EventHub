@@ -1,10 +1,11 @@
 import organizationService from '@/services/organization.service'
 import { useQuery } from '@tanstack/react-query'
 
-export function useOrganization() {
+export function useOrganization(enabled = true) {
 	const { data, isLoading, error } = useQuery({
 		queryKey: ['organization', 'me'],
-		queryFn: () => organizationService.getMyOrganization()
+		queryFn: () => organizationService.getMyOrganization(),
+		enabled
 	})
 
 	return {

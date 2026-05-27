@@ -3,6 +3,7 @@
 import { MiniLoader } from '@/components/ui/MiniLoader'
 import { PUBLIC_PAGES } from '@/config/pages/public.config'
 import { useOrganization } from '@/hooks/useOrganization'
+import { useProfile } from '@/hooks/useProfile'
 import authService from '@/services/auth/auth.service'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
@@ -16,7 +17,11 @@ import { OrganizationJoinRequestsSection } from './OrganizationJoinRequestsSecti
 
 export function OrganizationDashboard() {
 	const router = useRouter()
-	const { organization, isLoading } = useOrganization()
+	const { isLoading: isProfileLoading, user } = useProfile()
+	const canViewOrganizationDashboard = user.role === 'ORGANIZATOR'
+	const { organization, isLoading } = useOrganization(
+		canViewOrganizationDashboard
+	)
 	const [isPending, startTransition] = useTransition()
 	const [isEditing, setIsEditing] = useState(false)
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -33,13 +38,24 @@ export function OrganizationDashboard() {
 
 	const isLogoutLoading = isPending || isLogoutPending
 
-	if (isLoading) {
+	if (isProfileLoading || (canViewOrganizationDashboard && isLoading)) {
 		return (
 			<div className="mt-10">
 				<MiniLoader
 					width={150}
 					height={150}
 				/>
+			</div>
+		)
+	}
+
+	if (!canViewOrganizationDashboard) {
+		return (
+			<div className="w-full max-w-3xl rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-white shadow-xl">
+				<h1 className="text-2xl font-bold">Нет доступа к панели организации</h1>
+				<p className="mt-4 text-sm text-zinc-400">
+					Эта страница доступна только владельцу организации.
+				</p>
 			</div>
 		)
 	}

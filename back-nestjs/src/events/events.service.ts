@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   Injectable,
 } from "@nestjs/common";
-import { EventStatus, Prisma, Role, TagType } from "@prisma/client";
+import { EventFormat, EventStatus, Prisma, Role, TagType } from "@prisma/client";
 import {
   CreateEventDto,
   CreateEventType,
@@ -106,7 +106,7 @@ export class EventsService {
       throw new ForbiddenException("Организации недоступны");
     }
 
-    const features = EVENT_FEATURES[dto.type];
+    const features = this.resolveFeatures(dto);
     this.validatePresetPayload(dto, features);
 
     return this.prisma.$transaction(async (prisma) => {
@@ -116,7 +116,8 @@ export class EventsService {
           description: this.optionalString(dto.description),
           slug: dto.slug.trim(),
           type: dto.type,
-          address: dto.address.trim(),
+          address:
+            dto.format === EventFormat.ONLINE ? "Онлайн" : dto.address.trim(),
           cordinatX: dto.cordinatX ?? null,
           cordinatY: dto.cordinatY ?? null,
           dataStart: new Date(dto.dataStart),
@@ -145,7 +146,7 @@ export class EventsService {
         event.idEvent,
         dto.eventMaterials ?? [],
       );
-      await this.createCases(prisma, event.idEvent, dto);
+      await this.createCases(prisma, event.idEvent, dto, features);
 
       return event;
     });
@@ -166,6 +167,25 @@ export class EventsService {
     if (!features.hasCases && !dto.dateDeadLine && features.hasLoadedSolution) {
       throw new BadRequestException("Требуется дедлайн для загрузки решения");
     }
+  }
+
+  private resolveFeatures(dto: CreateEventDto): EventFeaturePreset {
+    if (this.isPresetEventType(dto.type)) {
+      return EVENT_FEATURES[dto.type];
+    }
+
+    return {
+      hasCases: dto.hasCases ?? false,
+      hasTeams: dto.hasTeams ?? false,
+      hasParticipantLimit: dto.hasParticipantLimit ?? false,
+      hasLoadedSolution: dto.hasLoadedSolution ?? false,
+      hasMaterials: dto.hasMaterials ?? false,
+      hasResualt: dto.hasResualt ?? false,
+    };
+  }
+
+  private isPresetEventType(type: string): type is CreateEventType {
+    return Object.values(CreateEventType).includes(type as CreateEventType);
   }
 
   private async createTags(
@@ -285,8 +305,9 @@ export class EventsService {
     prisma: Prisma.TransactionClient,
     eventId: string,
     dto: CreateEventDto,
+    features: EventFeaturePreset,
   ) {
-    if (dto.type !== CreateEventType.HACKATHON || !dto.caseSettings) return;
+    if (!features.hasCases || !dto.caseSettings) return;
 
     for (const eventCase of dto.cases ?? []) {
       const createdCase = await prisma.case.create({
@@ -297,7 +318,10 @@ export class EventsService {
           teamLimit: eventCase.teamLimit,
           dateForStartSelected: new Date(dto.caseSettings.dateForStartSelected),
           dateForEndSelected: new Date(dto.caseSettings.dateForEndSelected),
-          dateStopCode: new Date(dto.caseSettings.dateStopCode),
+          dateStopCode: new Date(
+            dto.caseSettings.dateStopCode ??
+              dto.caseSettings.dateForEndSelected,
+          ),
           eventId,
         },
       });

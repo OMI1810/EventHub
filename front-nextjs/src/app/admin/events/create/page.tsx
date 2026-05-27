@@ -72,6 +72,11 @@ interface CaseModalForm {
   materials: EventCaseMaterialDraft[];
 }
 
+interface CustomEventTypeModalForm {
+  typeName: string;
+  features: EventFeaturePreset;
+}
+
 const eventTypeOptions: EventTypeOption[] = [
   {
     value: "HACKATHON",
@@ -91,7 +96,7 @@ const eventTypeOptions: EventTypeOption[] = [
   {
     value: "OTHER",
     label: "Другое",
-    description: "Будет доступно позже.",
+    description: "Свой вид мероприятия и набор настроек.",
   },
 ];
 
@@ -152,6 +157,18 @@ const createEmptyCaseModal = (): CaseModalForm => ({
   materials: [],
 });
 
+const createCustomEventTypeModal = (): CustomEventTypeModalForm => ({
+  typeName: "",
+  features: {
+    hasCases: false,
+    hasTeams: false,
+    hasParticipantLimit: false,
+    hasLoadedSolution: false,
+    hasMaterials: false,
+    hasResualt: false,
+  },
+});
+
 const createDraftId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -164,9 +181,9 @@ const normalizeTagName = (value: string) => value.trim().toLowerCase();
 
 export default function CreateEventPage() {
   const router = useRouter();
-  const [selectedType, setSelectedType] = useState<EventCreateType | null>(
-    null,
-  );
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedFeatures, setSelectedFeatures] =
+    useState<EventFeaturePreset | null>(null);
   const [step, setStep] = useState<"type" | "base" | "settings">("type");
   const [baseForm, setBaseForm] = useState<BaseEventForm>(initialBaseForm);
   const [selectedTags, setSelectedTags] = useState<EventTagDraft[]>([]);
@@ -182,6 +199,8 @@ export default function CreateEventPage() {
   );
   const [materialForm, setMaterialForm] = useState({ title: "", url: "" });
   const [caseModal, setCaseModal] = useState<CaseModalForm | null>(null);
+  const [customTypeModal, setCustomTypeModal] =
+    useState<CustomEventTypeModalForm | null>(null);
 
   const { data: options, isLoading: isOptionsLoading } = useQuery({
     queryKey: ["event-create-options"],
@@ -190,7 +209,7 @@ export default function CreateEventPage() {
 
   const organizations = options?.data.organizations ?? [];
   const availableTags = options?.data.tags ?? [];
-  const features = selectedType ? presets[selectedType] : null;
+  const features = selectedFeatures;
 
   const filteredTags = useMemo(() => {
     const query = normalizeTagName(tagSearch);
@@ -211,8 +230,10 @@ export default function CreateEventPage() {
   }, [availableTags, selectedTags, tagSearch]);
 
   const selectedTypeLabel = useMemo(() => {
-    return eventTypeOptions.find((option) => option.value === selectedType)
-      ?.label;
+    return (
+      eventTypeOptions.find((option) => option.value === selectedType)?.label ??
+      selectedType
+    );
   }, [selectedType]);
 
   const { mutate: createEvent, isPending: isCreating } = useMutation({
@@ -250,11 +271,30 @@ export default function CreateEventPage() {
 
   const selectType = (type: EventCreateType) => {
     setSelectedType(type);
+    setSelectedFeatures(presets[type]);
     setStep("base");
     setBaseForm((current) => ({
       ...current,
       dateDeadLine: type === "CONTEST" ? current.dateDeadLine : "",
     }));
+  };
+
+  const openCustomTypeModal = () => {
+    setCustomTypeModal(createCustomEventTypeModal());
+  };
+
+  const applyCustomType = () => {
+    const typeName = customTypeModal?.typeName.trim();
+
+    if (!typeName || !customTypeModal) {
+      toast.error("Укажите вид мероприятия");
+      return;
+    }
+
+    setSelectedType(typeName);
+    setSelectedFeatures(customTypeModal.features);
+    setCustomTypeModal(null);
+    setStep("base");
   };
 
   const submitBaseSettings = (event: FormEvent<HTMLFormElement>) => {
@@ -363,18 +403,36 @@ export default function CreateEventPage() {
   const submitEvent = () => {
     if (!selectedType || !features) return;
 
+    const shouldSendDeadline =
+      selectedType === "CONTEST" ||
+      (features.hasLoadedSolution && !features.hasCases);
+    const caseSettingsPayload = features.hasCases
+      ? {
+          dateForStartSelected: caseSettings.dateForStartSelected,
+          dateForEndSelected: caseSettings.dateForEndSelected,
+          dateStopCode: features.hasLoadedSolution
+            ? caseSettings.dateStopCode
+            : undefined,
+        }
+      : undefined;
+
     const payload: EventCreateDraft = {
       type: selectedType,
+      hasCases: features.hasCases,
+      hasTeams: features.hasTeams,
+      hasParticipantLimit: features.hasParticipantLimit,
+      hasLoadedSolution: features.hasLoadedSolution,
+      hasMaterials: features.hasMaterials,
+      hasResualt: features.hasResualt,
       title: baseForm.title,
       description: baseForm.description || undefined,
       slug: baseForm.slug,
       organizationId: baseForm.organizationId,
       dataStart: baseForm.dataStart,
       dataEnd: baseForm.dataEnd,
-      dateDeadLine:
-        selectedType === "CONTEST" ? baseForm.dateDeadLine : undefined,
+      dateDeadLine: shouldSendDeadline ? baseForm.dateDeadLine : undefined,
       format: baseForm.format,
-      address: baseForm.address,
+      address: baseForm.format === "ONLINE" ? "Онлайн" : baseForm.address,
       cordinatX: baseForm.cordinatX ?? undefined,
       cordinatY: baseForm.cordinatY ?? undefined,
       tags: selectedTags,
@@ -386,7 +444,7 @@ export default function CreateEventPage() {
         features.hasTeams && teamMemberLimit
           ? Number(teamMemberLimit)
           : undefined,
-      caseSettings: features.hasCases ? caseSettings : undefined,
+      caseSettings: caseSettingsPayload,
       cases: features.hasCases
         ? cases.map(({ id: _id, materials, ...eventCase }) => ({
             ...eventCase,
@@ -412,34 +470,27 @@ export default function CreateEventPage() {
 
       {step === "type" && (
         <div className="grid gap-3 md:grid-cols-2">
-          {eventTypeOptions.map((option) => {
-            const isDisabled = option.value === "OTHER";
-
-            return (
+          {eventTypeOptions.map((option) => (
               <button
                 key={option.value}
                 type="button"
-                disabled={isDisabled}
                 onClick={() =>
-                  !isDisabled && selectType(option.value as EventCreateType)
+                  option.value === "OTHER"
+                    ? openCustomTypeModal()
+                    : selectType(option.value)
                 }
-                className={twMerge(
-                  "rounded-md border border-zinc-700 bg-zinc-900/60 p-4 text-left transition hover:border-primary",
-                  isDisabled &&
-                    "cursor-not-allowed opacity-50 hover:border-zinc-700",
-                )}
+                className="rounded-md border border-zinc-700 bg-zinc-900/60 p-4 text-left transition hover:border-primary"
               >
                 <span className="text-lg font-medium">{option.label}</span>
                 <span className="mt-2 block text-sm text-zinc-400">
                   {option.description}
                 </span>
               </button>
-            );
-          })}
+          ))}
         </div>
       )}
 
-      {step === "base" && selectedType && (
+      {step === "base" && selectedType && features && (
         <form onSubmit={submitBaseSettings} className="grid gap-5">
           <div className="rounded-md border border-zinc-700 bg-zinc-900/60 p-4">
             <p className="text-sm text-zinc-400">Тип мероприятия</p>
@@ -507,7 +558,7 @@ export default function CreateEventPage() {
               onChange={(value) => updateBaseForm("dataEnd", value)}
               required
             />
-            {selectedType === "CONTEST" && (
+            {features.hasLoadedSolution && !features.hasCases && (
               <TextField
                 label="Дедлайн сдачи решения"
                 type="datetime-local"
@@ -616,6 +667,7 @@ export default function CreateEventPage() {
                   label="Стоп-код"
                   type="datetime-local"
                   value={caseSettings.dateStopCode}
+                  hidden={!features.hasLoadedSolution}
                   onChange={(value) =>
                     setCaseSettings((current) => ({
                       ...current,
@@ -784,6 +836,15 @@ export default function CreateEventPage() {
           onSave={saveCase}
         />
       )}
+
+      {customTypeModal && (
+        <CustomEventTypeModal
+          form={customTypeModal}
+          onApply={applyCustomType}
+          onChange={setCustomTypeModal}
+          onClose={() => setCustomTypeModal(null)}
+        />
+      )}
     </section>
   );
 }
@@ -918,6 +979,7 @@ function TextField({
   placeholder,
   required,
   min,
+  hidden,
 }: {
   label: string;
   value: string;
@@ -926,7 +988,10 @@ function TextField({
   placeholder?: string;
   required?: boolean;
   min?: number;
+  hidden?: boolean;
 }) {
+  if (hidden) return null;
+
   return (
     <label className="grid gap-2 text-sm text-zinc-300">
       {label}
@@ -989,6 +1054,123 @@ function TextAreaField({
         onChange={(event) => onChange(event.target.value)}
         className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-primary"
       />
+    </label>
+  );
+}
+
+function CustomEventTypeModal({
+  form,
+  onApply,
+  onChange,
+  onClose,
+}: {
+  form: CustomEventTypeModalForm;
+  onApply: () => void;
+  onChange: (form: CustomEventTypeModalForm) => void;
+  onClose: () => void;
+}) {
+  const updateFeature = (
+    field: keyof EventFeaturePreset,
+    checked: boolean,
+  ) => {
+    onChange({
+      ...form,
+      features: {
+        ...form.features,
+        [field]: checked,
+      },
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-md border border-zinc-700 bg-zinc-950 p-5 text-white">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold">Другой тип мероприятия</h2>
+          <button type="button" onClick={onClose} className="text-zinc-400">
+            Закрыть
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-5">
+          <TextField
+            label="Вид мероприятия"
+            value={form.typeName}
+            onChange={(value) => onChange({ ...form, typeName: value })}
+            required
+          />
+
+          <div className="grid gap-3">
+            <p className="text-sm text-zinc-300">Настройки мероприятия</p>
+            <FeatureCheckbox
+              checked={form.features.hasCases}
+              label="Кейсы"
+              onChange={(checked) => updateFeature("hasCases", checked)}
+            />
+            <FeatureCheckbox
+              checked={form.features.hasTeams}
+              label="Команды"
+              onChange={(checked) => updateFeature("hasTeams", checked)}
+            />
+            <FeatureCheckbox
+              checked={form.features.hasParticipantLimit}
+              label="Общий лимит участников"
+              onChange={(checked) =>
+                updateFeature("hasParticipantLimit", checked)
+              }
+            />
+            <FeatureCheckbox
+              checked={form.features.hasLoadedSolution}
+              label="Возможность загружать решения"
+              onChange={(checked) =>
+                updateFeature("hasLoadedSolution", checked)
+              }
+            />
+            <FeatureCheckbox
+              checked={form.features.hasMaterials}
+              label="Загрузка материалов для мероприятия"
+              onChange={(checked) => updateFeature("hasMaterials", checked)}
+            />
+            <FeatureCheckbox
+              checked={form.features.hasResualt}
+              label="Вкладка итоги"
+              onChange={(checked) => updateFeature("hasResualt", checked)}
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            type="button"
+            onClick={onApply}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium"
+          >
+            Применить
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeatureCheckbox({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-4 w-4 accent-primary"
+      />
+      {label}
     </label>
   );
 }

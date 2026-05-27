@@ -3,6 +3,7 @@ import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsISO8601,
   IsInt,
@@ -28,8 +29,9 @@ export class CaseSettingsDto {
   @IsISO8601()
   dateForEndSelected: string;
 
+  @IsOptional()
   @IsISO8601()
-  dateStopCode: string;
+  dateStopCode?: string;
 }
 
 export class EventCaseMaterialDto {
@@ -88,8 +90,9 @@ export class EventTagInputDto {
 }
 
 export class CreateEventDto {
-  @IsEnum(CreateEventType)
-  type: CreateEventType;
+  @IsString()
+  @IsNotEmpty()
+  type: string;
 
   @IsString()
   @IsNotEmpty()
@@ -113,13 +116,22 @@ export class CreateEventDto {
   @IsISO8601()
   dataEnd: string;
 
-  @ValidateIf((dto: CreateEventDto) => dto.type === CreateEventType.CONTEST)
+  @ValidateIf(
+    (dto: CreateEventDto) =>
+      dto.type === CreateEventType.CONTEST ||
+      (dto.type !== CreateEventType.HACKATHON &&
+        dto.type !== CreateEventType.MASTER_CLASS &&
+        dto.type !== CreateEventType.CONTEST &&
+        dto.hasLoadedSolution &&
+        !dto.hasCases),
+  )
   @IsISO8601()
   dateDeadLine?: string;
 
   @IsEnum(EventFormat)
   format: EventFormat;
 
+  @ValidateIf((dto: CreateEventDto) => dto.format !== EventFormat.ONLINE)
   @IsString()
   @IsNotEmpty()
   address: string;
@@ -141,30 +153,69 @@ export class CreateEventDto {
   @Type(() => EventTagInputDto)
   tags?: EventTagInputDto[];
 
-  @ValidateIf((dto: CreateEventDto) => dto.type !== CreateEventType.HACKATHON)
+  @IsOptional()
+  @IsBoolean()
+  hasCases?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hasTeams?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hasParticipantLimit?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hasLoadedSolution?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hasMaterials?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hasResualt?: boolean;
+
+  @ValidateIf(
+    (dto: CreateEventDto) =>
+      dto.type !== CreateEventType.HACKATHON || dto.hasParticipantLimit,
+  )
   @IsOptional()
   @IsInt()
   @Min(1)
   participantLimit?: number;
 
-  @ValidateIf((dto: CreateEventDto) => dto.type === CreateEventType.HACKATHON)
+  @ValidateIf(
+    (dto: CreateEventDto) =>
+      dto.type === CreateEventType.HACKATHON || dto.hasTeams,
+  )
   @IsOptional()
   @IsInt()
   @Min(1)
   teamMemberLimit?: number;
 
-  @ValidateIf((dto: CreateEventDto) => dto.type === CreateEventType.HACKATHON)
+  @ValidateIf(
+    (dto: CreateEventDto) =>
+      dto.type === CreateEventType.HACKATHON || dto.hasCases,
+  )
   @ValidateNested()
   @Type(() => CaseSettingsDto)
   caseSettings?: CaseSettingsDto;
 
-  @ValidateIf((dto: CreateEventDto) => dto.type === CreateEventType.HACKATHON)
+  @ValidateIf(
+    (dto: CreateEventDto) =>
+      dto.type === CreateEventType.HACKATHON || dto.hasCases,
+  )
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => EventCaseDto)
   cases?: EventCaseDto[];
 
-  @ValidateIf((dto: CreateEventDto) => dto.type !== CreateEventType.HACKATHON)
+  @ValidateIf(
+    (dto: CreateEventDto) =>
+      dto.type !== CreateEventType.HACKATHON || dto.hasMaterials,
+  )
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

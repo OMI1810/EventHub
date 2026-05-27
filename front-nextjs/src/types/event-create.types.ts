@@ -51,7 +51,7 @@ export interface EventMaterialDraft {
 }
 
 export interface EventCreateDraft {
-  type: EventCreateType;
+  type: string;
   title: string;
   description?: string;
   slug: string;
@@ -64,12 +64,18 @@ export interface EventCreateDraft {
   cordinatX?: number;
   cordinatY?: number;
   tags: EventTagDraft[];
+  hasCases?: boolean;
+  hasTeams?: boolean;
+  hasParticipantLimit?: boolean;
+  hasLoadedSolution?: boolean;
+  hasMaterials?: boolean;
+  hasResualt?: boolean;
   participantLimit?: number;
   teamMemberLimit?: number;
   caseSettings?: {
     dateForStartSelected: string;
     dateForEndSelected: string;
-    dateStopCode: string;
+    dateStopCode?: string;
   };
   cases?: Omit<EventCaseDraft, "id">[];
   eventMaterials?: Omit<EventMaterialDraft, "id">[];
