@@ -3,6 +3,7 @@ import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./auth/auth.module";
 import { EventsModule } from "./events/events.module";
 import { GeocodingModule } from "./geocoding/geocoding.module";
+import { OrganizationModule } from './organization/organization.module'
 import { UserModule } from "./user/user.module";
 
 @Module({
@@ -13,6 +14,7 @@ import { UserModule } from "./user/user.module";
     AuthModule,
     EventsModule,
     GeocodingModule,
+    OrganizationModule,
     UserModule,
   ],
 })

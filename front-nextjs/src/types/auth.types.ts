@@ -10,6 +10,7 @@ export type AuthToken = (typeof AuthToken)[keyof typeof AuthToken];
 
 export interface ITokenInside {
   id: string;
+  role?: TRole;
   iat: number;
   exp: number;
 }
