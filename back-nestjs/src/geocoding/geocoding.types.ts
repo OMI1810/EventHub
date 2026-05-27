@@ -16,7 +16,7 @@ export interface ArcGisSuggestResponse {
   }>;
 }
 
-export interface ArcGisFindAddressCandidatesResponse {
+export interface ArcGisFindAddressesResponse {
   candidates?: Array<{
     address?: string;
     location?: {
