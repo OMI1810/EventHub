@@ -130,8 +130,9 @@ model Event {
   slug        String  @unique
   type        String
 
-  cordinatY Float
-  cordinatX Float
+  address   String
+  cordinatY Float?
+  cordinatX Float?
 
   dataStart    DateTime
   dataEnd      DateTime
