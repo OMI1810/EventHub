@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 import {
   AddressSuggestion,
-  ArcGisFindAddressesResponse,
+  ArcGisFindAddressCandidatesResponse,
   ArcGisSuggestResponse,
   GeocodedAddress,
 } from "./geocoding.types";
@@ -37,7 +37,7 @@ export class GeocodingService {
   }
 
   async geocodeByMagicKey(magicKey: string): Promise<GeocodedAddress> {
-    const response = await axios.get<ArcGisFindAddressesResponse>(
+    const response = await axios.get<ArcGisFindAddressCandidatesResponse>(
       `${ARCGIS_GEOCODE_URL}/findAddressCandidates`,
       {
         params: {

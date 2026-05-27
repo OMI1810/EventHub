@@ -6,6 +6,7 @@ import Link from "next/link";
 const pages = [
   PUBLIC_PAGES.LOGIN,
   DASHBOARD_PAGES.PROFILE,
+  DASHBOARD_PAGES.ORGANIZATION,
   "/admin/events/create",
 ];
 
