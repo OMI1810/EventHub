@@ -1,11 +1,12 @@
 'use client'
 import { MiniLoader } from '@/components/ui/MiniLoader'
+import { DASHBOARD_PAGES } from '@/config/pages/dashboard.config'
 import { PUBLIC_PAGES } from '@/config/pages/public.config'
 import { useProfile } from '@/hooks/useProfile'
 import authService from '@/services/auth/auth.service'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useTransition } from 'react'
+import { useEffect, useTransition } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 export function ProfileInfo() {
@@ -14,6 +15,14 @@ export function ProfileInfo() {
 	const { isLoading, refetch, user } = useProfile()
 
 	const [isPending, startTransition] = useTransition()
+
+	useEffect(() => {
+		if (isLoading) return
+
+		if (user.role === 'ORGANIZATOR') {
+			router.replace(DASHBOARD_PAGES.ORGANIZATION)
+		}
+	}, [isLoading, router, user.role])
 
 	const { mutate: mutateLogout, isPending: isLogoutPending } = useMutation({
 		mutationKey: ['logout'],
@@ -37,6 +46,17 @@ export function ProfileInfo() {
 				/>
 			</div>
 		)
+
+	if (user.role === 'ORGANIZATOR') {
+		return (
+			<div className="mt-10">
+				<MiniLoader
+					width={150}
+					height={150}
+				/>
+			</div>
+		)
+	}
 
 	return (
 		<div className="mt-10">
