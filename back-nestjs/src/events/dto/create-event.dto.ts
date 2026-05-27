@@ -7,6 +7,7 @@ import {
   IsISO8601,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   Min,
@@ -122,6 +123,16 @@ export class CreateEventDto {
   @IsString()
   @IsNotEmpty()
   address: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  cordinatX?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  cordinatY?: number;
 
   @IsOptional()
   @IsArray()

@@ -61,6 +61,8 @@ export interface EventCreateDraft {
   dateDeadLine?: string;
   format: EventFormat;
   address: string;
+  cordinatX?: number;
+  cordinatY?: number;
   tags: EventTagDraft[];
   participantLimit?: number;
   teamMemberLimit?: number;

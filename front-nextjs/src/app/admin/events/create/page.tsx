@@ -1,6 +1,7 @@
 "use client";
 
 import { MiniLoader } from "@/components/ui/MiniLoader";
+import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import eventService from "@/services/event.service";
 import {
   EventCaseDraft,
@@ -15,9 +16,24 @@ import {
 } from "@/types/event-create.types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { FormEvent, ReactNode, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { twMerge } from "tailwind-merge";
+
+const ArcGisPointMap = dynamic(
+  () =>
+    import("@/components/map/ArcGisPointMap").then(
+      (module) => module.ArcGisPointMap,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-72 rounded-md border border-zinc-700 bg-zinc-950" />
+    ),
+  },
+);
 
 interface EventTypeOption {
   value: EventCreateType | "OTHER";
@@ -35,6 +51,8 @@ interface BaseEventForm {
   dateDeadLine: string;
   format: EventFormat;
   address: string;
+  cordinatX: number | null;
+  cordinatY: number | null;
 }
 
 interface CaseSettingsForm {
@@ -114,6 +132,8 @@ const initialBaseForm: BaseEventForm = {
   dateDeadLine: "",
   format: "OFFLINE",
   address: "",
+  cordinatX: null,
+  cordinatY: null,
 };
 
 const initialCaseSettings: CaseSettingsForm = {
@@ -143,6 +163,7 @@ const createDraftId = () => {
 const normalizeTagName = (value: string) => value.trim().toLowerCase();
 
 export default function CreateEventPage() {
+  const router = useRouter();
   const [selectedType, setSelectedType] = useState<EventCreateType | null>(
     null,
   );
@@ -198,6 +219,7 @@ export default function CreateEventPage() {
     mutationKey: ["create-event"],
     mutationFn: (data: EventCreateDraft) => eventService.create(data),
     onSuccess() {
+      router.push("/");
       toast.success("Мероприятие создано");
     },
     onError(error) {
@@ -214,6 +236,16 @@ export default function CreateEventPage() {
 
   const updateBaseForm = (field: keyof BaseEventForm, value: string) => {
     setBaseForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateFormat = (format: EventFormat) => {
+    setBaseForm((current) => ({
+      ...current,
+      format,
+      address: format === "ONLINE" ? "" : current.address,
+      cordinatX: format === "ONLINE" ? null : current.cordinatX,
+      cordinatY: format === "ONLINE" ? null : current.cordinatY,
+    }));
   };
 
   const selectType = (type: EventCreateType) => {
@@ -343,6 +375,8 @@ export default function CreateEventPage() {
         selectedType === "CONTEST" ? baseForm.dateDeadLine : undefined,
       format: baseForm.format,
       address: baseForm.address,
+      cordinatX: baseForm.cordinatX ?? undefined,
+      cordinatY: baseForm.cordinatY ?? undefined,
       tags: selectedTags,
       participantLimit:
         features.hasParticipantLimit && participantLimit
@@ -453,9 +487,7 @@ export default function CreateEventPage() {
             <SelectField
               label="Формат"
               value={baseForm.format}
-              onChange={(value) =>
-                updateBaseForm("format", value as EventFormat)
-              }
+              onChange={(value) => updateFormat(value as EventFormat)}
             >
               <option value="OFFLINE">Офлайн</option>
               <option value="ONLINE">Онлайн</option>
@@ -484,12 +516,37 @@ export default function CreateEventPage() {
                 required
               />
             )}
-            <TextField
+            {baseForm.format !== "ONLINE" && (
+              <>
+            <AddressAutocomplete
               label="Адрес"
               value={baseForm.address}
-              onChange={(value) => updateBaseForm("address", value)}
               required
+              onManualChange={(address) =>
+                setBaseForm((current) => ({
+                  ...current,
+                  address,
+                  cordinatX: null,
+                  cordinatY: null,
+                }))
+              }
+              onSelect={(address) =>
+                setBaseForm((current) => ({
+                  ...current,
+                  address: address.address,
+                  cordinatX: address.cordinatX,
+                  cordinatY: address.cordinatY,
+                }))
+              }
             />
+                <div className="md:col-span-2">
+                  <ArcGisPointMap
+                    cordinatX={baseForm.cordinatX}
+                    cordinatY={baseForm.cordinatY}
+                  />
+                </div>
+              </>
+            )}
             <div className="md:col-span-2">
               <TagCombobox
                 filteredTags={filteredTags}
