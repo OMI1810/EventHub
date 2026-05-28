@@ -22,7 +22,7 @@ export function OrganizationInviteQrModal({ code, onClose }: Props) {
 				light: '#FFFFFF'
 			}
 		})
-			.then(url => {
+			.then((url: string) => {
 				if (isMounted) {
 					setQrDataUrl(url)
 				}
