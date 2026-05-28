@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import Redis from 'ioredis'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 
-interface OrganizationInvitePayload {
+export interface OrganizationInvitePayload {
 	organizationId: string
 	createdByUserId: string
 	expiresAt: string
@@ -75,6 +75,25 @@ export class OrganizationInviteService implements OnModuleDestroy {
 		}
 	}
 
+	async findActiveInviteByCode(code: string) {
+		await this.ensureRedisConnection()
+
+		const normalizedCode = this.normalizeInviteCode(code)
+
+		if (!normalizedCode) {
+			return null
+		}
+
+		const inviteHash = this.hashInviteCode(normalizedCode)
+		const payload = await this.redis.get(this.getInvitePayloadKey(inviteHash))
+
+		if (!payload) {
+			return null
+		}
+
+		return JSON.parse(payload) as OrganizationInvitePayload
+	}
+
 	private async ensureRedisConnection() {
 		try {
 			if (this.redis.status !== 'ready') {
@@ -96,6 +115,11 @@ export class OrganizationInviteService implements OnModuleDestroy {
 		return createHash('sha256')
 			.update(`${code}:${this.inviteSecret}`)
 			.digest('hex')
+	}
+
+	private normalizeInviteCode(code: string) {
+		const normalized = code.trim().toUpperCase()
+		return normalized || null
 	}
 
 	private getOrganizationActiveInviteKey(organizationId: string) {
