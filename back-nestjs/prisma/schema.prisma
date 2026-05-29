@@ -134,6 +134,8 @@ model Event {
   cordinatY Float?
   cordinatX Float?
 
+  dataStartRegistration DateTime?
+  dataEndRegistration DateTime?
   dataStart    DateTime
   dataEnd      DateTime
   dateDeadLine DateTime?

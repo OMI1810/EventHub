@@ -7,6 +7,7 @@ import {
 import { EventFormat, EventStatus, Prisma, Role, TagType } from "@prisma/client";
 import {
   CreateEventDto,
+  CreateEventStatus,
   CreateEventType,
   EventCaseDto,
   EventMaterialDto,
@@ -120,11 +121,22 @@ export class EventsService {
             dto.format === EventFormat.ONLINE ? "Онлайн" : dto.address.trim(),
           cordinatX: dto.cordinatX ?? null,
           cordinatY: dto.cordinatY ?? null,
+          dataStartRegistration:
+            dto.status === CreateEventStatus.PUBLIC
+              ? new Date(dto.dataStartRegistration!)
+              : null,
+          dataEndRegistration:
+            dto.status === CreateEventStatus.PUBLIC
+              ? new Date(dto.dataEndRegistration!)
+              : null,
           dataStart: new Date(dto.dataStart),
           dataEnd: new Date(dto.dataEnd),
           dateDeadLine: dto.dateDeadLine ? new Date(dto.dateDeadLine) : null,
           format: dto.format,
-          status: EventStatus.PRIVATE,
+          status:
+            dto.status === CreateEventStatus.PUBLIC
+              ? EventStatus.PUBLISHED
+              : EventStatus.PRIVATE,
           hasCases: features.hasCases,
           hasTeams: features.hasTeams,
           hasParticipantLimit: features.hasParticipantLimit,

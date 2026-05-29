@@ -22,6 +22,11 @@ export enum CreateEventType {
   CONTEST = "CONTEST",
 }
 
+export enum CreateEventStatus {
+  PRIVATE = "PRIVATE",
+  PUBLIC = "PUBLIC",
+}
+
 export class CaseSettingsDto {
   @IsISO8601()
   dateForStartSelected: string;
@@ -115,6 +120,17 @@ export class CreateEventDto {
 
   @IsISO8601()
   dataEnd: string;
+
+  @IsEnum(CreateEventStatus)
+  status: CreateEventStatus;
+
+  @ValidateIf((dto: CreateEventDto) => dto.status === CreateEventStatus.PUBLIC)
+  @IsISO8601()
+  dataStartRegistration?: string;
+
+  @ValidateIf((dto: CreateEventDto) => dto.status === CreateEventStatus.PUBLIC)
+  @IsISO8601()
+  dataEndRegistration?: string;
 
   @ValidateIf(
     (dto: CreateEventDto) =>
