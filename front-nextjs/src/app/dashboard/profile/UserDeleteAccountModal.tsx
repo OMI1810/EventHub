@@ -4,7 +4,7 @@ import { ProfileDeleteAccountModal } from '@/app/profile/components/ProfileDelet
 import { PUBLIC_PAGES } from '@/config/pages/public.config'
 import authTokenService from '@/services/auth/auth-token.service'
 import authService from '@/services/auth/auth.service'
-import adminProfileService from '@/services/admin-profile.service'
+import userService from '@/services/user.service'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
@@ -13,12 +13,12 @@ interface Props {
 	onClose: () => void
 }
 
-export function AdminDeleteAccountModal({ onClose }: Props) {
+export function UserDeleteAccountModal({ onClose }: Props) {
 	const router = useRouter()
 
 	const { mutate: mutateDeleteProfile, isPending } = useMutation({
-		mutationKey: ['admin', 'profile', 'delete'],
-		mutationFn: () => adminProfileService.deleteProfile(),
+		mutationKey: ['user', 'profile', 'delete'],
+		mutationFn: () => userService.deleteProfile(),
 		async onSuccess() {
 			try {
 				await authService.logout()
@@ -27,18 +27,18 @@ export function AdminDeleteAccountModal({ onClose }: Props) {
 			}
 
 			authTokenService.removeAccessToken()
-			toast.success('Аккаунт администратора удалён')
+			toast.success('Аккаунт пользователя удалён')
 			router.push(PUBLIC_PAGES.LOGIN)
 		},
 		onError() {
-			toast.error('Не удалось удалить аккаунт администратора')
+			toast.error('Не удалось удалить аккаунт пользователя')
 		}
 	})
 
 	return (
 		<ProfileDeleteAccountModal
-			title="Удалить аккаунт администратора"
-			description="Вы точно хотите удалить аккаунт администратора? Это действие удалит сам аккаунт, все связи с организациями и все поданные заявки на вступление."
+			title="Удалить аккаунт пользователя"
+			description="Вы точно хотите удалить аккаунт пользователя? Это действие удалит сам аккаунт, все привязки к командам и все ваши заявки на участие."
 			confirmLabel="Да, удалить"
 			pendingLabel="Удаление..."
 			isPending={isPending}
