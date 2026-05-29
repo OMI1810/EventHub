@@ -69,7 +69,7 @@ export function AdminQrScannerPanel({ onDetected, onClose }: Props) {
 				if (isMounted) {
 					setIsStarting(false)
 				}
-			} catch (error) {
+			} catch {
 				if (!isMounted) return
 
 				setIsStarting(false)
@@ -106,17 +106,11 @@ export function AdminQrScannerPanel({ onDetected, onClose }: Props) {
 	}, [elementId])
 
 	return (
-		<div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/70 px-4 py-4">
+		<div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/70 p-4">
 			<div className="flex items-start justify-between gap-4">
-				<div>
-					<p className="text-sm font-medium text-zinc-200">
-						Сканирование QR-кода
-					</p>
-					<p className="mt-2 text-sm text-zinc-400">
-						Наведите камеру на QR-код приглашения. После считывания код
-						автоматически подставится в поле выше.
-					</p>
-				</div>
+				<p className="text-sm font-medium text-zinc-200">
+					Сканирование QR-кода
+				</p>
 
 				<button
 					type="button"
