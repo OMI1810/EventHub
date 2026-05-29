@@ -6,6 +6,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { OrganizationInviteQrModal } from './OrganizationInviteQrModal'
+import { OrganizationRegenerateInviteModal } from './OrganizationRegenerateInviteModal'
 
 function formatInviteExpiry(expiresAt: string) {
 	return new Intl.DateTimeFormat('ru-RU', {
@@ -18,18 +19,30 @@ function formatInviteExpiry(expiresAt: string) {
 export function OrganizationInviteSection() {
 	const [invite, setInvite] = useState<IOrganizationInviteResponse | null>(null)
 	const [isQrModalOpen, setIsQrModalOpen] = useState(false)
+	const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false)
 
 	const { mutate: mutateCreateInvite, isPending } = useMutation({
 		mutationKey: ['organization', 'invite', 'create'],
 		mutationFn: () => organizationService.createInviteForMyOrganization(),
 		onSuccess(response) {
 			setInvite(response.data)
+			setIsQrModalOpen(false)
+			setIsRegenerateModalOpen(false)
 			toast.success('Код приглашения сгенерирован')
 		},
 		onError() {
 			toast.error('Не удалось сгенерировать код приглашения')
 		}
 	})
+
+	const handleGenerateInvite = () => {
+		if (invite) {
+			setIsRegenerateModalOpen(true)
+			return
+		}
+
+		mutateCreateInvite()
+	}
 
 	const handleCopyInviteCode = async () => {
 		if (!invite?.code) return
@@ -49,7 +62,9 @@ export function OrganizationInviteSection() {
 					<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 						Приглашение
 					</p>
-					<h2 className="mt-3 text-2xl font-bold">Код приглашения администратора</h2>
+					<h2 className="mt-3 text-2xl font-bold">
+						Код приглашения администратора
+					</h2>
 					<p className="mt-3 text-sm text-zinc-400">
 						Сгенерируйте одноразовый код для уже существующего аккаунта
 						администратора. Если потеряете его, просто создайте новый.
@@ -58,7 +73,7 @@ export function OrganizationInviteSection() {
 
 				<button
 					type="button"
-					onClick={() => mutateCreateInvite()}
+					onClick={handleGenerateInvite}
 					disabled={isPending}
 					className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
 				>
@@ -94,7 +109,9 @@ export function OrganizationInviteSection() {
 							<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 								QR Code
 							</p>
-							<p className="mt-3 text-lg font-semibold text-zinc-100">Открыть QR</p>
+							<p className="mt-3 text-lg font-semibold text-zinc-100">
+								Открыть QR
+							</p>
 							<p className="mt-4 text-sm text-zinc-400">
 								Показать этот же код приглашения в виде QR для сканирования.
 							</p>
@@ -103,8 +120,8 @@ export function OrganizationInviteSection() {
 				) : (
 					<div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-5">
 						<p className="text-sm text-zinc-400">
-							На этой странице пока нет активного кода. Сгенерируйте его, чтобы
-							показать здесь.
+							На этой странице пока нет активного кода. Сгенерируйте его,
+							чтобы показать здесь.
 						</p>
 					</div>
 				)}
@@ -114,6 +131,15 @@ export function OrganizationInviteSection() {
 				<OrganizationInviteQrModal
 					code={invite.code}
 					onClose={() => setIsQrModalOpen(false)}
+				/>
+			) : null}
+
+			{invite && isRegenerateModalOpen ? (
+				<OrganizationRegenerateInviteModal
+					expiresAt={invite.expiresAt}
+					isPending={isPending}
+					onClose={() => setIsRegenerateModalOpen(false)}
+					onConfirm={() => mutateCreateInvite()}
 				/>
 			) : null}
 		</section>
