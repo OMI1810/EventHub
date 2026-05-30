@@ -43,6 +43,7 @@ export interface EventCaseDraft {
   title: string;
   description?: string;
   teamLimit?: number;
+  tags: EventTagDraft[];
   materials: EventCaseMaterialDraft[];
 }
 

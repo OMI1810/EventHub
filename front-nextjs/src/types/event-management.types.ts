@@ -1,4 +1,9 @@
-import { EventFormat, EventPublicationStatus } from "./event-create.types";
+import {
+  EventFormat,
+  EventPublicationStatus,
+  EventTagDraft,
+  EventTagOption,
+} from "./event-create.types";
 
 export type ManagedEventStatus =
   | "FINISHED"
@@ -61,6 +66,7 @@ export interface ManagedEventCase {
     title: string;
     url: string;
   }>;
+  tags: EventTagOption[];
 }
 
 export interface ManagedEventMaterial {
@@ -144,6 +150,7 @@ export interface UpdateManagedEventCaseData {
   dateForStartSelected: string;
   dateForEndSelected: string;
   dateStopCode: string;
+  tags?: EventTagDraft[];
   materials?: UpdateManagedEventCaseMaterialData[];
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { MiniLoader } from "@/components/ui/MiniLoader";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { TRole } from "@/types/user.types";
 import { twMerge } from "tailwind-merge";
 import styles from "./AuthForm.module.scss";
@@ -25,9 +26,11 @@ export function AuthForm({ isLogin }: Props) {
     register,
     selectedRole,
     setValue,
+    watch,
   } = useAuthForm(isLogin);
 
   const isOrganizationCreator = selectedRole === "ORGANIZATOR";
+  const phoneValue = watch("phone") ?? "";
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-sm mx-auto">
@@ -60,10 +63,12 @@ export function AuthForm({ isLogin }: Props) {
           <div className="mb-4">
             <label className="text-gray-600">
               Телефон
-              <input
-                type="tel"
+              <PhoneInput
                 placeholder="Введите телефон"
-                {...register("phone")}
+                value={phoneValue}
+                onChange={(value) =>
+                  setValue("phone", value, { shouldDirty: true })
+                }
                 className={styles["input-field"]}
               />
             </label>

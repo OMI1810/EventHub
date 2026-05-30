@@ -190,6 +190,17 @@ export class EventsService {
                 url: true,
               },
             },
+            tag: {
+              select: {
+                tag: {
+                  select: {
+                    idTag: true,
+                    name: true,
+                    type: true,
+                  },
+                },
+              },
+            },
           },
           orderBy: {
             title: "asc",
@@ -222,6 +233,11 @@ export class EventsService {
         ...team,
         membersCount: team.user.length,
         user: undefined,
+      })),
+      cases: event.cases.map((eventCase) => ({
+        ...eventCase,
+        tags: eventCase.tag.map((caseTag) => caseTag.tag),
+        tag: undefined,
       })),
     };
   }
@@ -466,6 +482,12 @@ export class EventsService {
           savedCase.idCase,
           eventCase.materials ?? [],
         );
+        await this.syncCaseTags(
+          prisma,
+          savedCase.idCase,
+          userId,
+          eventCase.tags ?? [],
+        );
       }
 
       await this.deleteUnusedCases(prisma, eventId, [...keepCaseIds]);
@@ -478,6 +500,11 @@ export class EventsService {
           cases: {
             include: {
               materials: true,
+              tag: {
+                include: {
+                  tag: true,
+                },
+              },
             },
             orderBy: {
               title: "asc",
@@ -617,7 +644,7 @@ export class EventsService {
         event.idEvent,
         dto.eventMaterials ?? [],
       );
-      await this.createCases(prisma, event.idEvent, dto, features);
+      await this.createCases(prisma, event.idEvent, userId, dto, features);
 
       return event;
     });
@@ -783,6 +810,47 @@ export class EventsService {
         caseId,
         idMaterial: {
           notIn: [...keepIds],
+        },
+      },
+    });
+  }
+
+  private async syncCaseTags(
+    prisma: Prisma.TransactionClient,
+    caseId: string,
+    userId: string,
+    tags: EventTagInputDto[],
+  ) {
+    const linkedTagIds = new Set<string>();
+    const uniqueTags = this.normalizeTags(tags);
+
+    for (const input of uniqueTags) {
+      const tag = input.id
+        ? await this.getAvailableTag(prisma, input.id, userId)
+        : await this.getOrCreateCustomTag(prisma, input.name!, userId);
+
+      linkedTagIds.add(tag.idTag);
+
+      await prisma.caseTag.upsert({
+        where: {
+          caseId_tagId: {
+            caseId,
+            tagId: tag.idTag,
+          },
+        },
+        update: {},
+        create: {
+          caseId,
+          tagId: tag.idTag,
+        },
+      });
+    }
+
+    await prisma.caseTag.deleteMany({
+      where: {
+        caseId,
+        tagId: {
+          notIn: [...linkedTagIds],
         },
       },
     });
@@ -977,6 +1045,7 @@ export class EventsService {
   private async createCases(
     prisma: Prisma.TransactionClient,
     eventId: string,
+    userId: string,
     dto: CreateEventDto,
     features: EventFeaturePreset,
   ) {
@@ -1005,6 +1074,12 @@ export class EventsService {
         createdCase.idCase,
         eventCase,
       );
+      await this.createCaseTags(
+        prisma,
+        createdCase.idCase,
+        userId,
+        eventCase.tags ?? [],
+      );
     }
   }
 
@@ -1021,6 +1096,32 @@ export class EventsService {
           url: material.url.trim(),
           eventId,
           caseId,
+        },
+      });
+    }
+  }
+
+  private async createCaseTags(
+    prisma: Prisma.TransactionClient,
+    caseId: string,
+    userId: string,
+    tags: EventTagInputDto[],
+  ) {
+    const linkedTagIds = new Set<string>();
+    const uniqueTags = this.normalizeTags(tags);
+
+    for (const input of uniqueTags) {
+      const tag = input.id
+        ? await this.getAvailableTag(prisma, input.id, userId)
+        : await this.getOrCreateCustomTag(prisma, input.name!, userId);
+
+      if (linkedTagIds.has(tag.idTag)) continue;
+      linkedTagIds.add(tag.idTag);
+
+      await prisma.caseTag.create({
+        data: {
+          caseId,
+          tagId: tag.idTag,
         },
       });
     }

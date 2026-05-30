@@ -69,6 +69,13 @@ export class EventCaseDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => EventTagInputDto)
+  tags?: EventTagInputDto[];
+
+  @IsOptional()
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => EventCaseMaterialDto)
   materials?: EventCaseMaterialDto[];

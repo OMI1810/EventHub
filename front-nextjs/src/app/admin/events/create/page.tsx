@@ -73,6 +73,9 @@ interface CaseModalForm {
   teamLimit: string;
   materialTitle: string;
   materialUrl: string;
+  tagSearch: string;
+  isTagDropdownOpen: boolean;
+  tags: EventTagDraft[];
   materials: EventCaseMaterialDraft[];
 }
 
@@ -161,6 +164,9 @@ const createEmptyCaseModal = (): CaseModalForm => ({
   teamLimit: "",
   materialTitle: "",
   materialUrl: "",
+  tagSearch: "",
+  isTagDropdownOpen: false,
+  tags: [],
   materials: [],
 });
 
@@ -387,6 +393,7 @@ export default function CreateEventPage() {
       title: caseModal.title.trim(),
       description: caseModal.description.trim() || undefined,
       teamLimit: caseModal.teamLimit ? Number(caseModal.teamLimit) : undefined,
+      tags: caseModal.tags,
       materials: caseModal.materials,
     };
 
@@ -409,6 +416,9 @@ export default function CreateEventPage() {
       teamLimit: eventCase.teamLimit ? String(eventCase.teamLimit) : "",
       materialTitle: "",
       materialUrl: "",
+      tagSearch: "",
+      isTagDropdownOpen: false,
+      tags: eventCase.tags,
       materials: eventCase.materials,
     });
   };
@@ -754,6 +764,18 @@ export default function CreateEventPage() {
                       <p className="mt-1 text-xs text-zinc-500">
                         Материалов: {eventCase.materials.length}
                       </p>
+                      {eventCase.tags.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {eventCase.tags.map((tag) => (
+                            <span
+                              key={tag.id ?? tag.name}
+                              className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-zinc-300"
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <button
@@ -886,6 +908,7 @@ export default function CreateEventPage() {
 
       {caseModal && (
         <CaseModal
+          availableTags={availableTags}
           form={caseModal}
           onChange={setCaseModal}
           onClose={() => setCaseModal(null)}
@@ -1232,11 +1255,13 @@ function FeatureCheckbox({
 }
 
 function CaseModal({
+  availableTags,
   form,
   onChange,
   onClose,
   onSave,
 }: {
+  availableTags: EventTagOption[];
   form: CaseModalForm;
   onChange: (form: CaseModalForm) => void;
   onClose: () => void;
@@ -1244,6 +1269,62 @@ function CaseModal({
 }) {
   const update = (field: keyof CaseModalForm, value: string) => {
     onChange({ ...form, [field]: value });
+  };
+
+  const filteredCaseTags = availableTags.filter((tag) => {
+    const query = normalizeTagName(form.tagSearch);
+    const alreadySelected = form.tags.some((selectedTag) => {
+      if (selectedTag.id && selectedTag.id === tag.idTag) return true;
+      return normalizeTagName(selectedTag.name) === normalizeTagName(tag.name);
+    });
+
+    if (alreadySelected) return false;
+    if (!query) return true;
+
+    return normalizeTagName(tag.name).includes(query);
+  });
+
+  const addCaseTag = (tag: EventTagDraft) => {
+    const normalizedName = normalizeTagName(tag.name);
+    const isSelected = form.tags.some((selectedTag) => {
+      if (tag.id && selectedTag.id === tag.id) return true;
+      return normalizeTagName(selectedTag.name) === normalizedName;
+    });
+
+    if (isSelected || !normalizedName) return;
+
+    onChange({
+      ...form,
+      tagSearch: "",
+      isTagDropdownOpen: false,
+      tags: [...form.tags, tag],
+    });
+  };
+
+  const addCaseTagFromSearch = () => {
+    const name = form.tagSearch.trim();
+
+    if (!name) return;
+
+    const existingTag = availableTags.find(
+      (tag) => normalizeTagName(tag.name) === normalizeTagName(name),
+    );
+
+    addCaseTag(
+      existingTag
+        ? { id: existingTag.idTag, name: existingTag.name }
+        : { name },
+    );
+  };
+
+  const removeCaseTag = (tag: EventTagDraft) => {
+    onChange({
+      ...form,
+      tags: form.tags.filter((item) => {
+        if (tag.id) return item.id !== tag.id;
+        return normalizeTagName(item.name) !== normalizeTagName(tag.name);
+      }),
+    });
   };
 
   const addCaseMaterial = () => {
@@ -1300,6 +1381,27 @@ function CaseModal({
             label="Описание"
             value={form.description}
             onChange={(value) => update("description", value)}
+          />
+          <TagCombobox
+            filteredTags={filteredCaseTags}
+            isOpen={form.isTagDropdownOpen}
+            search={form.tagSearch}
+            selectedTags={form.tags}
+            onAddFromSearch={addCaseTagFromSearch}
+            onInputFocus={() =>
+              onChange({ ...form, isTagDropdownOpen: true })
+            }
+            onRemoveTag={removeCaseTag}
+            onSearchChange={(value) =>
+              onChange({
+                ...form,
+                tagSearch: value,
+                isTagDropdownOpen: true,
+              })
+            }
+            onSelectTag={(tag) =>
+              addCaseTag({ id: tag.idTag, name: tag.name })
+            }
           />
           <div className="max-w-56">
             <TextField

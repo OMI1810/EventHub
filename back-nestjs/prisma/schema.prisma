@@ -135,10 +135,10 @@ model Event {
   cordinatX Float?
 
   dataStartRegistration DateTime?
-  dataEndRegistration DateTime?
-  dataStart    DateTime
-  dataEnd      DateTime
-  dateDeadLine DateTime?
+  dataEndRegistration   DateTime?
+  dataStart             DateTime
+  dataEnd               DateTime
+  dateDeadLine          DateTime?
 
   format EventFormat
   status EventStatus @default(PUBLISHED)
@@ -189,6 +189,7 @@ model Tag {
   user   User?   @relation(fields: [userId], references: [idUser])
 
   event EventTag[]
+  cases CaseTag[]
 
   @@unique([slug, userId])
   @@map("tags")
@@ -213,8 +214,19 @@ model Case {
   teams     Team[]
   solutions Solution[]
   results   Result[]
+  tag       CaseTag[]
 
   @@map("cases")
+}
+
+model CaseTag {
+  caseId String @map("case_id")
+  case   Case   @relation(fields: [caseId], references: [idCase], onDelete: Cascade)
+  tagId  String @map("tag_id")
+  tag    Tag    @relation(fields: [tagId], references: [idTag], onDelete: Cascade)
+
+  @@unique([caseId, tagId])
+  @@map("case_tag")
 }
 
 model Material {

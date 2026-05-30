@@ -11,6 +11,7 @@ import {
   Min,
   ValidateNested,
 } from "class-validator";
+import { EventTagInputDto } from "./create-event.dto";
 
 export class UpdateEventSettingsDto {
   @IsOptional()
@@ -130,6 +131,13 @@ export class UpdateEventCaseItemDto {
 
   @IsISO8601()
   dateStopCode: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => EventTagInputDto)
+  tags?: EventTagInputDto[];
 
   @IsOptional()
   @IsArray()
