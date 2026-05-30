@@ -1,4 +1,5 @@
-﻿import { ADMIN_PAGES } from "@/config/pages/admin.config";
+
+import { ADMIN_PAGES } from "@/config/pages/admin.config";
 import { DASHBOARD_PAGES } from "@/config/pages/dashboard.config";
 import { PUBLIC_PAGES } from "@/config/pages/public.config";
 import Link from "next/link";
