@@ -253,6 +253,15 @@ export class EventsService {
       throw new BadRequestException("Завершенное мероприятие нельзя редактировать");
     }
 
+    this.validateEventDateRange(dto.dataStart, dto.dataEnd);
+
+    if (dto.status === CreateEventStatus.PUBLIC) {
+      this.validateRegistrationDateRange(
+        dto.dataStartRegistration!,
+        dto.dataEndRegistration!,
+      );
+    }
+
     return this.prisma.event.update({
       where: {
         idEvent: eventId,
@@ -595,6 +604,14 @@ export class EventsService {
 
     const features = this.resolveFeatures(dto);
     this.validatePresetPayload(dto, features);
+    this.validateEventDateRange(dto.dataStart, dto.dataEnd);
+
+    if (dto.status === CreateEventStatus.PUBLIC) {
+      this.validateRegistrationDateRange(
+        dto.dataStartRegistration!,
+        dto.dataEndRegistration!,
+      );
+    }
 
     return this.prisma.$transaction(async (prisma) => {
       const event = await prisma.event.create({
@@ -1130,6 +1147,22 @@ export class EventsService {
   private optionalString(value?: string) {
     const normalized = value?.trim();
     return normalized ? normalized : undefined;
+  }
+
+  private validateEventDateRange(start: string, end: string) {
+    if (new Date(start) > new Date(end)) {
+      throw new BadRequestException(
+        "Р”Р°С‚Р° РѕРєРѕРЅС‡Р°РЅРёСЏ РјРµСЂРѕРїСЂРёСЏС‚РёСЏ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ СЂР°РЅСЊС€Рµ РґР°С‚С‹ РЅР°С‡Р°Р»Р°",
+      );
+    }
+  }
+
+  private validateRegistrationDateRange(start: string, end: string) {
+    if (new Date(start) > new Date(end)) {
+      throw new BadRequestException(
+        "Р”Р°С‚Р° РѕРєРѕРЅС‡Р°РЅРёСЏ СЂРµРіРёСЃС‚СЂР°С†РёРё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ СЂР°РЅСЊС€Рµ РґР°С‚С‹ РЅР°С‡Р°Р»Р° СЂРµРіРёСЃС‚СЂР°С†РёРё",
+      );
+    }
   }
 
   private toSlug(value: string) {
