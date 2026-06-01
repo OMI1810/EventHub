@@ -2,11 +2,13 @@
 import { ADMIN_PAGES } from "@/config/pages/admin.config";
 import { DASHBOARD_PAGES } from "@/config/pages/dashboard.config";
 import { PUBLIC_PAGES } from "@/config/pages/public.config";
+import { USER_PAGES } from "@/config/pages/user.config";
 import Link from "next/link";
 
 const pages = [
   PUBLIC_PAGES.LOGIN,
   DASHBOARD_PAGES.PROFILE,
+  USER_PAGES.HOME,
   ADMIN_PAGES.PROFILE,
   ADMIN_PAGES.EVENTS,
   ADMIN_PAGES.EVENT_CREATE,
