@@ -77,6 +77,7 @@ model User {
   organizationJoinRequest OrganizationJoinRequest[]
   solutions               Solution[]
   results                 Result[]
+  eventParticipant        UserEvent[]
 
   @@map("users")
 }
@@ -164,8 +165,21 @@ model Event {
   userId         String       @map("user_id")
   user           User         @relation(fields: [userId], references: [idUser])
   tag            EventTag[]
+  participant UserEvent[]
 
   @@map("events")
+}
+
+model UserEvent {
+  eventId String @map("event_id")
+  event   Event  @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
+  userId  String @map("user_id")
+  user    User    @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+
+  createAt DateTime @default(now()) @map("create_at")
+
+  @@unique([eventId, userId])
+  @@map("user_event")
 }
 
 model EventTag {
@@ -262,6 +276,8 @@ model Team {
   name        String
   description String?
   format      TeamFormat
+
+  createAt DateTime @default(now()) @map("create_at")
 
   captionId String @map("caption_id")
   caption   User   @relation("TeamCaption", fields: [captionId], references: [idUser])
