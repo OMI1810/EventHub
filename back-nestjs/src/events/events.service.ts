@@ -1,3 +1,5 @@
+import { InviteCoreService } from "@/invites/invite-core.service";
+import { BaseInvitePayload } from "@/invites/invite.types";
 import { PrismaService } from "@/prisma.service";
 import {
   BadRequestException,
@@ -5,7 +7,13 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { EventFormat, EventStatus, Prisma, Role, TagType } from "@prisma/client";
+import {
+  EventFormat,
+  EventStatus,
+  Prisma,
+  Role,
+  TagType,
+} from "@prisma/client";
 import {
   CreateEventDto,
   CreateEventStatus,
@@ -14,7 +22,6 @@ import {
   EventMaterialDto,
   EventTagInputDto,
 } from "./dto/create-event.dto";
-import { EventInviteService } from "./event-invite.service";
 import {
   UpdateEventCaseMaterialDto,
   UpdateEventCasesDto,
@@ -22,6 +29,10 @@ import {
   UpdateEventSettingsDto,
 } from "./dto/update-event-blocks.dto";
 import { UpdateEventGeneralDto } from "./dto/update-event-general.dto";
+import {
+  UpdateEventResultItemDto,
+  UpdateEventResultsDto,
+} from "./dto/update-event-results.dto";
 
 interface EventFeaturePreset {
   hasCases: boolean;
@@ -30,6 +41,11 @@ interface EventFeaturePreset {
   hasLoadedSolution: boolean;
   hasMaterials: boolean;
   hasResualt: boolean;
+}
+
+interface EventInvitePayload extends BaseInvitePayload {
+  eventId: string;
+  createdByUserId: string;
 }
 
 const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
@@ -61,9 +77,12 @@ const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
 
 @Injectable()
 export class EventsService {
+  private readonly inviteScope = "event";
+  private readonly inviteTtlSeconds = 600;
+
   constructor(
     private readonly prisma: PrismaService,
-    private readonly eventInviteService: EventInviteService,
+    private readonly inviteCoreService: InviteCoreService,
   ) {}
 
   async getMyEvents(userId: string) {
@@ -193,6 +212,7 @@ export class EventsService {
         participant: {
           select: {
             createAt: true,
+            caseId: true,
             user: {
               select: {
                 idUser: true,
@@ -253,6 +273,18 @@ export class EventsService {
             title: "asc",
           },
         },
+        results: {
+          select: {
+            idResult: true,
+            place: true,
+            caseId: true,
+            teamId: true,
+            userId: true,
+          },
+          orderBy: {
+            place: "asc",
+          },
+        },
       },
     });
 
@@ -290,7 +322,9 @@ export class EventsService {
     const event = await this.ensureEventAccess(userId, eventId);
 
     if (event.status === EventStatus.FINISHED) {
-      throw new BadRequestException("Завершенное мероприятие нельзя редактировать");
+      throw new BadRequestException(
+        "Завершенное мероприятие нельзя редактировать",
+      );
     }
 
     this.validateEventDateRange(dto.dataStart, dto.dataEnd);
@@ -572,6 +606,112 @@ export class EventsService {
     });
   }
 
+  async updateMyEventResults(
+    userId: string,
+    eventId: string,
+    dto: UpdateEventResultsDto,
+  ) {
+    await this.ensureEditableEventAccess(userId, eventId);
+
+    const event = await this.prisma.event.findUnique({
+      where: {
+        idEvent: eventId,
+      },
+      select: {
+        idEvent: true,
+        hasCases: true,
+        hasTeams: true,
+        hasResualt: true,
+        cases: {
+          select: {
+            idCase: true,
+          },
+        },
+        teams: {
+          select: {
+            idTeam: true,
+            name: true,
+            caseId: true,
+          },
+        },
+        participant: {
+          select: {
+            caseId: true,
+            userId: true,
+            user: {
+              select: {
+                name: true,
+                surname: true,
+                patronymic: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException("Мероприятие не найдено");
+    }
+
+    if (!event.hasResualt) {
+      throw new BadRequestException(
+        "Для этого мероприятия не включены результаты",
+      );
+    }
+
+    const results = this.validateEventResultsPayload(event, dto.results);
+
+    await this.prisma.$transaction(async (prisma) => {
+      for (const result of results) {
+        const targetWhere = result.teamId
+          ? { eventId, teamId: result.teamId }
+          : { eventId, userId: result.userId };
+
+        if (!result.place) {
+          await prisma.result.deleteMany({
+            where: targetWhere,
+          });
+          continue;
+        }
+
+        const existingResult = await prisma.result.findFirst({
+          where: targetWhere,
+          select: {
+            idResult: true,
+          },
+        });
+
+        const data = {
+          title: `Place ${result.place}`,
+          place: result.place,
+          caseId: result.caseId,
+          teamId: result.teamId ?? null,
+          userId: result.userId ?? null,
+        };
+
+        if (existingResult) {
+          await prisma.result.update({
+            where: {
+              idResult: existingResult.idResult,
+            },
+            data,
+          });
+          continue;
+        }
+
+        await prisma.result.create({
+          data: {
+            ...data,
+            eventId,
+          },
+        });
+      }
+    });
+
+    return this.getMyEventDetails(userId, eventId);
+  }
+
   async finishMyEvent(userId: string, eventId: string) {
     await this.ensureEventAccess(userId, eventId);
 
@@ -594,7 +734,22 @@ export class EventsService {
       );
     }
 
-    return this.eventInviteService.createEventInvite(eventId, userId);
+    const expiresAt = this.inviteCoreService.createExpiresAt(
+      this.inviteTtlSeconds,
+    );
+    const payload: EventInvitePayload = {
+      eventId,
+      createdByUserId: userId,
+      expiresAt,
+      nonce: this.inviteCoreService.createNonce(),
+    };
+
+    return this.inviteCoreService.createScopedInvite({
+      scope: this.inviteScope,
+      entityId: eventId,
+      payload,
+      ttlSeconds: this.inviteTtlSeconds,
+    });
   }
 
   async getCreateOptions(userId: string) {
@@ -715,6 +870,114 @@ export class EventsService {
     });
   }
 
+  private validateEventResultsPayload(
+    event: {
+      hasCases: boolean;
+      hasTeams: boolean;
+      cases: Array<{ idCase: string }>;
+      teams: Array<{ idTeam: string; name: string; caseId: string | null }>;
+      participant: Array<{
+        userId: string;
+        caseId: string | null;
+        user: {
+          name: string | null;
+          surname: string | null;
+          patronymic: string | null;
+        };
+      }>;
+    },
+    items: UpdateEventResultItemDto[],
+  ) {
+    const caseIds = new Set(event.cases.map((eventCase) => eventCase.idCase));
+    const teamById = new Map(event.teams.map((team) => [team.idTeam, team]));
+    const participantByUserId = new Map(
+      event.participant.map((participant) => [participant.userId, participant]),
+    );
+    const targetKeys = new Set<string>();
+    const placeByScope = new Map<string, number>();
+
+    return items.map((item) => {
+      const hasTeam = Boolean(item.teamId);
+      const hasUser = Boolean(item.userId);
+
+      if (hasTeam === hasUser) {
+        throw new BadRequestException(
+          "Для результата нужно указать команду или участника",
+        );
+      }
+
+      if (event.hasTeams && !item.teamId) {
+        throw new BadRequestException(
+          "Для командного мероприятия нужно указать команду",
+        );
+      }
+
+      if (!event.hasTeams && !item.userId) {
+        throw new BadRequestException(
+          "Для индивидуального мероприятия нужно указать участника",
+        );
+      }
+
+      const caseId = event.hasCases ? item.caseId : null;
+
+      if (event.hasCases && (!caseId || !caseIds.has(caseId))) {
+        throw new BadRequestException("Кейс не принадлежит мероприятию");
+      }
+
+      if (item.teamId) {
+        const team = teamById.get(item.teamId);
+
+        if (!team) {
+          throw new BadRequestException("Команда не принадлежит мероприятию");
+        }
+
+        if (event.hasCases && team.caseId !== caseId) {
+          throw new BadRequestException("Команда не выбрала этот кейс");
+        }
+      }
+
+      if (item.userId) {
+        const participant = participantByUserId.get(item.userId);
+
+        if (!participant) {
+          throw new BadRequestException("Участник не принадлежит мероприятию");
+        }
+
+        if (event.hasCases && participant.caseId !== caseId) {
+          throw new BadRequestException("Участник не выбрал этот кейс");
+        }
+      }
+
+      const targetKey = item.teamId
+        ? `team:${item.teamId}`
+        : `user:${item.userId}`;
+
+      if (targetKeys.has(targetKey)) {
+        throw new BadRequestException("Цель результата повторяется");
+      }
+
+      targetKeys.add(targetKey);
+
+      if (item.place) {
+        const scopeKey = event.hasCases ? caseId! : "event";
+        const placeKey = `${scopeKey}:${item.place}`;
+
+        if (placeByScope.has(placeKey)) {
+          throw new BadRequestException("Места не должны повторяться");
+        }
+
+        placeByScope.set(placeKey, item.place);
+      }
+
+      return {
+        caseId,
+        teamId: item.teamId,
+        userId: item.userId,
+        place: item.place,
+      };
+    });
+  }
+
   private validatePresetPayload(
     dto: CreateEventDto,
     features: EventFeaturePreset,
@@ -765,7 +1028,9 @@ export class EventsService {
     const event = await this.ensureEventAccess(userId, eventId);
 
     if (event.status === EventStatus.FINISHED) {
-      throw new BadRequestException("Завершенное мероприятие нельзя редактировать");
+      throw new BadRequestException(
+        "Завершенное мероприятие нельзя редактировать",
+      );
     }
 
     return event;

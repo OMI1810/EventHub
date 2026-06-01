@@ -87,12 +87,21 @@ export interface ManagedEventMaterial {
 
 export interface ManagedEventParticipant {
   createAt: string;
+  caseId?: string | null;
   user: {
     idUser: string;
     name?: string | null;
     surname?: string | null;
     patronymic?: string | null;
   };
+}
+
+export interface ManagedEventResult {
+  idResult: string;
+  place: number;
+  caseId?: string | null;
+  teamId?: string | null;
+  userId?: string | null;
 }
 
 export interface ManagedEventDetails extends ManagedEventSummary {
@@ -109,6 +118,7 @@ export interface ManagedEventDetails extends ManagedEventSummary {
   participant: ManagedEventParticipant[];
   cases: ManagedEventCase[];
   materials: ManagedEventMaterial[];
+  results: ManagedEventResult[];
 }
 
 export interface UpdateManagedEventGeneralData {
@@ -177,4 +187,15 @@ export interface UpdateManagedEventCaseData {
 
 export interface UpdateManagedEventCasesData {
   cases: UpdateManagedEventCaseData[];
+}
+
+export interface UpdateManagedEventResultItemData {
+  caseId?: string | null;
+  teamId?: string;
+  userId?: string;
+  place?: number | null;
+}
+
+export interface UpdateManagedEventResultsData {
+  results: UpdateManagedEventResultItemData[];
 }

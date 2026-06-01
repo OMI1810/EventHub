@@ -11,6 +11,7 @@ import {
   UpdateManagedEventCasesData,
   UpdateManagedEventGeneralData,
   UpdateManagedEventMaterialsData,
+  UpdateManagedEventResultsData,
   UpdateManagedEventSettingsData,
 } from "@/types/event-management.types";
 
@@ -70,6 +71,16 @@ class EventService {
   async updateMyEventCases(eventId: string, data: UpdateManagedEventCasesData) {
     return instance.patch<ManagedEventDetails>(
       `${this.baseUrl}/my/${eventId}/cases`,
+      data,
+    );
+  }
+
+  async updateMyEventResults(
+    eventId: string,
+    data: UpdateManagedEventResultsData,
+  ) {
+    return instance.patch<ManagedEventDetails>(
+      `${this.baseUrl}/my/${eventId}/results`,
       data,
     );
   }

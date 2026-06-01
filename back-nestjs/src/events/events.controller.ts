@@ -18,6 +18,7 @@ import {
   UpdateEventSettingsDto,
 } from "./dto/update-event-blocks.dto";
 import { UpdateEventGeneralDto } from "./dto/update-event-general.dto";
+import { UpdateEventResultsDto } from "./dto/update-event-results.dto";
 import { EventsService } from "./events.service";
 
 @Controller("events")
@@ -101,6 +102,18 @@ export class EventsController {
     @Body() dto: UpdateEventCasesDto,
   ) {
     return this.eventsService.updateMyEventCases(userId, eventId, dto);
+  }
+
+  @Auth()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @HttpCode(200)
+  @Patch("my/:eventId/results")
+  async updateMyEventResults(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Body() dto: UpdateEventResultsDto,
+  ) {
+    return this.eventsService.updateMyEventResults(userId, eventId, dto);
   }
 
   @Auth()

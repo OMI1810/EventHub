@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import { InviteQrModal } from "@/app/invites/components/InviteQrModal";
 import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { MiniLoader } from "@/components/ui/MiniLoader";
 import { ADMIN_PAGES } from "@/config/pages/admin.config";
@@ -13,12 +14,12 @@ import {
   ManagedEventTeam,
   UpdateManagedEventCaseData,
   UpdateManagedEventGeneralData,
+  UpdateManagedEventResultItemData,
 } from "@/types/event-management.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
-import QRCode from "qrcode";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { AdminEventCsvExportModal } from "./AdminEventCsvExportModal";
@@ -120,6 +121,67 @@ function caseToPayload(
   };
 }
 
+function getTargetKey(target: { teamId?: string; userId?: string }) {
+  return target.teamId ? `team:${target.teamId}` : `user:${target.userId}`;
+}
+
+function getResultPlace(
+  event: ManagedEventDetails,
+  target: { caseId?: string | null; teamId?: string; userId?: string },
+) {
+  const result = event.results.find((eventResult) => {
+    const isSameCase = (eventResult.caseId ?? null) === (target.caseId ?? null);
+    const isSameTeam = target.teamId
+      ? eventResult.teamId === target.teamId
+      : true;
+    const isSameUser = target.userId
+      ? eventResult.userId === target.userId
+      : true;
+
+    return isSameCase && isSameTeam && isSameUser;
+  });
+
+  return result?.place?.toString() ?? "";
+}
+
+function getDuplicatePlaces(places: Record<string, string>) {
+  const seenPlaces = new Set<number>();
+  const duplicatePlaces = new Set<number>();
+
+  Object.values(places).forEach((value) => {
+    const place = Number(value);
+    if (!Number.isInteger(place) || place < 1) return;
+
+    if (seenPlaces.has(place)) {
+      duplicatePlaces.add(place);
+      return;
+    }
+
+    seenPlaces.add(place);
+  });
+
+  return duplicatePlaces;
+}
+
+function normalizeSearch(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function buildResultPayload(
+  places: Record<string, string>,
+  targets: Array<{ caseId?: string | null; teamId?: string; userId?: string }>,
+): UpdateManagedEventResultItemData[] {
+  return targets.map((target) => {
+    const value = places[getTargetKey(target)] ?? "";
+    const place = Number(value);
+
+    return {
+      ...target,
+      place: Number.isInteger(place) && place > 0 ? place : null,
+    };
+  });
+}
+
 function Modal({ title, children, onClose, footer, wide }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -179,25 +241,17 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
 
 function EventInviteSection({ eventId }: { eventId: string }) {
   const [invite, setInvite] = useState<EventInviteResponse | null>(null);
-  const [qrCode, setQrCode] = useState("");
   const [isQrOpen, setIsQrOpen] = useState(false);
 
   const createInviteMutation = useMutation({
     mutationFn: () => eventService.createMyEventInvite(eventId),
     onSuccess: (response) => {
       setInvite(response.data);
+      setIsQrOpen(false);
       toast.success("Код приглашения создан");
     },
     onError: () => toast.error("Не удалось создать код приглашения"),
   });
-
-  useEffect(() => {
-    if (!invite?.code) return;
-
-    QRCode.toDataURL(invite.code, { width: 256, margin: 2 })
-      .then(setQrCode)
-      .catch(() => setQrCode(""));
-  }, [invite]);
 
   return (
     <DetailPanel title="Система приглашения">
@@ -218,25 +272,25 @@ function EventInviteSection({ eventId }: { eventId: string }) {
               label="Действует до"
               value={formatDate(invite.expiresAt)}
             />
-            {qrCode ? (
-              <button
-                type="button"
-                onClick={() => setIsQrOpen(true)}
-                className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
-              >
-                Показать QR
-              </button>
-            ) : null}
+
+            <button
+              type="button"
+              onClick={() => setIsQrOpen(true)}
+              className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
+            >
+              Показать QR
+            </button>
           </div>
         ) : null}
       </div>
 
-      {isQrOpen && qrCode ? (
-        <Modal title="QR-код приглашения" onClose={() => setIsQrOpen(false)}>
-          <div className="flex justify-center">
-            <img src={qrCode} alt="QR-код приглашения" className="rounded-md" />
-          </div>
-        </Modal>
+      {invite && isQrOpen ? (
+        <InviteQrModal
+          label="Приглашение"
+          title="QR-код приглашения"
+          code={invite.code}
+          onClose={() => setIsQrOpen(false)}
+        />
       ) : null}
     </DetailPanel>
   );
@@ -692,6 +746,151 @@ function EditEventModal({
   );
 }
 
+interface ResultPlaceTarget {
+  key: string;
+  label: string;
+  description?: string;
+  caseId?: string | null;
+  teamId?: string;
+  userId?: string;
+}
+
+function ResultPlacesEditor({
+  event,
+  targets,
+  title,
+  searchPlaceholder,
+  emptyText,
+}: {
+  event: ManagedEventDetails;
+  targets: ResultPlaceTarget[];
+  title: string;
+  searchPlaceholder: string;
+  emptyText: string;
+}) {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [places, setPlaces] = useState<Record<string, string>>({});
+  const duplicatePlaces = getDuplicatePlaces(places);
+  const normalizedSearch = normalizeSearch(search);
+  const filteredTargets = targets.filter((target) => {
+    if (!normalizedSearch) return true;
+
+    return normalizeSearch(
+      `${target.label} ${target.description ?? ""}`,
+    ).includes(normalizedSearch);
+  });
+
+  useEffect(() => {
+    setPlaces(
+      Object.fromEntries(
+        targets.map((target) => [
+          target.key,
+          getResultPlace(event, {
+            caseId: target.caseId,
+            teamId: target.teamId,
+            userId: target.userId,
+          }),
+        ]),
+      ),
+    );
+  }, [event, targets]);
+
+  const saveResultsMutation = useMutation({
+    mutationFn: () =>
+      eventService.updateMyEventResults(event.idEvent, {
+        results: buildResultPayload(places, targets),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-event", event.idEvent],
+      });
+      toast.success("Места сохранены");
+    },
+    onError: () => toast.error("Не удалось сохранить места"),
+  });
+
+  if (!event.hasResualt) return null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <p className="text-sm font-medium text-zinc-100">{title}</p>
+        <button
+          type="button"
+          onClick={() => saveResultsMutation.mutate()}
+          disabled={saveResultsMutation.isPending || duplicatePlaces.size > 0}
+          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+        >
+          {saveResultsMutation.isPending ? "Сохранение..." : "Сохранить места"}
+        </button>
+      </div>
+
+      <input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder={searchPlaceholder}
+        className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-primary"
+      />
+
+      {duplicatePlaces.size > 0 ? (
+        <p className="text-sm text-red-300">
+          Места не должны повторяться: {[...duplicatePlaces].join(", ")}
+        </p>
+      ) : null}
+
+      <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
+        {filteredTargets.length ? (
+          filteredTargets.map((target) => {
+            const value = places[target.key] ?? "";
+            const numericValue = Number(value);
+            const hasDuplicate =
+              Number.isInteger(numericValue) &&
+              duplicatePlaces.has(numericValue);
+
+            return (
+              <div
+                key={target.key}
+                className="grid gap-3 rounded-md border border-zinc-800 bg-zinc-900/50 p-3 md:grid-cols-[1fr_120px]"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-zinc-100">
+                    {target.label}
+                  </p>
+                  {target.description ? (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {target.description}
+                    </p>
+                  ) : null}
+                </div>
+                <label className="space-y-1">
+                  <span className="text-xs text-zinc-500">Место</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={value}
+                    onChange={(event) =>
+                      setPlaces((currentPlaces) => ({
+                        ...currentPlaces,
+                        [target.key]: event.target.value,
+                      }))
+                    }
+                    className={`w-full rounded-md border bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-primary ${
+                      hasDuplicate ? "border-red-500" : "border-zinc-700"
+                    }`}
+                  />
+                </label>
+              </div>
+            );
+          })
+        ) : (
+          <p className="text-sm text-zinc-500">{emptyText}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TeamModal({
   team,
   onClose,
@@ -752,6 +951,26 @@ function CaseDetailsModal({
   const assignedTeams = event.teams.filter(
     (team) => team.caseId === eventCase.idCase,
   );
+  const assignedParticipants = event.participant.filter(
+    (participant) => participant.caseId === eventCase.idCase,
+  );
+  const caseResultTargets: ResultPlaceTarget[] = event.hasTeams
+    ? assignedTeams.map((team) => ({
+        key: getTargetKey({ teamId: team.idTeam }),
+        label: team.name,
+        description: team.members
+          .map((member) => formatPersonName(member.user))
+          .join(", "),
+        caseId: eventCase.idCase,
+        teamId: team.idTeam,
+      }))
+    : assignedParticipants.map((participant) => ({
+        key: getTargetKey({ userId: participant.user.idUser }),
+        label: formatPersonName(participant.user),
+        description: `Дата присоединения: ${formatDate(participant.createAt)}`,
+        caseId: eventCase.idCase,
+        userId: participant.user.idUser,
+      }));
 
   const saveCaseMutation = useMutation({
     mutationFn: () =>
@@ -841,7 +1060,7 @@ function CaseDetailsModal({
           </label>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-2">
-              <span className="text-sm text-zinc-400">Постановщик</span>
+              <span className="text-sm text-zinc-400">Кейсодержатель</span>
               <input
                 value={form.holder}
                 onChange={(event) =>
@@ -924,7 +1143,7 @@ function CaseDetailsModal({
           />
           <div className="grid gap-4 md:grid-cols-2">
             <InfoRow
-              label="Постановщик"
+              label="Кейсодержатель"
               value={eventCase.holder || "Не указано"}
             />
             <InfoRow
@@ -963,29 +1182,67 @@ function CaseDetailsModal({
           </div>
           <div>
             <p className="mb-3 text-sm text-zinc-500">Кейс выбрали</p>
-            {assignedTeams.length ? (
-              <div className="space-y-3">
-                {assignedTeams.map((team) => (
-                  <div
-                    key={team.idTeam}
-                    className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3"
-                  >
-                    <p className="text-sm font-medium text-zinc-100">
-                      {team.name}
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-500">
-                      {team.members
-                        .map((member) => formatPersonName(member.user))
-                        .join(", ")}
-                    </p>
+            {event.hasResualt ? (
+              <ResultPlacesEditor
+                event={event}
+                targets={caseResultTargets}
+                title="Места по кейсу"
+                searchPlaceholder={
+                  event.hasTeams ? "Поиск команды" : "Поиск участника"
+                }
+                emptyText={
+                  event.hasTeams
+                    ? "Пока нет команд, выбравших этот кейс."
+                    : "Пока нет участников, выбравших этот кейс."
+                }
+              />
+            ) : null}
+            {!event.hasResualt &&
+              (event.hasTeams ? (
+                assignedTeams.length ? (
+                  <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
+                    {assignedTeams.map((team) => (
+                      <div
+                        key={team.idTeam}
+                        className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3"
+                      >
+                        <p className="text-sm font-medium text-zinc-100">
+                          {team.name}
+                        </p>
+                        <p className="mt-2 text-xs text-zinc-500">
+                          {team.members
+                            .map((member) => formatPersonName(member.user))
+                            .join(", ")}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-zinc-500">
-                Пока нет команд или участников, выбравших этот кейс.
-              </p>
-            )}
+                ) : (
+                  <p className="text-sm text-zinc-500">
+                    Пока нет команд, выбравших этот кейс.
+                  </p>
+                )
+              ) : assignedParticipants.length ? (
+                <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
+                  {assignedParticipants.map((participant) => (
+                    <div
+                      key={participant.user.idUser}
+                      className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3"
+                    >
+                      <p className="text-sm font-medium text-zinc-100">
+                        {formatPersonName(participant.user)}
+                      </p>
+                      <p className="mt-2 text-xs text-zinc-500">
+                        Дата присоединения: {formatDate(participant.createAt)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500">
+                  Пока нет участников, выбравших этот кейс.
+                </p>
+              ))}
           </div>
         </div>
       )}
@@ -1224,6 +1481,29 @@ export function AdminEventDetailsPage() {
     });
     return userIds.size;
   }, [event]);
+  const eventResultTargets = useMemo<ResultPlaceTarget[]>(() => {
+    if (!event || event.hasCases || !event.hasResualt) return [];
+
+    if (event.hasTeams) {
+      return event.teams.map((team) => ({
+        key: getTargetKey({ teamId: team.idTeam }),
+        label: team.name,
+        description: team.members
+          .map((member) => formatPersonName(member.user))
+          .join(", "),
+        caseId: null,
+        teamId: team.idTeam,
+      }));
+    }
+
+    return event.participant.map((participant) => ({
+      key: getTargetKey({ userId: participant.user.idUser }),
+      label: formatPersonName(participant.user),
+      description: `Дата присоединения: ${formatDate(participant.createAt)}`,
+      caseId: null,
+      userId: participant.user.idUser,
+    }));
+  }, [event]);
 
   if (isLoading) {
     return (
@@ -1308,7 +1588,7 @@ export function AdminEventDetailsPage() {
         <DetailPanel title="Статус">
           <p className="text-2xl font-semibold text-zinc-100">{event.status}</p>
         </DetailPanel>
-        <DetailPanel title="Участники">
+        <DetailPanel title="Зарегистрировано">
           <p className="text-2xl font-semibold text-zinc-100">{totalMembers}</p>
         </DetailPanel>
       </div>
@@ -1360,7 +1640,7 @@ export function AdminEventDetailsPage() {
           </DetailPanel>
         ) : null}
 
-        {!event.hasTeams ? (
+        {!event.hasTeams && event.hasCases ? (
           <DetailPanel title="Участники">
             <div className="max-h-80 space-y-3 overflow-y-auto pr-2">
               {event.participant.length ? (
@@ -1373,7 +1653,7 @@ export function AdminEventDetailsPage() {
                       {formatPersonName(participant.user)}
                     </p>
                     <p className="mt-1 text-sm text-zinc-500">
-                      Дата присоедения пользователя:{" "}
+                      Дата присоединения пользователя:{" "}
                       {formatDate(participant.createAt)}
                     </p>
                   </div>
@@ -1431,6 +1711,24 @@ export function AdminEventDetailsPage() {
           ) : null}
         </>
       </div>
+
+      {event.hasResualt && !event.hasCases ? (
+        <DetailPanel title="Результаты">
+          <ResultPlacesEditor
+            event={event}
+            targets={eventResultTargets}
+            title={event.hasTeams ? "Места команд" : "Поиск команды"}
+            searchPlaceholder={
+              event.hasTeams ? "Поиск команды" : "Поиск участника"
+            }
+            emptyText={
+              event.hasTeams
+                ? "Команды пока не добавлены."
+                : "Участники пока не добавлены."
+            }
+          />
+        </DetailPanel>
+      ) : null}
 
       {event.hasMaterials ? (
         <DetailPanel title="Материалы">

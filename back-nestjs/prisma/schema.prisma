@@ -357,6 +357,6 @@ model Result {
 
   @@unique([eventId, userId])
   @@unique([eventId, teamId])
-  @@unique([eventId, place])
+  @@index([eventId, caseId, place])
   @@map("results")
 }
