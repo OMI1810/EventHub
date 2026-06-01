@@ -6,6 +6,7 @@ import { InviteRegenerateModal } from '@/app/invites/components/InviteRegenerate
 import { JoinByCodeModal } from '@/app/invites/components/JoinByCodeModal'
 import userTeamService from '@/services/user-team.service'
 import {
+	IJoinTeamByInviteFormData,
 	IUserTeamInviteResponse,
 	IUserTeamMember,
 	IUserTeamState
@@ -70,7 +71,7 @@ export function UserTeamTab({ eventId }: Props) {
 			queryKey: ['user-team', eventId]
 		})
 		queryClient.invalidateQueries({
-			queryKey: ['user-event-details', eventId]
+			queryKey: ['user-events', 'details', eventId]
 		})
 	}
 
@@ -105,7 +106,7 @@ export function UserTeamTab({ eventId }: Props) {
 	})
 
 	const deleteTeamMutation = useMutation({
-		mutationFn: userTeamService.deleteTeam,
+		mutationFn: (teamId: string) => userTeamService.deleteTeam(teamId),
 		onSuccess() {
 			invalidateTeamQueries()
 			setIsDeleteModalOpen(false)
@@ -119,7 +120,7 @@ export function UserTeamTab({ eventId }: Props) {
 	})
 
 	const createInviteMutation = useMutation({
-		mutationFn: userTeamService.createTeamInvite,
+		mutationFn: (teamId: string) => userTeamService.createTeamInvite(teamId),
 		onSuccess(response) {
 			setInvite(response.data)
 			setIsQrModalOpen(false)
@@ -133,7 +134,8 @@ export function UserTeamTab({ eventId }: Props) {
 	})
 
 	const joinByInviteMutation = useMutation({
-		mutationFn: userTeamService.joinByInvite,
+		mutationFn: (payload: IJoinTeamByInviteFormData) =>
+			userTeamService.joinByInvite(payload),
 		onSuccess() {
 			invalidateTeamQueries()
 			setIsJoinModalOpen(false)
@@ -146,7 +148,7 @@ export function UserTeamTab({ eventId }: Props) {
 	})
 
 	const approveJoinRequestMutation = useMutation({
-		mutationFn: userTeamService.approveJoinRequest,
+		mutationFn: (requestId: string) => userTeamService.approveJoinRequest(requestId),
 		onSuccess() {
 			invalidateTeamQueries()
 			toast.success('Заявка одобрена')
@@ -158,7 +160,7 @@ export function UserTeamTab({ eventId }: Props) {
 	})
 
 	const rejectJoinRequestMutation = useMutation({
-		mutationFn: userTeamService.rejectJoinRequest,
+		mutationFn: (requestId: string) => userTeamService.rejectJoinRequest(requestId),
 		onSuccess() {
 			invalidateTeamQueries()
 			toast.success('Заявка отклонена')

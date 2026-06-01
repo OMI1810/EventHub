@@ -6,6 +6,7 @@ import {
 	NotFoundException
 } from '@nestjs/common'
 import { EventStatus, Prisma, Role } from '@prisma/client'
+import { SaveUserEventSolutionDto } from './dto/save-user-event-solution.dto'
 
 @Injectable()
 export class UserEventsService {
@@ -189,7 +190,32 @@ export class UserEventsService {
 						userId
 					},
 					select: {
-						userId: true
+						userId: true,
+						caseId: true,
+						case: {
+							select: {
+								idCase: true,
+								title: true,
+								description: true,
+								holder: true,
+								teamLimit: true,
+								isOpen: true,
+								dateForStartSelected: true,
+								dateForEndSelected: true,
+								dateStopCode: true,
+								materials: {
+									select: {
+										idMaterial: true,
+										title: true,
+										description: true,
+										url: true
+									},
+									orderBy: {
+										title: 'asc'
+									}
+								}
+							}
+						}
 					}
 				},
 				cases: {
@@ -205,7 +231,8 @@ export class UserEventsService {
 						dateStopCode: true,
 						_count: {
 							select: {
-								teams: true
+								teams: true,
+								userEvent: true
 							}
 						}
 					},
@@ -253,10 +280,68 @@ export class UserEventsService {
 		})
 
 		if (!event) {
-			throw new NotFoundException('Мероприятие не найдено')
+			throw new NotFoundException('РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ')
 		}
 
-		const isParticipating = event.participant.length > 0
+		const currentParticipant = event.participant[0] ?? null
+		const isParticipating = Boolean(currentParticipant)
+		const teamContext =
+			isParticipating && event.hasTeams
+				? await this.findUserTeamContext(userId, eventId)
+				: null
+		const currentSolution = isParticipating
+			? await this.findCurrentSolution(userId, eventId, event.hasTeams, teamContext?.teamId)
+			: null
+
+		let resolvedSelectedCaseId = currentParticipant?.caseId ?? null
+		let resolvedSelectedCase = currentParticipant?.case ?? null
+
+		if (
+			isParticipating &&
+			!resolvedSelectedCaseId &&
+			teamContext?.selectedCaseId
+		) {
+			resolvedSelectedCaseId = teamContext.selectedCaseId
+			resolvedSelectedCase = await this.prisma.case.findUnique({
+				where: {
+					idCase: teamContext.selectedCaseId
+				},
+				select: {
+					idCase: true,
+					title: true,
+					description: true,
+					holder: true,
+					teamLimit: true,
+					isOpen: true,
+					dateForStartSelected: true,
+					dateForEndSelected: true,
+					dateStopCode: true,
+					materials: {
+						select: {
+							idMaterial: true,
+							title: true,
+							description: true,
+							url: true
+						},
+						orderBy: {
+							title: 'asc'
+						}
+					}
+				}
+			})
+
+			await this.prisma.userEvent.update({
+				where: {
+					eventId_userId: {
+						eventId,
+						userId
+					}
+				},
+				data: {
+					caseId: teamContext.selectedCaseId
+				}
+			})
+		}
 
 		return {
 			idEvent: event.idEvent,
@@ -283,6 +368,7 @@ export class UserEventsService {
 			participantLimit: event.participantLimit,
 			participanInTeamLimit: event.participanInTeamLimit,
 			isParticipating,
+			selectedCaseId: resolvedSelectedCaseId,
 			canParticipate: isParticipating
 				? false
 				: this.canParticipateInEvent({
@@ -311,9 +397,35 @@ export class UserEventsService {
 				dateForStartSelected: eventCase.dateForStartSelected,
 				dateForEndSelected: eventCase.dateForEndSelected,
 				dateStopCode: eventCase.dateStopCode,
-				occupiedPlaces: eventCase._count.teams
+				occupiedPlaces: event.hasTeams
+					? eventCase._count.teams
+					: eventCase._count.userEvent
 			})),
 			materials: event.materials,
+			selectedCase: resolvedSelectedCase
+				? {
+						idCase: resolvedSelectedCase.idCase,
+						title: resolvedSelectedCase.title,
+						description: resolvedSelectedCase.description,
+						holder: resolvedSelectedCase.holder,
+						teamLimit: resolvedSelectedCase.teamLimit,
+						isOpen: resolvedSelectedCase.isOpen,
+						dateForStartSelected: resolvedSelectedCase.dateForStartSelected,
+						dateForEndSelected: resolvedSelectedCase.dateForEndSelected,
+						dateStopCode: resolvedSelectedCase.dateStopCode
+				  }
+				: null,
+			selectedCaseMaterials: resolvedSelectedCase?.materials ?? [],
+			teamContext,
+			solution: currentSolution
+				? {
+						idSolution: currentSolution.idSolution,
+						urlSolution: currentSolution.urlSolution,
+						urlPresentation: currentSolution.urlPresentation,
+						description: currentSolution.description,
+						updatedAt: currentSolution.updateAt
+				  }
+				: null,
 			results: event.results.map(result => ({
 				idResult: result.idResult,
 				title: result.title,
@@ -352,7 +464,7 @@ export class UserEventsService {
 		})
 
 		if (!event) {
-			throw new NotFoundException('Мероприятие не найдено')
+			throw new NotFoundException('РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ')
 		}
 
 		const existingRelation = await this.prisma.userEvent.findUnique({
@@ -365,7 +477,7 @@ export class UserEventsService {
 		})
 
 		if (existingRelation) {
-			throw new BadRequestException('Вы уже участвуете в этом мероприятии')
+			throw new BadRequestException('Р’С‹ СѓР¶Рµ СѓС‡Р°СЃС‚РІСѓРµС‚Рµ РІ СЌС‚РѕРј РјРµСЂРѕРїСЂРёСЏС‚РёРё')
 		}
 
 		if (
@@ -376,10 +488,10 @@ export class UserEventsService {
 				hasParticipantLimit: event.hasParticipantLimit,
 				participantLimit: event.participantLimit,
 				registeredUsersCount: event._count.participant
-				})
+			})
 		) {
 			throw new BadRequestException(
-				'Сейчас регистрация на это мероприятие недоступна'
+				'РЎРµР№С‡Р°СЃ СЂРµРіРёСЃС‚СЂР°С†РёСЏ РЅР° СЌС‚Рѕ РјРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµРґРѕСЃС‚СѓРїРЅР°'
 			)
 		}
 
@@ -396,7 +508,7 @@ export class UserEventsService {
 				error.code === 'P2002'
 			) {
 				throw new BadRequestException(
-					'Не удалось зарегистрировать участие. Проверьте схему таблицы user_event и её уникальные индексы.'
+					'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊ СѓС‡Р°СЃС‚РёРµ. РџСЂРѕРІРµСЂСЊС‚Рµ СЃС…РµРјСѓ С‚Р°Р±Р»РёС†С‹ user_event Рё РµС‘ СѓРЅРёРєР°Р»СЊРЅС‹Рµ РёРЅРґРµРєСЃС‹.'
 				)
 			}
 
@@ -404,6 +516,456 @@ export class UserEventsService {
 		}
 
 		return { success: true }
+	}
+
+	async leave(userId: string, eventId: string) {
+		await this.requireRegularUser(userId)
+
+		const participant = await this.prisma.userEvent.findUnique({
+			where: {
+				eventId_userId: {
+					eventId,
+					userId
+				}
+			},
+			select: {
+				eventId: true,
+				userId: true,
+				event: {
+					select: {
+						hasTeams: true
+					}
+				}
+			}
+		})
+
+		if (!participant) {
+			throw new BadRequestException('Вы не участвуете в этом мероприятии')
+		}
+
+		if (!participant.event.hasTeams) {
+			await this.prisma.$transaction(async prisma => {
+				await prisma.solution.deleteMany({
+					where: {
+						eventId,
+						userId
+					}
+				})
+
+				await prisma.result.deleteMany({
+					where: {
+						eventId,
+						userId
+					}
+				})
+
+				await prisma.userEvent.delete({
+					where: {
+						eventId_userId: {
+							eventId,
+							userId
+						}
+					}
+				})
+			})
+
+			return { success: true }
+		}
+
+		const team = await this.prisma.team.findFirst({
+			where: {
+				eventId,
+				user: {
+					some: {
+						userId
+					}
+				}
+			},
+			select: {
+				idTeam: true,
+				captionId: true,
+				user: {
+					select: {
+						userId: true
+					}
+				}
+			}
+		})
+
+		await this.prisma.$transaction(async prisma => {
+			await prisma.teamJoinRequest.deleteMany({
+				where: {
+					userId,
+					team: {
+						eventId
+					}
+				}
+			})
+
+			await prisma.solution.deleteMany({
+				where: {
+					eventId,
+					userId
+				}
+			})
+
+			await prisma.result.deleteMany({
+				where: {
+					eventId,
+					userId
+				}
+			})
+
+			if (team) {
+				if (team.captionId === userId) {
+					const memberIds = team.user.map(member => member.userId)
+
+					await prisma.teamJoinRequest.deleteMany({
+						where: {
+							teamId: team.idTeam
+						}
+					})
+
+					await prisma.solution.deleteMany({
+						where: {
+							teamId: team.idTeam
+						}
+					})
+
+					await prisma.result.deleteMany({
+						where: {
+							teamId: team.idTeam
+						}
+					})
+
+					await prisma.userEvent.updateMany({
+						where: {
+							eventId,
+							userId: {
+								in: memberIds
+							}
+						},
+						data: {
+							caseId: null
+						}
+					})
+
+					await prisma.userTeam.deleteMany({
+						where: {
+							teamId: team.idTeam
+						}
+					})
+
+					await prisma.team.delete({
+						where: {
+							idTeam: team.idTeam
+						}
+					})
+				} else {
+					await prisma.userTeam.deleteMany({
+						where: {
+							teamId: team.idTeam,
+							userId
+						}
+					})
+
+					await prisma.userEvent.update({
+						where: {
+							eventId_userId: {
+								eventId,
+								userId
+							}
+						},
+						data: {
+							caseId: null
+						}
+					})
+				}
+			}
+
+			await prisma.userEvent.delete({
+				where: {
+					eventId_userId: {
+						eventId,
+						userId
+					}
+				}
+			})
+		})
+
+		return { success: true }
+	}
+
+	async selectCase(userId: string, eventId: string, caseId: string) {
+		await this.requireRegularUser(userId)
+
+		const participant = await this.prisma.userEvent.findUnique({
+			where: {
+				eventId_userId: {
+					eventId,
+					userId
+				}
+			},
+			select: {
+				eventId: true,
+				userId: true,
+				caseId: true,
+				event: {
+					select: {
+						idEvent: true,
+						hasCases: true,
+						hasTeams: true
+					}
+				}
+			}
+		})
+
+		if (!participant) {
+			throw new ForbiddenException('Сначала необходимо зарегистрироваться на мероприятие')
+		}
+
+		if (!participant.event.hasCases) {
+			throw new BadRequestException('Для этого мероприятия выбор кейса недоступен')
+		}
+
+		if (participant.caseId) {
+			throw new BadRequestException('Кейс для этого участия уже выбран')
+		}
+
+		const eventCase = await this.prisma.case.findFirst({
+			where: {
+				idCase: caseId,
+				eventId
+			},
+			select: {
+				idCase: true,
+				isOpen: true,
+				dateForStartSelected: true,
+				dateForEndSelected: true
+			}
+		})
+
+		if (!eventCase) {
+			throw new NotFoundException('Кейс не найден в этом мероприятии')
+		}
+
+		this.assertCaseSelectionAvailability(eventCase)
+
+		if (participant.event.hasTeams) {
+			const team = await this.prisma.team.findFirst({
+				where: {
+					eventId,
+					user: {
+						some: {
+							userId
+						}
+					}
+				},
+				select: {
+					idTeam: true,
+					captionId: true,
+					caseId: true,
+					user: {
+						select: {
+							userId: true
+						}
+					}
+				}
+			})
+
+			if (!team) {
+				throw new BadRequestException('Сначала необходимо создать команду или вступить в неё')
+			}
+
+			if (team.captionId !== userId) {
+				throw new ForbiddenException('Выбирать кейс для команды может только капитан')
+			}
+
+			if (team.caseId) {
+				throw new BadRequestException('Для этой команды кейс уже выбран')
+			}
+
+			await this.prisma.$transaction(async prisma => {
+				await prisma.team.update({
+					where: {
+						idTeam: team.idTeam
+					},
+					data: {
+						caseId
+					}
+				})
+
+				await prisma.userEvent.updateMany({
+					where: {
+						eventId,
+						userId: {
+							in: team.user.map(member => member.userId)
+						}
+					},
+					data: {
+						caseId
+					}
+				})
+			})
+		} else {
+			await this.prisma.userEvent.update({
+				where: {
+					eventId_userId: {
+						eventId,
+						userId
+					}
+				},
+				data: {
+					caseId
+				}
+			})
+		}
+
+		return this.getEventDetails(userId, eventId)
+	}
+
+	async saveSolution(
+		userId: string,
+		eventId: string,
+		dto: SaveUserEventSolutionDto
+	) {
+		await this.requireRegularUser(userId)
+
+		const normalizedUrlSolution = dto.urlSolution?.trim()
+		const normalizedUrlPresentation = dto.urlPresentation?.trim()
+		const normalizedDescription = dto.description?.trim() || null
+
+		if (!normalizedUrlSolution || !normalizedUrlPresentation) {
+			throw new BadRequestException(
+				'Ссылка на решение и ссылка на презентацию обязательны'
+			)
+		}
+
+		const participant = await this.prisma.userEvent.findUnique({
+			where: {
+				eventId_userId: {
+					eventId,
+					userId
+				}
+			},
+			select: {
+				caseId: true,
+				event: {
+					select: {
+						idEvent: true,
+						hasCases: true,
+						hasTeams: true,
+						hasLoadedSolution: true,
+						status: true,
+						dateDeadLine: true
+					}
+				}
+			}
+		})
+
+		if (!participant) {
+			throw new ForbiddenException(
+				'Сначала необходимо зарегистрироваться на мероприятие'
+			)
+		}
+
+		if (!participant.event.hasLoadedSolution) {
+			throw new BadRequestException(
+				'Загрузка решения недоступна для этого мероприятия'
+			)
+		}
+
+		if (participant.event.status !== EventStatus.OPEN) {
+			throw new BadRequestException(
+				'Загружать решение можно только когда мероприятие открыто'
+			)
+		}
+
+		if (
+			participant.event.dateDeadLine &&
+			new Date() > participant.event.dateDeadLine
+		) {
+			throw new BadRequestException('Дедлайн загрузки решения уже завершён')
+		}
+
+		if (participant.event.hasTeams) {
+			const teamContext = await this.findUserTeamContext(userId, eventId)
+
+			if (!teamContext?.hasTeam || !teamContext.teamId) {
+				throw new BadRequestException(
+					'Сначала необходимо создать команду или вступить в неё'
+				)
+			}
+
+			if (!teamContext.isCaptain) {
+				throw new ForbiddenException(
+					'Загружать решение для команды может только капитан'
+				)
+			}
+
+			const resolvedCaseId =
+				participant.caseId ?? teamContext.selectedCaseId ?? null
+
+			if (participant.event.hasCases && !resolvedCaseId) {
+				throw new BadRequestException(
+					'Сначала необходимо выбрать кейс для команды'
+				)
+			}
+
+			await this.prisma.solution.upsert({
+				where: {
+					eventId_teamId: {
+						eventId,
+						teamId: teamContext.teamId
+					}
+				},
+				update: {
+					urlSolution: normalizedUrlSolution,
+					urlPresentation: normalizedUrlPresentation,
+					description: normalizedDescription,
+					caseId: resolvedCaseId
+				},
+				create: {
+					eventId,
+					teamId: teamContext.teamId,
+					caseId: resolvedCaseId,
+					urlSolution: normalizedUrlSolution,
+					urlPresentation: normalizedUrlPresentation,
+					description: normalizedDescription
+				}
+			})
+
+			return this.getEventDetails(userId, eventId)
+		}
+
+		if (participant.event.hasCases && !participant.caseId) {
+			throw new BadRequestException('Сначала необходимо выбрать кейс')
+		}
+
+		await this.prisma.solution.upsert({
+			where: {
+				eventId_userId: {
+					eventId,
+					userId
+				}
+			},
+			update: {
+				urlSolution: normalizedUrlSolution,
+				urlPresentation: normalizedUrlPresentation,
+				description: normalizedDescription,
+				caseId: participant.caseId
+			},
+			create: {
+				eventId,
+				userId,
+				caseId: participant.caseId,
+				urlSolution: normalizedUrlSolution,
+				urlPresentation: normalizedUrlPresentation,
+				description: normalizedDescription
+			}
+		})
+
+		return this.getEventDetails(userId, eventId)
 	}
 
 	private async requireRegularUser(userId: string) {
@@ -418,12 +980,12 @@ export class UserEventsService {
 		})
 
 		if (!user) {
-			throw new NotFoundException('Пользователь не найден')
+			throw new NotFoundException('РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅРµ РЅР°Р№РґРµРЅ')
 		}
 
 		if (user.role !== Role.USER) {
 			throw new ForbiddenException(
-				'Этот раздел доступен только обычным пользователям'
+				'Р­С‚РѕС‚ СЂР°Р·РґРµР» РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ РѕР±С‹С‡РЅС‹Рј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏРј'
 			)
 		}
 
@@ -477,5 +1039,95 @@ export class UserEventsService {
 		}
 
 		return true
+	}
+
+	private assertCaseSelectionAvailability(eventCase: {
+		isOpen: boolean
+		dateForStartSelected: Date
+		dateForEndSelected: Date
+	}) {
+		const now = new Date()
+
+		if (!eventCase.isOpen) {
+			throw new BadRequestException('Этот кейс ещё не открыт для выбора')
+		}
+
+		if (now < eventCase.dateForStartSelected) {
+			throw new BadRequestException('Период выбора кейса ещё не начался')
+		}
+
+		if (now > eventCase.dateForEndSelected) {
+			throw new BadRequestException('Период выбора кейса уже завершён')
+		}
+	}
+
+	private async findUserTeamContext(userId: string, eventId: string) {
+		const team = await this.prisma.team.findFirst({
+			where: {
+				eventId,
+				user: {
+					some: {
+						userId
+					}
+				}
+			},
+			select: {
+				idTeam: true,
+				captionId: true,
+				caseId: true
+			}
+		})
+
+		return {
+			hasTeam: Boolean(team),
+			teamId: team?.idTeam ?? null,
+			isCaptain: team?.captionId === userId,
+			selectedCaseId: team?.caseId ?? null
+		}
+	}
+
+	private async findCurrentSolution(
+		userId: string,
+		eventId: string,
+		hasTeams: boolean,
+		teamId?: string | null
+	) {
+		if (hasTeams) {
+			if (!teamId) {
+				return null
+			}
+
+			return this.prisma.solution.findUnique({
+				where: {
+					eventId_teamId: {
+						eventId,
+						teamId
+					}
+				},
+				select: {
+					idSolution: true,
+					urlSolution: true,
+					urlPresentation: true,
+					description: true,
+					updateAt: true
+				}
+			})
+		}
+
+		return this.prisma.solution.findUnique({
+			where: {
+				eventId_userId: {
+					eventId,
+					userId
+				}
+			},
+			select: {
+				idSolution: true,
+				urlSolution: true,
+				urlPresentation: true,
+				description: true,
+				updateAt: true
+			}
+		})
 	}
 }
