@@ -99,6 +99,11 @@ export class EventsService {
             },
           },
         },
+        participant: {
+          select: {
+            userId: true,
+          },
+        },
       },
       orderBy: {
         dataStart: "desc",
@@ -107,8 +112,11 @@ export class EventsService {
 
     return events.map((event) => ({
       ...event,
-      registeredUsersCount: this.countUniqueTeamUsers(event.teams),
+      registeredUsersCount: event.hasTeams
+        ? this.countUniqueTeamUsers(event.teams)
+        : event.participant.length,
       teams: undefined,
+      participant: undefined,
     }));
   }
 
@@ -154,6 +162,7 @@ export class EventsService {
             name: true,
             description: true,
             format: true,
+            caseId: true,
             caption: {
               select: {
                 idUser: true,
@@ -164,12 +173,37 @@ export class EventsService {
             },
             user: {
               select: {
+                role: true,
                 userId: true,
+                user: {
+                  select: {
+                    idUser: true,
+                    name: true,
+                    surname: true,
+                    patronymic: true,
+                  },
+                },
               },
             },
           },
           orderBy: {
             name: "asc",
+          },
+        },
+        participant: {
+          select: {
+            createAt: true,
+            user: {
+              select: {
+                idUser: true,
+                name: true,
+                surname: true,
+                patronymic: true,
+              },
+            },
+          },
+          orderBy: {
+            createAt: "asc",
           },
         },
         cases: {
@@ -228,10 +262,16 @@ export class EventsService {
 
     return {
       ...event,
-      registeredUsersCount: this.countUniqueTeamUsers(event.teams),
+      registeredUsersCount: event.hasTeams
+        ? this.countUniqueTeamUsers(event.teams)
+        : event.participant.length,
       teams: event.teams.map((team) => ({
         ...team,
         membersCount: team.user.length,
+        members: team.user.map((member) => ({
+          role: member.role,
+          user: member.user,
+        })),
         user: undefined,
       })),
       cases: event.cases.map((eventCase) => ({
@@ -491,6 +531,14 @@ export class EventsService {
       }
 
       await this.deleteUnusedCases(prisma, eventId, [...keepCaseIds]);
+      await prisma.event.update({
+        where: {
+          idEvent: eventId,
+        },
+        data: {
+          hasCases: keepCaseIds.size > 0,
+        },
+      });
 
       return prisma.event.findUnique({
         where: {

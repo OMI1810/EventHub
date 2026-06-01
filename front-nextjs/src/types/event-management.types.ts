@@ -42,6 +42,7 @@ export interface ManagedEventTeam {
   name: string;
   description?: string | null;
   format: string;
+  caseId?: string | null;
   membersCount: number;
   caption: {
     idUser: string;
@@ -49,6 +50,15 @@ export interface ManagedEventTeam {
     name?: string | null;
     surname?: string | null;
   };
+  members: Array<{
+    role?: string | null;
+    user: {
+      idUser: string;
+      name?: string | null;
+      surname?: string | null;
+      patronymic?: string | null;
+    };
+  }>;
 }
 
 export interface ManagedEventCase {
@@ -75,6 +85,16 @@ export interface ManagedEventMaterial {
   url: string;
 }
 
+export interface ManagedEventParticipant {
+  createAt: string;
+  user: {
+    idUser: string;
+    name?: string | null;
+    surname?: string | null;
+    patronymic?: string | null;
+  };
+}
+
 export interface ManagedEventDetails extends ManagedEventSummary {
   description?: string | null;
   slug: string;
@@ -86,6 +106,7 @@ export interface ManagedEventDetails extends ManagedEventSummary {
   participantLimit?: number | null;
   participanInTeamLimit?: number | null;
   teams: ManagedEventTeam[];
+  participant: ManagedEventParticipant[];
   cases: ManagedEventCase[];
   materials: ManagedEventMaterial[];
 }
