@@ -20,6 +20,15 @@ export class UserEventsController {
 	}
 
 	@Auth()
+	@Get(':eventId')
+	async getEventDetails(
+		@CurrentUser('idUser') userId: string,
+		@Param('eventId') eventId: string
+	) {
+		return this.userEventsService.getEventDetails(userId, eventId)
+	}
+
+	@Auth()
 	@HttpCode(200)
 	@Post(':eventId/participate')
 	async participate(

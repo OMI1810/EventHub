@@ -1,5 +1,6 @@
 'use client'
 
+import { InviteCodeCard } from '@/app/invites/components/InviteCodeCard'
 import organizationService from '@/services/organization.service'
 import { IOrganizationInviteResponse } from '@/types/organization.types'
 import { useMutation } from '@tanstack/react-query'
@@ -56,76 +57,24 @@ export function OrganizationInviteSection() {
 	}
 
 	return (
-		<section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
-			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-				<div>
-					<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-						Приглашение
-					</p>
-					<h2 className="mt-3 text-2xl font-bold">
-						Код приглашения администратора
-					</h2>
-					<p className="mt-3 text-sm text-zinc-400">
-						Сгенерируйте одноразовый код для уже существующего аккаунта
-						администратора. Если потеряете его, просто создайте новый.
-					</p>
-				</div>
-
-				<button
-					type="button"
-					onClick={handleGenerateInvite}
-					disabled={isPending}
-					className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-				>
-					{isPending ? 'Генерация...' : 'Сгенерировать код'}
-				</button>
-			</div>
-
-			<div className="mt-6">
-				{invite ? (
-					<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-						<button
-							type="button"
-							onClick={handleCopyInviteCode}
-							className="w-full rounded-2xl border border-dashed border-emerald-600/60 bg-zinc-950/70 px-5 py-5 text-left transition-colors hover:bg-zinc-800/70"
-						>
-							<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-								Активный код
-							</p>
-							<p className="mt-3 font-mono text-2xl font-bold tracking-[0.25em] text-emerald-400">
-								{invite.code}
-							</p>
-							<p className="mt-4 text-sm text-zinc-400">
-								Действует до {formatInviteExpiry(invite.expiresAt)}. Нажмите,
-								чтобы скопировать.
-							</p>
-						</button>
-
-						<button
-							type="button"
-							onClick={() => setIsQrModalOpen(true)}
-							className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-5 text-left transition-colors hover:bg-zinc-800/70"
-						>
-							<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-								QR Code
-							</p>
-							<p className="mt-3 text-lg font-semibold text-zinc-100">
-								Открыть QR
-							</p>
-							<p className="mt-4 text-sm text-zinc-400">
-								Показать этот же код приглашения в виде QR для сканирования.
-							</p>
-						</button>
-					</div>
-				) : (
-					<div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-5">
-						<p className="text-sm text-zinc-400">
-							На этой странице пока нет активного кода. Сгенерируйте его,
-							чтобы показать здесь.
-						</p>
-					</div>
-				)}
-			</div>
+		<>
+			<InviteCodeCard
+				label="Приглашение"
+				title="Код приглашения администратора"
+				description="Сгенерируйте одноразовый код для уже существующего аккаунта администратора. Если потеряете его, просто создайте новый."
+				code={invite?.code}
+				expiresHint={
+					invite
+						? `Действует до ${formatInviteExpiry(invite.expiresAt)}. Нажмите, чтобы скопировать.`
+						: undefined
+				}
+				emptyStateText="На этой странице пока нет активного кода. Сгенерируйте его, чтобы показать здесь."
+				generateLabel="Сгенерировать код"
+				isPending={isPending}
+				onGenerate={handleGenerateInvite}
+				onCopy={handleCopyInviteCode}
+				onOpenQr={() => setIsQrModalOpen(true)}
+			/>
 
 			{invite && isQrModalOpen ? (
 				<OrganizationInviteQrModal
@@ -142,6 +91,6 @@ export function OrganizationInviteSection() {
 					onConfirm={() => mutateCreateInvite()}
 				/>
 			) : null}
-		</section>
+		</>
 	)
 }

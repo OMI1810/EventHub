@@ -1,5 +1,9 @@
 import { instance } from '@/api/axios'
-import { IUserEventFeedItem, IUserMyEventItem } from '@/types/user-event.types'
+import {
+	IUserEventDetails,
+	IUserEventFeedItem,
+	IUserMyEventItem
+} from '@/types/user-event.types'
 
 class UserEventService {
 	private readonly baseUrl = '/user-events'
@@ -10,6 +14,10 @@ class UserEventService {
 
 	async getMyEvents() {
 		return instance.get<IUserMyEventItem[]>(`${this.baseUrl}/my`)
+	}
+
+	async getEventDetails(eventId: string) {
+		return instance.get<IUserEventDetails>(`${this.baseUrl}/${eventId}`)
 	}
 
 	async participate(eventId: string) {

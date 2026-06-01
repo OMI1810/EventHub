@@ -2,41 +2,42 @@ import { InviteCoreService } from '@/invites/invite-core.service'
 import { BaseInvitePayload } from '@/invites/invite.types'
 import { Injectable } from '@nestjs/common'
 
-export interface OrganizationInvitePayload extends BaseInvitePayload {
-	organizationId: string
+export interface TeamInvitePayload extends BaseInvitePayload {
+	teamId: string
+	eventId: string
 	createdByUserId: string
 }
 
 @Injectable()
-export class OrganizationInviteService {
+export class TeamInviteService {
 	private readonly ttlSeconds = 600
-	private readonly inviteScope = 'organization'
+	private readonly inviteScope = 'team'
 
 	constructor(private readonly inviteCoreService: InviteCoreService) {}
 
-	async createOrganizationInvite(
-		organizationId: string,
+	async createTeamInvite(
+		teamId: string,
+		eventId: string,
 		createdByUserId: string
 	) {
 		const expiresAt = this.inviteCoreService.createExpiresAt(this.ttlSeconds)
 
-		const payload: OrganizationInvitePayload = {
-			organizationId,
-			createdByUserId,
-			expiresAt,
-			nonce: this.inviteCoreService.createNonce()
-		}
-
 		return this.inviteCoreService.createScopedInvite({
 			scope: this.inviteScope,
-			entityId: organizationId,
-			payload,
-			ttlSeconds: this.ttlSeconds
+			entityId: teamId,
+			ttlSeconds: this.ttlSeconds,
+			payload: {
+				teamId,
+				eventId,
+				createdByUserId,
+				expiresAt,
+				nonce: this.inviteCoreService.createNonce()
+			}
 		})
 	}
 
 	async findActiveInviteByCode(code: string) {
-		return this.inviteCoreService.findScopedInviteByCode<OrganizationInvitePayload>(
+		return this.inviteCoreService.findScopedInviteByCode<TeamInvitePayload>(
 			this.inviteScope,
 			code
 		)
