@@ -11,6 +11,7 @@ import {
   EventFeaturePreset,
   EventFormat,
   EventMaterialDraft,
+  EventPublicationStatus,
   EventTagDraft,
   EventTagOption,
 } from "@/types/event-create.types";
@@ -48,6 +49,9 @@ interface BaseEventForm {
   organizationId: string;
   dataStart: string;
   dataEnd: string;
+  status: EventPublicationStatus;
+  dataStartRegistration: string;
+  dataEndRegistration: string;
   dateDeadLine: string;
   format: EventFormat;
   address: string;
@@ -69,6 +73,9 @@ interface CaseModalForm {
   teamLimit: string;
   materialTitle: string;
   materialUrl: string;
+  tagSearch: string;
+  isTagDropdownOpen: boolean;
+  tags: EventTagDraft[];
   materials: EventCaseMaterialDraft[];
 }
 
@@ -134,6 +141,9 @@ const initialBaseForm: BaseEventForm = {
   organizationId: "",
   dataStart: "",
   dataEnd: "",
+  status: "PRIVATE",
+  dataStartRegistration: "",
+  dataEndRegistration: "",
   dateDeadLine: "",
   format: "OFFLINE",
   address: "",
@@ -154,6 +164,9 @@ const createEmptyCaseModal = (): CaseModalForm => ({
   teamLimit: "",
   materialTitle: "",
   materialUrl: "",
+  tagSearch: "",
+  isTagDropdownOpen: false,
+  tags: [],
   materials: [],
 });
 
@@ -279,6 +292,16 @@ export default function CreateEventPage() {
     }));
   };
 
+  const updateStatus = (status: EventPublicationStatus) => {
+    setBaseForm((current) => ({
+      ...current,
+      status,
+      dataStartRegistration:
+        status === "PUBLIC" ? current.dataStartRegistration : "",
+      dataEndRegistration: status === "PUBLIC" ? current.dataEndRegistration : "",
+    }));
+  };
+
   const openCustomTypeModal = () => {
     setCustomTypeModal(createCustomEventTypeModal());
   };
@@ -370,6 +393,7 @@ export default function CreateEventPage() {
       title: caseModal.title.trim(),
       description: caseModal.description.trim() || undefined,
       teamLimit: caseModal.teamLimit ? Number(caseModal.teamLimit) : undefined,
+      tags: caseModal.tags,
       materials: caseModal.materials,
     };
 
@@ -392,6 +416,9 @@ export default function CreateEventPage() {
       teamLimit: eventCase.teamLimit ? String(eventCase.teamLimit) : "",
       materialTitle: "",
       materialUrl: "",
+      tagSearch: "",
+      isTagDropdownOpen: false,
+      tags: eventCase.tags,
       materials: eventCase.materials,
     });
   };
@@ -430,6 +457,13 @@ export default function CreateEventPage() {
       organizationId: baseForm.organizationId,
       dataStart: baseForm.dataStart,
       dataEnd: baseForm.dataEnd,
+      status: baseForm.status,
+      dataStartRegistration:
+        baseForm.status === "PUBLIC"
+          ? baseForm.dataStartRegistration
+          : undefined,
+      dataEndRegistration:
+        baseForm.status === "PUBLIC" ? baseForm.dataEndRegistration : undefined,
       dateDeadLine: shouldSendDeadline ? baseForm.dateDeadLine : undefined,
       format: baseForm.format,
       address: baseForm.format === "ONLINE" ? "Онлайн" : baseForm.address,
@@ -544,6 +578,16 @@ export default function CreateEventPage() {
               <option value="ONLINE">Онлайн</option>
               <option value="HYBRID">Гибрид</option>
             </SelectField>
+            <SelectField
+              label="Статус"
+              value={baseForm.status}
+              onChange={(value) =>
+                updateStatus(value as EventPublicationStatus)
+              }
+            >
+              <option value="PRIVATE">Приватное</option>
+              <option value="PUBLIC">Публичное</option>
+            </SelectField>
             <TextField
               label="Дата и время начала"
               type="datetime-local"
@@ -558,6 +602,28 @@ export default function CreateEventPage() {
               onChange={(value) => updateBaseForm("dataEnd", value)}
               required
             />
+            {baseForm.status === "PUBLIC" && (
+              <>
+                <TextField
+                  label="Начало регистрации"
+                  type="datetime-local"
+                  value={baseForm.dataStartRegistration}
+                  onChange={(value) =>
+                    updateBaseForm("dataStartRegistration", value)
+                  }
+                  required
+                />
+                <TextField
+                  label="Конец регистрации"
+                  type="datetime-local"
+                  value={baseForm.dataEndRegistration}
+                  onChange={(value) =>
+                    updateBaseForm("dataEndRegistration", value)
+                  }
+                  required
+                />
+              </>
+            )}
             {features.hasLoadedSolution && !features.hasCases && (
               <TextField
                 label="Дедлайн сдачи решения"
@@ -698,6 +764,18 @@ export default function CreateEventPage() {
                       <p className="mt-1 text-xs text-zinc-500">
                         Материалов: {eventCase.materials.length}
                       </p>
+                      {eventCase.tags.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {eventCase.tags.map((tag) => (
+                            <span
+                              key={tag.id ?? tag.name}
+                              className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-zinc-300"
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <button
@@ -830,6 +908,7 @@ export default function CreateEventPage() {
 
       {caseModal && (
         <CaseModal
+          availableTags={availableTags}
           form={caseModal}
           onChange={setCaseModal}
           onClose={() => setCaseModal(null)}
@@ -1176,11 +1255,13 @@ function FeatureCheckbox({
 }
 
 function CaseModal({
+  availableTags,
   form,
   onChange,
   onClose,
   onSave,
 }: {
+  availableTags: EventTagOption[];
   form: CaseModalForm;
   onChange: (form: CaseModalForm) => void;
   onClose: () => void;
@@ -1188,6 +1269,62 @@ function CaseModal({
 }) {
   const update = (field: keyof CaseModalForm, value: string) => {
     onChange({ ...form, [field]: value });
+  };
+
+  const filteredCaseTags = availableTags.filter((tag) => {
+    const query = normalizeTagName(form.tagSearch);
+    const alreadySelected = form.tags.some((selectedTag) => {
+      if (selectedTag.id && selectedTag.id === tag.idTag) return true;
+      return normalizeTagName(selectedTag.name) === normalizeTagName(tag.name);
+    });
+
+    if (alreadySelected) return false;
+    if (!query) return true;
+
+    return normalizeTagName(tag.name).includes(query);
+  });
+
+  const addCaseTag = (tag: EventTagDraft) => {
+    const normalizedName = normalizeTagName(tag.name);
+    const isSelected = form.tags.some((selectedTag) => {
+      if (tag.id && selectedTag.id === tag.id) return true;
+      return normalizeTagName(selectedTag.name) === normalizedName;
+    });
+
+    if (isSelected || !normalizedName) return;
+
+    onChange({
+      ...form,
+      tagSearch: "",
+      isTagDropdownOpen: false,
+      tags: [...form.tags, tag],
+    });
+  };
+
+  const addCaseTagFromSearch = () => {
+    const name = form.tagSearch.trim();
+
+    if (!name) return;
+
+    const existingTag = availableTags.find(
+      (tag) => normalizeTagName(tag.name) === normalizeTagName(name),
+    );
+
+    addCaseTag(
+      existingTag
+        ? { id: existingTag.idTag, name: existingTag.name }
+        : { name },
+    );
+  };
+
+  const removeCaseTag = (tag: EventTagDraft) => {
+    onChange({
+      ...form,
+      tags: form.tags.filter((item) => {
+        if (tag.id) return item.id !== tag.id;
+        return normalizeTagName(item.name) !== normalizeTagName(tag.name);
+      }),
+    });
   };
 
   const addCaseMaterial = () => {
@@ -1244,6 +1381,27 @@ function CaseModal({
             label="Описание"
             value={form.description}
             onChange={(value) => update("description", value)}
+          />
+          <TagCombobox
+            filteredTags={filteredCaseTags}
+            isOpen={form.isTagDropdownOpen}
+            search={form.tagSearch}
+            selectedTags={form.tags}
+            onAddFromSearch={addCaseTagFromSearch}
+            onInputFocus={() =>
+              onChange({ ...form, isTagDropdownOpen: true })
+            }
+            onRemoveTag={removeCaseTag}
+            onSearchChange={(value) =>
+              onChange({
+                ...form,
+                tagSearch: value,
+                isTagDropdownOpen: true,
+              })
+            }
+            onSelectTag={(tag) =>
+              addCaseTag({ id: tag.idTag, name: tag.name })
+            }
           />
           <div className="max-w-56">
             <TextField

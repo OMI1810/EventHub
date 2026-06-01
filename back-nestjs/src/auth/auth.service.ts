@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { Role, type User } from "@prisma/client";
+import { Prisma, Role, type User } from "@prisma/client";
 import { verify } from "argon2";
 import { omit } from "lodash";
 import { AuthDto, RegisterDto } from "./dto/auth.dto";
@@ -32,11 +32,53 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const userExists = await this.userService.getByEmail(dto.email);
-    if (userExists) {
-      throw new BadRequestException("User already exists");
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: dto.email },
+          ...(dto.phone?.trim() ? [{ phone: dto.phone.trim() }] : []),
+          ...(dto.contact?.trim() ? [{ contact: dto.contact.trim() }] : []),
+        ],
+      },
+      select: {
+        email: true,
+        phone: true,
+        contact: true,
+      },
+    });
+
+    if (existingUser) {
+      if (existingUser.email === dto.email) {
+        throw new BadRequestException("Пользователь с таким email уже существует");
+      }
+
+      if (dto.phone?.trim() && existingUser.phone === dto.phone.trim()) {
+        throw new BadRequestException("Пользователь с таким телефоном уже существует");
+      }
+
+      if (dto.contact?.trim() && existingUser.contact === dto.contact.trim()) {
+        throw new BadRequestException(
+          "Пользователь с таким дополнительным контактом уже существует",
+        );
+      }
     }
-    const user = await this.userService.create(dto);
+
+    let user: User;
+
+    try {
+      user = await this.userService.create(dto);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new BadRequestException(
+          "Пользователь с такими регистрационными данными уже существует",
+        );
+      }
+
+      throw error;
+    }
 
     await this.emailService.sendVerification(
       user.email,

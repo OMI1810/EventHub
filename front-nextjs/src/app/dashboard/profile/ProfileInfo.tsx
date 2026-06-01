@@ -1,85 +1,65 @@
 'use client'
+
 import { MiniLoader } from '@/components/ui/MiniLoader'
 import { DASHBOARD_PAGES } from '@/config/pages/dashboard.config'
-import { PUBLIC_PAGES } from '@/config/pages/public.config'
 import { useProfile } from '@/hooks/useProfile'
-import authService from '@/services/auth/auth.service'
-import { useMutation } from '@tanstack/react-query'
+import { IProfile } from '@/types/profile.types'
 import { useRouter } from 'next/navigation'
-import { useEffect, useTransition } from 'react'
-import { twMerge } from 'tailwind-merge'
+import { useEffect } from 'react'
+import { UserProfilePage } from './UserProfilePage'
 
 export function ProfileInfo() {
 	const router = useRouter()
-
 	const { isLoading, refetch, user } = useProfile()
-
-	const [isPending, startTransition] = useTransition()
 
 	useEffect(() => {
 		if (isLoading) return
 
 		if (user.role === 'ORGANIZATOR') {
 			router.replace(DASHBOARD_PAGES.ORGANIZATION)
+			return
+		}
+
+		if (user.role === 'ADMIN') {
+			router.replace('/admin/profile')
 		}
 	}, [isLoading, router, user.role])
 
-	const { mutate: mutateLogout, isPending: isLogoutPending } = useMutation({
-		mutationKey: ['logout'],
-		mutationFn: () => authService.logout(),
-		onSuccess() {
-			refetch()
-			startTransition(() => {
-				router.push(PUBLIC_PAGES.LOGIN)
-			})
-		}
-	})
-
-	const isLogoutLoading = isLogoutPending || isPending
-
-	if (isLoading)
+	if (isLoading) {
 		return (
 			<div className="mt-10">
-				<MiniLoader
-					width={150}
-					height={150}
-				/>
-			</div>
-		)
-
-	if (user.role === 'ORGANIZATOR') {
-		return (
-			<div className="mt-10">
-				<MiniLoader
-					width={150}
-					height={150}
-				/>
+				<MiniLoader width={150} height={150} />
 			</div>
 		)
 	}
 
-	return (
-		<div className="mt-10">
-			<h2 className="text-2xl font-bold">Hi, {user.name || 'Anonym'}</h2>
-			<br />
-			<p className="text-lg">
-				Ваш email: {user.email}{' '}
-				<i>
-					({user.verificationToken ? 'Requires email verification' : 'Verified'}
-					)
-				</i>
-			</p>
-			<br />
-			<button
-				onClick={() => mutateLogout()}
-				disabled={isLogoutLoading}
-				className={twMerge(
-					'mt-2 bg-primary text-white px-4 py-2 rounded-md',
-					isLogoutLoading && 'bg-gray-500'
-				)}
-			>
-				{isLogoutLoading ? <MiniLoader /> : 'Logout'}
-			</button>
-		</div>
-	)
+	if (user.role === 'ORGANIZATOR' || user.role === 'ADMIN' || !user.role) {
+		return (
+			<div className="mt-10">
+				<MiniLoader width={150} height={150} />
+			</div>
+		)
+	}
+
+	if (!user.idUser || !user.email) {
+		return (
+			<div className="mt-10">
+				<MiniLoader width={150} height={150} />
+			</div>
+		)
+	}
+
+	const profile: IProfile = {
+		idUser: user.idUser,
+		email: user.email,
+		role: user.role,
+		name: user.name,
+		surname: user.surname,
+		patronymic: user.patronymic,
+		phone: user.phone,
+		contact: user.contact,
+		verificationToken: user.verificationToken
+	}
+
+	return <UserProfilePage profile={profile} refetchProfile={refetch} />
 }

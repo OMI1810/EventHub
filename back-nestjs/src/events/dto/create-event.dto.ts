@@ -22,6 +22,11 @@ export enum CreateEventType {
   CONTEST = "CONTEST",
 }
 
+export enum CreateEventStatus {
+  PRIVATE = "PRIVATE",
+  PUBLIC = "PUBLIC",
+}
+
 export class CaseSettingsDto {
   @IsISO8601()
   dateForStartSelected: string;
@@ -61,6 +66,13 @@ export class EventCaseDto {
   @IsInt()
   @Min(1)
   teamLimit?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => EventTagInputDto)
+  tags?: EventTagInputDto[];
 
   @IsOptional()
   @IsArray()
@@ -115,6 +127,17 @@ export class CreateEventDto {
 
   @IsISO8601()
   dataEnd: string;
+
+  @IsEnum(CreateEventStatus)
+  status: CreateEventStatus;
+
+  @ValidateIf((dto: CreateEventDto) => dto.status === CreateEventStatus.PUBLIC)
+  @IsISO8601()
+  dataStartRegistration?: string;
+
+  @ValidateIf((dto: CreateEventDto) => dto.status === CreateEventStatus.PUBLIC)
+  @IsISO8601()
+  dataEndRegistration?: string;
 
   @ValidateIf(
     (dto: CreateEventDto) =>

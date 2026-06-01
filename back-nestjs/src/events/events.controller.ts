@@ -5,11 +5,20 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
+  Patch,
   Post,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
 import { CreateEventDto } from "./dto/create-event.dto";
+import {
+  UpdateEventCasesDto,
+  UpdateEventMaterialsDto,
+  UpdateEventSettingsDto,
+} from "./dto/update-event-blocks.dto";
+import { UpdateEventGeneralDto } from "./dto/update-event-general.dto";
+import { UpdateEventResultsDto } from "./dto/update-event-results.dto";
 import { EventsService } from "./events.service";
 
 @Controller("events")
@@ -20,6 +29,101 @@ export class EventsController {
   @Get("create-options")
   async getCreateOptions(@CurrentUser("idUser") userId: string) {
     return this.eventsService.getCreateOptions(userId);
+  }
+
+  @Auth()
+  @Get("my")
+  async getMyEvents(@CurrentUser("idUser") userId: string) {
+    return this.eventsService.getMyEvents(userId);
+  }
+
+  @Auth()
+  @Get("my/:eventId")
+  async getMyEventDetails(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+  ) {
+    return this.eventsService.getMyEventDetails(userId, eventId);
+  }
+
+  @Auth()
+  @HttpCode(200)
+  @Post("my/:eventId/invite")
+  async createMyEventInvite(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+  ) {
+    return this.eventsService.createMyEventInvite(userId, eventId);
+  }
+
+  @Auth()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @HttpCode(200)
+  @Patch("my/:eventId")
+  async updateMyEventGeneral(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Body() dto: UpdateEventGeneralDto,
+  ) {
+    return this.eventsService.updateMyEventGeneral(userId, eventId, dto);
+  }
+
+  @Auth()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @HttpCode(200)
+  @Patch("my/:eventId/settings")
+  async updateMyEventSettings(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Body() dto: UpdateEventSettingsDto,
+  ) {
+    return this.eventsService.updateMyEventSettings(userId, eventId, dto);
+  }
+
+  @Auth()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @HttpCode(200)
+  @Patch("my/:eventId/materials")
+  async updateMyEventMaterials(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Body() dto: UpdateEventMaterialsDto,
+  ) {
+    return this.eventsService.updateMyEventMaterials(userId, eventId, dto);
+  }
+
+  @Auth()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @HttpCode(200)
+  @Patch("my/:eventId/cases")
+  async updateMyEventCases(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Body() dto: UpdateEventCasesDto,
+  ) {
+    return this.eventsService.updateMyEventCases(userId, eventId, dto);
+  }
+
+  @Auth()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @HttpCode(200)
+  @Patch("my/:eventId/results")
+  async updateMyEventResults(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Body() dto: UpdateEventResultsDto,
+  ) {
+    return this.eventsService.updateMyEventResults(userId, eventId, dto);
+  }
+
+  @Auth()
+  @HttpCode(200)
+  @Patch("my/:eventId/finish")
+  async finishMyEvent(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+  ) {
+    return this.eventsService.finishMyEvent(userId, eventId);
   }
 
   @Auth()

@@ -2,6 +2,8 @@ export type EventCreateType = "HACKATHON" | "MASTER_CLASS" | "CONTEST";
 
 export type EventFormat = "OFFLINE" | "ONLINE" | "HYBRID";
 
+export type EventPublicationStatus = "PRIVATE" | "PUBLIC";
+
 export type EventTagType = "SYSTEM" | "CUSTOM";
 
 export interface EventFeaturePreset {
@@ -41,6 +43,7 @@ export interface EventCaseDraft {
   title: string;
   description?: string;
   teamLimit?: number;
+  tags: EventTagDraft[];
   materials: EventCaseMaterialDraft[];
 }
 
@@ -58,6 +61,9 @@ export interface EventCreateDraft {
   organizationId: string;
   dataStart: string;
   dataEnd: string;
+  status: EventPublicationStatus;
+  dataStartRegistration?: string;
+  dataEndRegistration?: string;
   dateDeadLine?: string;
   format: EventFormat;
   address: string;

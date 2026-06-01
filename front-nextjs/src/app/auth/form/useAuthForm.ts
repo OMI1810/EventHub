@@ -74,5 +74,6 @@ export function useAuthForm(isLogin: boolean) {
     isLoading,
     selectedRole: watch("role") ?? "USER",
     setValue,
+    watch,
   };
 }

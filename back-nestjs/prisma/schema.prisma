@@ -77,6 +77,7 @@ model User {
   organizationJoinRequest OrganizationJoinRequest[]
   solutions               Solution[]
   results                 Result[]
+  eventParticipant        UserEvent[]
 
   @@map("users")
 }
@@ -134,9 +135,11 @@ model Event {
   cordinatY Float?
   cordinatX Float?
 
-  dataStart    DateTime
-  dataEnd      DateTime
-  dateDeadLine DateTime?
+  dataStartRegistration DateTime?
+  dataEndRegistration   DateTime?
+  dataStart             DateTime
+  dataEnd               DateTime
+  dateDeadLine          DateTime?
 
   format EventFormat
   status EventStatus @default(PUBLISHED)
@@ -162,8 +165,23 @@ model Event {
   userId         String       @map("user_id")
   user           User         @relation(fields: [userId], references: [idUser])
   tag            EventTag[]
+  participant UserEvent[]
 
   @@map("events")
+}
+
+model UserEvent {
+  eventId String @map("event_id")
+  event   Event  @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
+  userId  String @map("user_id")
+  user    User    @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+  caseId String? @map("case_id")
+  case   Case?   @relation(fields: [caseId], references: [idCase])
+
+  createAt DateTime @default(now()) @map("create_at")
+
+  @@unique([eventId, userId])
+  @@map("user_event")
 }
 
 model EventTag {
@@ -187,6 +205,7 @@ model Tag {
   user   User?   @relation(fields: [userId], references: [idUser])
 
   event EventTag[]
+  cases CaseTag[]
 
   @@unique([slug, userId])
   @@map("tags")
@@ -211,8 +230,20 @@ model Case {
   teams     Team[]
   solutions Solution[]
   results   Result[]
+  tag       CaseTag[]
+  userEvent UserEvent[]
 
   @@map("cases")
+}
+
+model CaseTag {
+  caseId String @map("case_id")
+  case   Case   @relation(fields: [caseId], references: [idCase], onDelete: Cascade)
+  tagId  String @map("tag_id")
+  tag    Tag    @relation(fields: [tagId], references: [idTag], onDelete: Cascade)
+
+  @@unique([caseId, tagId])
+  @@map("case_tag")
 }
 
 model Material {
@@ -248,6 +279,8 @@ model Team {
   name        String
   description String?
   format      TeamFormat
+
+  createAt DateTime @default(now()) @map("create_at")
 
   captionId String @map("caption_id")
   caption   User   @relation("TeamCaption", fields: [captionId], references: [idUser])
@@ -324,6 +357,6 @@ model Result {
 
   @@unique([eventId, userId])
   @@unique([eventId, teamId])
-  @@unique([eventId, place])
+  @@index([eventId, caseId, place])
   @@map("results")
 }

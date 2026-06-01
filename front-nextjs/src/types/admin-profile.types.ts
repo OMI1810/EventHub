@@ -1,21 +1,4 @@
-import { TRole } from './user.types'
+import { IProfile, IUpdateProfileFormData } from './profile.types'
 
-export interface IAdminProfile {
-	idUser: string
-	name?: string
-	surname?: string
-	patronymic?: string
-	email: string
-	phone?: string
-	contact?: string
-	role: TRole
-	verificationToken?: string | null
-}
-
-export interface IUpdateAdminProfileFormData {
-	name?: string
-	surname?: string
-	patronymic?: string
-	phone?: string
-	contact?: string
-}
+export type IAdminProfile = IProfile
+export type IUpdateAdminProfileFormData = IUpdateProfileFormData
