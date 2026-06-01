@@ -1,4 +1,12 @@
-import { EventFormat, EventPublicationStatus } from './event-create.types'
+import { EventFormat } from './event-create.types'
+
+export type UserEventStatus =
+	| 'FINISHED'
+	| 'OPEN'
+	| 'PUBLISHED'
+	| 'PRIVATE'
+	| 'OPEN_REGISTRATION'
+	| 'CLOSED_REGISTRATION'
 
 export interface IUserEventFeedItem {
 	idEvent: string
@@ -7,7 +15,7 @@ export interface IUserEventFeedItem {
 	slug: string
 	type: string
 	format: EventFormat
-	status: EventPublicationStatus
+	status: UserEventStatus
 	dataStart: string
 	dataEnd: string
 	dataStartRegistration?: string | null
@@ -33,4 +41,55 @@ export interface IUserMyEventItem {
 	title: string
 	slug: string
 	createAt: string
+}
+
+export interface IUserEventOrganization {
+	idOrganization: string
+	name: string
+	description?: string | null
+	address?: string | null
+	email?: string | null
+	contact?: string | null
+}
+
+export interface IUserEventCase {
+	idCase: string
+	title: string
+	description?: string | null
+	holder?: string | null
+	teamLimit?: number | null
+	isOpen: boolean
+	dateForStartSelected: string
+	dateForEndSelected: string
+	dateStopCode: string
+	occupiedPlaces: number
+}
+
+export interface IUserEventMaterial {
+	idMaterial: string
+	title: string
+	description?: string | null
+	url: string
+}
+
+export interface IUserEventResult {
+	idResult: string
+	title: string
+	place: number
+	description?: string | null
+	score?: number | null
+	teamName?: string | null
+	userName?: string | null
+}
+
+export interface IUserEventDetails extends IUserEventFeedItem {
+	address: string
+	cordinatX?: number | null
+	cordinatY?: number | null
+	dateDeadLine?: string | null
+	participanInTeamLimit?: number | null
+	organization: IUserEventOrganization
+	cases: IUserEventCase[]
+	materials: IUserEventMaterial[]
+	results: IUserEventResult[]
 }
