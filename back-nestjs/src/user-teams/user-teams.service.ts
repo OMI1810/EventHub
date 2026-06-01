@@ -171,6 +171,15 @@ export class UserTeamsService {
 		const team = await this.requireCaptainTeamAccess(userId, teamId)
 
 		await this.prisma.$transaction(async prisma => {
+			const members = await prisma.userTeam.findMany({
+				where: {
+					teamId
+				},
+				select: {
+					userId: true
+				}
+			})
+
 			await prisma.teamJoinRequest.deleteMany({
 				where: {
 					teamId
@@ -192,6 +201,18 @@ export class UserTeamsService {
 			await prisma.result.deleteMany({
 				where: {
 					teamId
+				}
+			})
+
+			await prisma.userEvent.updateMany({
+				where: {
+					eventId: team.eventId,
+					userId: {
+						in: members.map(member => member.userId)
+					}
+				},
+				data: {
+					caseId: null
 				}
 			})
 
@@ -292,6 +313,7 @@ export class UserTeamsService {
 						idTeam: true,
 						eventId: true,
 						captionId: true,
+						caseId: true,
 						event: {
 							select: {
 								participanInTeamLimit: true
@@ -339,6 +361,18 @@ export class UserTeamsService {
 					role: 'MEMBER'
 				}
 			})
+
+			if (request.team.caseId) {
+				await prisma.userEvent.updateMany({
+					where: {
+						eventId: request.team.eventId,
+						userId: request.userId
+					},
+					data: {
+						caseId: request.team.caseId
+					}
+				})
+			}
 
 			await prisma.teamJoinRequest.update({
 				where: {

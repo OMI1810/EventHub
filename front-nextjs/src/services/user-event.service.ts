@@ -1,5 +1,6 @@
 import { instance } from '@/api/axios'
 import {
+	ISaveUserEventSolutionFormData,
 	IUserEventDetails,
 	IUserEventFeedItem,
 	IUserMyEventItem
@@ -24,6 +25,20 @@ class UserEventService {
 		return instance.post<{ success: boolean }>(
 			`${this.baseUrl}/${eventId}/participate`
 		)
+	}
+
+	async leave(eventId: string) {
+		return instance.post<{ success: boolean }>(`${this.baseUrl}/${eventId}/leave`)
+	}
+
+	async selectCase(eventId: string, caseId: string) {
+		return instance.post<IUserEventDetails>(`${this.baseUrl}/${eventId}/select-case`, {
+			caseId
+		})
+	}
+
+	async saveSolution(eventId: string, data: ISaveUserEventSolutionFormData) {
+		return instance.post<IUserEventDetails>(`${this.baseUrl}/${eventId}/solution`, data)
 	}
 }
 

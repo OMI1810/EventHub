@@ -65,6 +65,8 @@ export interface IUserEventCase {
 	occupiedPlaces: number
 }
 
+export interface IUserSelectedEventCase extends IUserEventCase {}
+
 export interface IUserEventMaterial {
 	idMaterial: string
 	title: string
@@ -82,14 +84,40 @@ export interface IUserEventResult {
 	userName?: string | null
 }
 
+export interface IUserEventTeamContext {
+	hasTeam: boolean
+	teamId?: string | null
+	isCaptain: boolean
+	selectedCaseId?: string | null
+}
+
+export interface IUserEventSolution {
+	idSolution: string
+	urlSolution: string
+	urlPresentation: string
+	description?: string | null
+	updatedAt: string
+}
+
 export interface IUserEventDetails extends IUserEventFeedItem {
 	address: string
 	cordinatX?: number | null
 	cordinatY?: number | null
 	dateDeadLine?: string | null
 	participanInTeamLimit?: number | null
+	selectedCaseId?: string | null
 	organization: IUserEventOrganization
 	cases: IUserEventCase[]
 	materials: IUserEventMaterial[]
+	selectedCase: IUserSelectedEventCase | null
+	selectedCaseMaterials: IUserEventMaterial[]
+	teamContext?: IUserEventTeamContext | null
+	solution: IUserEventSolution | null
 	results: IUserEventResult[]
+}
+
+export interface ISaveUserEventSolutionFormData {
+	urlSolution: string
+	urlPresentation: string
+	description?: string
 }
