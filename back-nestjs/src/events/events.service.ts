@@ -182,6 +182,27 @@ export class EventsService {
             description: true,
             format: true,
             caseId: true,
+            solutions: {
+              where: {
+                eventId,
+              },
+              select: {
+                idSolution: true,
+                urlSolution: true,
+                urlPresentation: true,
+                description: true,
+                createdAt: true,
+                updateAt: true,
+                eventId: true,
+                caseId: true,
+                teamId: true,
+                userId: true,
+              },
+              orderBy: {
+                updateAt: "desc",
+              },
+              take: 1,
+            },
             caption: {
               select: {
                 idUser: true,
@@ -219,6 +240,27 @@ export class EventsService {
                 name: true,
                 surname: true,
                 patronymic: true,
+                solutions: {
+                  where: {
+                    eventId,
+                  },
+                  select: {
+                    idSolution: true,
+                    urlSolution: true,
+                    urlPresentation: true,
+                    description: true,
+                    createdAt: true,
+                    updateAt: true,
+                    eventId: true,
+                    caseId: true,
+                    teamId: true,
+                    userId: true,
+                  },
+                  orderBy: {
+                    updateAt: "desc",
+                  },
+                  take: 1,
+                },
               },
             },
           },
@@ -304,8 +346,19 @@ export class EventsService {
           role: member.role,
           user: member.user,
         })),
+        latestSolution: team.solutions[0] ?? null,
+        solutions: undefined,
         user: undefined,
       })),
+      participant: event.participant.map((participant) => {
+        const { solutions, ...user } = participant.user;
+
+        return {
+          ...participant,
+          user,
+          latestSolution: solutions[0] ?? null,
+        };
+      }),
       cases: event.cases.map((eventCase) => ({
         ...eventCase,
         tags: eventCase.tag.map((caseTag) => caseTag.tag),

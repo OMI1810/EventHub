@@ -37,6 +37,19 @@ export interface ManagedEventSummary {
   registeredUsersCount: number;
 }
 
+export interface ManagedEventSolution {
+  idSolution: string;
+  urlSolution: string;
+  urlPresentation: string;
+  description?: string | null;
+  createdAt: string;
+  updateAt: string;
+  eventId: string;
+  caseId?: string | null;
+  teamId?: string | null;
+  userId?: string | null;
+}
+
 export interface ManagedEventTeam {
   idTeam: string;
   name: string;
@@ -59,6 +72,7 @@ export interface ManagedEventTeam {
       patronymic?: string | null;
     };
   }>;
+  latestSolution?: ManagedEventSolution | null;
 }
 
 export interface ManagedEventCase {
@@ -88,6 +102,7 @@ export interface ManagedEventMaterial {
 export interface ManagedEventParticipant {
   createAt: string;
   caseId?: string | null;
+  latestSolution?: ManagedEventSolution | null;
   user: {
     idUser: string;
     name?: string | null;

@@ -11,6 +11,7 @@ import {
   ManagedEventCase,
   ManagedEventDetails,
   ManagedEventMaterial,
+  ManagedEventSolution,
   ManagedEventTeam,
   UpdateManagedEventCaseData,
   UpdateManagedEventGeneralData,
@@ -236,6 +237,74 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
       <p className="text-sm text-zinc-500">{label}</p>
       <div className="mt-1 text-sm text-zinc-100">{value}</div>
     </div>
+  );
+}
+
+function SolutionStatus({
+  solution,
+  onOpen,
+}: {
+  solution?: ManagedEventSolution | null;
+  onOpen: (solution: ManagedEventSolution) => void;
+}) {
+  if (!solution) {
+    return <p className="mt-2 text-sm text-zinc-500">Решение не загружено</p>;
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3">
+      <span className="text-sm text-emerald-300">
+        Решение загружено: {formatDate(solution.updateAt)}
+      </span>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen(solution);
+        }}
+        className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-100 hover:bg-zinc-900"
+      >
+        Подробнее
+      </button>
+    </div>
+  );
+}
+
+function SolutionDetailsModal({
+  solution,
+  onClose,
+}: {
+  solution: ManagedEventSolution;
+  onClose: () => void;
+}) {
+  return (
+    <Modal title="Загруженное решение" onClose={onClose}>
+      <div className="space-y-4">
+        <InfoRow label="Дата загрузки" value={formatDate(solution.updateAt)} />
+        <InfoRow
+          label="Описание"
+          value={solution.description || "Описание не указано"}
+        />
+        <div className="grid gap-3 md:grid-cols-2">
+          <a
+            href={solution.urlSolution}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-primary hover:border-primary/60"
+          >
+            Открыть решение
+          </a>
+          <a
+            href={solution.urlPresentation}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-primary hover:border-primary/60"
+          >
+            Открыть презентацию
+          </a>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -750,6 +819,7 @@ interface ResultPlaceTarget {
   key: string;
   label: string;
   description?: string;
+  latestSolution?: ManagedEventSolution | null;
   caseId?: string | null;
   teamId?: string;
   userId?: string;
@@ -761,12 +831,14 @@ function ResultPlacesEditor({
   title,
   searchPlaceholder,
   emptyText,
+  onOpenSolution,
 }: {
   event: ManagedEventDetails;
   targets: ResultPlaceTarget[];
   title: string;
   searchPlaceholder: string;
   emptyText: string;
+  onOpenSolution?: (solution: ManagedEventSolution) => void;
 }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -862,6 +934,12 @@ function ResultPlacesEditor({
                       {target.description}
                     </p>
                   ) : null}
+                  {event.hasLoadedSolution && onOpenSolution ? (
+                    <SolutionStatus
+                      solution={target.latestSolution}
+                      onOpen={onOpenSolution}
+                    />
+                  ) : null}
                 </div>
                 <label className="space-y-1">
                   <span className="text-xs text-zinc-500">Место</span>
@@ -893,15 +971,25 @@ function ResultPlacesEditor({
 
 function TeamModal({
   team,
+  event,
+  onOpenSolution,
   onClose,
 }: {
   team: ManagedEventTeam;
+  event: ManagedEventDetails;
+  onOpenSolution: (solution: ManagedEventSolution) => void;
   onClose: () => void;
 }) {
   return (
     <Modal title={team.name} onClose={onClose}>
       <div className="space-y-4">
         <InfoRow label="Капитан" value={formatPersonName(team.caption)} />
+        {event.hasLoadedSolution ? (
+          <SolutionStatus
+            solution={team.latestSolution}
+            onOpen={onOpenSolution}
+          />
+        ) : null}
         <div>
           <p className="mb-3 text-sm text-zinc-500">Участники</p>
           <div className="space-y-2">
@@ -929,11 +1017,13 @@ function CaseDetailsModal({
   event,
   eventCase,
   tagOptions,
+  onOpenSolution,
   onClose,
 }: {
   event: ManagedEventDetails;
   eventCase: ManagedEventCase;
   tagOptions: EventTagOption[];
+  onOpenSolution: (solution: ManagedEventSolution) => void;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -961,6 +1051,7 @@ function CaseDetailsModal({
         description: team.members
           .map((member) => formatPersonName(member.user))
           .join(", "),
+        latestSolution: team.latestSolution,
         caseId: eventCase.idCase,
         teamId: team.idTeam,
       }))
@@ -968,6 +1059,7 @@ function CaseDetailsModal({
         key: getTargetKey({ userId: participant.user.idUser }),
         label: formatPersonName(participant.user),
         description: `Дата присоединения: ${formatDate(participant.createAt)}`,
+        latestSolution: participant.latestSolution,
         caseId: eventCase.idCase,
         userId: participant.user.idUser,
       }));
@@ -1195,6 +1287,7 @@ function CaseDetailsModal({
                     ? "Пока нет команд, выбравших этот кейс."
                     : "Пока нет участников, выбравших этот кейс."
                 }
+                onOpenSolution={onOpenSolution}
               />
             ) : null}
             {!event.hasResualt &&
@@ -1214,6 +1307,12 @@ function CaseDetailsModal({
                             .map((member) => formatPersonName(member.user))
                             .join(", ")}
                         </p>
+                        {event.hasLoadedSolution ? (
+                          <SolutionStatus
+                            solution={team.latestSolution}
+                            onOpen={onOpenSolution}
+                          />
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -1235,6 +1334,12 @@ function CaseDetailsModal({
                       <p className="mt-2 text-xs text-zinc-500">
                         Дата присоединения: {formatDate(participant.createAt)}
                       </p>
+                      {event.hasLoadedSolution ? (
+                        <SolutionStatus
+                          solution={participant.latestSolution}
+                          onOpen={onOpenSolution}
+                        />
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -1438,6 +1543,8 @@ export function AdminEventDetailsPage() {
   const [selectedCase, setSelectedCase] = useState<ManagedEventCase | null>(
     null,
   );
+  const [selectedSolution, setSelectedSolution] =
+    useState<ManagedEventSolution | null>(null);
   const [isAddCaseOpen, setIsAddCaseOpen] = useState(false);
   const [isCsvOpen, setIsCsvOpen] = useState(false);
 
@@ -1491,6 +1598,7 @@ export function AdminEventDetailsPage() {
         description: team.members
           .map((member) => formatPersonName(member.user))
           .join(", "),
+        latestSolution: team.latestSolution,
         caseId: null,
         teamId: team.idTeam,
       }));
@@ -1500,6 +1608,7 @@ export function AdminEventDetailsPage() {
       key: getTargetKey({ userId: participant.user.idUser }),
       label: formatPersonName(participant.user),
       description: `Дата присоединения: ${formatDate(participant.createAt)}`,
+      latestSolution: participant.latestSolution,
       caseId: null,
       userId: participant.user.idUser,
     }));
@@ -1621,10 +1730,20 @@ export function AdminEventDetailsPage() {
           >
             <div className="max-h-80 space-y-3 overflow-y-auto pr-2">
               {event.teams.map((team) => (
-                <button
+                <div
                   key={team.idTeam}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedTeam(team)}
+                  onKeyDown={(keyboardEvent) => {
+                    if (
+                      keyboardEvent.key === "Enter" ||
+                      keyboardEvent.key === " "
+                    ) {
+                      keyboardEvent.preventDefault();
+                      setSelectedTeam(team);
+                    }
+                  }}
                   className="block w-full rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-left hover:border-primary/60 hover:bg-zinc-900"
                 >
                   <p className="font-medium text-zinc-100">{team.name}</p>
@@ -1634,13 +1753,21 @@ export function AdminEventDetailsPage() {
                   <p className="mt-1 text-sm text-zinc-500">
                     Капитан: {formatPersonName(team.caption)}
                   </p>
-                </button>
+                  {event.hasLoadedSolution ? (
+                    <SolutionStatus
+                      solution={team.latestSolution}
+                      onOpen={setSelectedSolution}
+                    />
+                  ) : null}
+                </div>
               ))}
             </div>
           </DetailPanel>
         ) : null}
 
-        {!event.hasTeams && event.hasCases ? (
+        {!event.hasTeams &&
+        !event.hasResualt &&
+        (event.hasCases || event.hasLoadedSolution) ? (
           <DetailPanel title="Участники">
             <div className="max-h-80 space-y-3 overflow-y-auto pr-2">
               {event.participant.length ? (
@@ -1656,6 +1783,12 @@ export function AdminEventDetailsPage() {
                       Дата присоединения пользователя:{" "}
                       {formatDate(participant.createAt)}
                     </p>
+                    {event.hasLoadedSolution ? (
+                      <SolutionStatus
+                        solution={participant.latestSolution}
+                        onOpen={setSelectedSolution}
+                      />
+                    ) : null}
                   </div>
                 ))
               ) : (
@@ -1717,7 +1850,7 @@ export function AdminEventDetailsPage() {
           <ResultPlacesEditor
             event={event}
             targets={eventResultTargets}
-            title={event.hasTeams ? "Места команд" : "Поиск команды"}
+            title={event.hasTeams ? "Места команд" : "Места участников"}
             searchPlaceholder={
               event.hasTeams ? "Поиск команды" : "Поиск участника"
             }
@@ -1726,6 +1859,7 @@ export function AdminEventDetailsPage() {
                 ? "Команды пока не добавлены."
                 : "Участники пока не добавлены."
             }
+            onOpenSolution={setSelectedSolution}
           />
         </DetailPanel>
       ) : null}
@@ -1771,14 +1905,26 @@ export function AdminEventDetailsPage() {
         <EditEventModal event={event} onClose={() => setIsEditOpen(false)} />
       ) : null}
       {selectedTeam ? (
-        <TeamModal team={selectedTeam} onClose={() => setSelectedTeam(null)} />
+        <TeamModal
+          team={selectedTeam}
+          event={event}
+          onOpenSolution={setSelectedSolution}
+          onClose={() => setSelectedTeam(null)}
+        />
       ) : null}
       {selectedCase ? (
         <CaseDetailsModal
           event={event}
           eventCase={selectedCase}
           tagOptions={options?.tags ?? []}
+          onOpenSolution={setSelectedSolution}
           onClose={() => setSelectedCase(null)}
+        />
+      ) : null}
+      {selectedSolution ? (
+        <SolutionDetailsModal
+          solution={selectedSolution}
+          onClose={() => setSelectedSolution(null)}
         />
       ) : null}
       {isAddCaseOpen ? (
