@@ -5,6 +5,7 @@ import { AuthModule } from "./auth/auth.module";
 import { EventsModule } from "./events/events.module";
 import { GeocodingModule } from "./geocoding/geocoding.module";
 import { OrganizationModule } from './organization/organization.module'
+import { UserEventsModule } from './user-events/user-events.module'
 import { UserModule } from "./user/user.module";
 
 @Module({
@@ -17,6 +18,7 @@ import { UserModule } from "./user/user.module";
     EventsModule,
     GeocodingModule,
     OrganizationModule,
+    UserEventsModule,
     UserModule,
   ],
 })
