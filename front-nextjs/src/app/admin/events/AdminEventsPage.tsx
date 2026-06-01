@@ -99,7 +99,7 @@ export function AdminEventsPage() {
       </div>
 
       {events.length ? (
-        <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
           {events.map((event) => (
             <EventCard key={event.idEvent} event={event} />
           ))}

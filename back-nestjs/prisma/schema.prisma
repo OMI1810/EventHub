@@ -175,6 +175,8 @@ model UserEvent {
   event   Event  @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
   userId  String @map("user_id")
   user    User    @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+  caseId String? @map("case_id")
+  case   Case?   @relation(fields: [caseId], references: [idCase])
 
   createAt DateTime @default(now()) @map("create_at")
 
@@ -229,6 +231,7 @@ model Case {
   solutions Solution[]
   results   Result[]
   tag       CaseTag[]
+  userEvent UserEvent[]
 
   @@map("cases")
 }

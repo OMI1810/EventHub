@@ -58,7 +58,14 @@ function buildAdminEventCsvRows(
   );
   const rows: string[][] = [];
 
+  const addSectionDivider = () => {
+    if (rows.length > 0) {
+      rows.push([]);
+    }
+  };
+
   if (selectedOptions.includes("participants")) {
+    addSectionDivider();
     rows.push(["Участники", "ФИО", "Команда", "Роль", "Кейс"]);
     if (event.hasTeams) {
       event.teams.forEach((team) => {
@@ -87,6 +94,7 @@ function buildAdminEventCsvRows(
   }
 
   if (selectedOptions.includes("teams")) {
+    addSectionDivider();
     rows.push(["Команды", "Название", "Капитан", "Участники", "Кейс"]);
     event.teams.forEach((team) => {
       const currentCase = team.caseId ? caseById.get(team.caseId) : null;
@@ -101,6 +109,7 @@ function buildAdminEventCsvRows(
   }
 
   if (selectedOptions.includes("cases")) {
+    addSectionDivider();
     rows.push(["Кейсы", "Название", "Команды", "Участники", ""]);
     event.cases.forEach((eventCase) => {
       const assignedTeams = event.teams.filter(
