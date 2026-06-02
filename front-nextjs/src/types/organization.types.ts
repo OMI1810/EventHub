@@ -13,6 +13,8 @@ export interface IOrganizationSummary {
 	name: string
 	description?: string
 	address?: string
+	cordinatX?: number | null
+	cordinatY?: number | null
 	owner: IOrganizationOwnerSummary
 }
 
@@ -33,6 +35,8 @@ export interface IUpdateOrganizationFormData {
 	name?: string
 	description?: string
 	address?: string
+	cordinatX?: number
+	cordinatY?: number
 }
 
 export interface IOrganizationInviteResponse {

@@ -1,5 +1,6 @@
 "use client";
 
+import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { MiniLoader } from "@/components/ui/MiniLoader";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -10,9 +11,23 @@ import {
 } from "@/types/organization.types";
 import { formatPhone } from "@/utils/phone-mask";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+
+const ArcGisPointMap = dynamic(
+  () =>
+    import("@/components/map/ArcGisPointMap").then(
+      (module) => module.ArcGisPointMap,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-72 rounded-md border border-zinc-700 bg-zinc-950" />
+    ),
+  },
+);
 
 interface Props {
   onCancel: () => void;
@@ -22,12 +37,18 @@ interface Props {
 export function OrganizationEditForm({ onCancel, organization }: Props) {
   const queryClient = useQueryClient();
   const { organization: freshOrganization } = useOrganization();
+  const [organizationCoordinates, setOrganizationCoordinates] = useState({
+    cordinatX: organization.cordinatX ?? null,
+    cordinatY: organization.cordinatY ?? null,
+  });
   const { register, handleSubmit, reset, setValue, watch } =
     useForm<IUpdateOrganizationFormData>({
       defaultValues: {
         name: organization.name,
         description: organization.description ?? "",
         address: organization.address ?? "",
+        cordinatX: organization.cordinatX ?? undefined,
+        cordinatY: organization.cordinatY ?? undefined,
         phone: formatPhone(organization.owner.phone),
         contact: organization.owner.contact ?? "",
       },
@@ -40,8 +61,14 @@ export function OrganizationEditForm({ onCancel, organization }: Props) {
       name: source.name,
       description: source.description ?? "",
       address: source.address ?? "",
+      cordinatX: source.cordinatX ?? undefined,
+      cordinatY: source.cordinatY ?? undefined,
       phone: formatPhone(source.owner.phone),
       contact: source.owner.contact ?? "",
+    });
+    setOrganizationCoordinates({
+      cordinatX: source.cordinatX ?? null,
+      cordinatY: source.cordinatY ?? null,
     });
   }, [freshOrganization, organization, reset]);
 
@@ -60,6 +87,7 @@ export function OrganizationEditForm({ onCancel, organization }: Props) {
   });
 
   const phoneValue = watch("phone") ?? "";
+  const addressValue = watch("address") ?? "";
 
   return (
     <form
@@ -105,14 +133,43 @@ export function OrganizationEditForm({ onCancel, organization }: Props) {
           />
         </label>
 
-        <label className="text-sm text-zinc-300 sm:col-span-2">
-          Адрес
-          <input
-            type="text"
-            {...register("address")}
-            className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-emerald-500"
+        <div className="sm:col-span-2">
+          <AddressAutocomplete
+            label="Адрес"
+            value={addressValue}
+            onManualChange={(address) => {
+              setValue("address", address, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              setValue("cordinatX", undefined, { shouldDirty: true });
+              setValue("cordinatY", undefined, { shouldDirty: true });
+              setOrganizationCoordinates({
+                cordinatX: null,
+                cordinatY: null,
+              });
+            }}
+            onSelect={(address) => {
+              setValue("address", address.address, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              setValue("cordinatX", address.cordinatX, { shouldDirty: true });
+              setValue("cordinatY", address.cordinatY, { shouldDirty: true });
+              setOrganizationCoordinates({
+                cordinatX: address.cordinatX,
+                cordinatY: address.cordinatY,
+              });
+            }}
           />
-        </label>
+        </div>
+
+        <div className="sm:col-span-2">
+          <ArcGisPointMap
+            cordinatX={organizationCoordinates.cordinatX}
+            cordinatY={organizationCoordinates.cordinatY}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">

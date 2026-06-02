@@ -813,6 +813,9 @@ export class EventsService {
       select: {
         idOrganization: true,
         name: true,
+        address: true,
+        cordinatX: true,
+        cordinatY: true,
       },
       orderBy: {
         name: "asc",

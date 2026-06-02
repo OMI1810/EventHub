@@ -177,6 +177,8 @@ export class UserEventsService {
 						name: true,
 						description: true,
 						address: true,
+						cordinatX: true,
+						cordinatY: true,
 						owner: {
 							select: {
 								email: true,
@@ -384,6 +386,8 @@ export class UserEventsService {
 				name: event.organization.name,
 				description: event.organization.description,
 				address: event.organization.address,
+				cordinatX: event.organization.cordinatX,
+				cordinatY: event.organization.cordinatY,
 				email: event.organization.owner.email,
 				contact: event.organization.owner.contact
 			},

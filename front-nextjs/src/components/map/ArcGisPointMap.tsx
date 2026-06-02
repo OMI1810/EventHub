@@ -4,7 +4,7 @@ import "@arcgis/core/assets/esri/themes/dark/main.css";
 import Graphic from "@arcgis/core/Graphic";
 import Map from "@arcgis/core/Map";
 import MapView from "@arcgis/core/views/MapView";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ArcGisPointMapProps {
   cordinatX: number | null;
@@ -14,22 +14,30 @@ interface ArcGisPointMapProps {
 export function ArcGisPointMap({ cordinatX, cordinatY }: ArcGisPointMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<MapView | null>(null);
+  const [isViewReady, setIsViewReady] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || viewRef.current) return;
+    let isMounted = true;
 
     const map = new Map({
       basemap: "streets-navigation-vector",
     });
 
-    viewRef.current = new MapView({
+    const view = new MapView({
       container: containerRef.current,
       map,
       center: [39.7213763, 47.2230368],
       zoom: 10,
     });
 
+    viewRef.current = view;
+    void view.when(() => {
+      if (isMounted) setIsViewReady(true);
+    });
+
     return () => {
+      isMounted = false;
       viewRef.current?.destroy();
       viewRef.current = null;
     };
@@ -38,7 +46,9 @@ export function ArcGisPointMap({ cordinatX, cordinatY }: ArcGisPointMapProps) {
   useEffect(() => {
     const view = viewRef.current;
 
-    if (!view || cordinatX === null || cordinatY === null) return;
+    if (!view || !isViewReady || cordinatX === null || cordinatY === null) {
+      return;
+    }
 
     const pointGraphic = new Graphic({
       geometry: {
@@ -60,7 +70,7 @@ export function ArcGisPointMap({ cordinatX, cordinatY }: ArcGisPointMapProps) {
     view.graphics.removeAll();
     view.graphics.add(pointGraphic);
     void view.goTo({ center: [cordinatX, cordinatY], zoom: 15 });
-  }, [cordinatX, cordinatY]);
+  }, [cordinatX, cordinatY, isViewReady]);
 
   return (
     <div className="grid gap-2">

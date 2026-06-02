@@ -42,6 +42,9 @@ export class OrganizationService {
 		const name = this.optionalString(dto.name)
 		const description = this.optionalString(dto.description)
 		const address = this.optionalString(dto.address)
+		const shouldResetCoordinates =
+			dto.address !== undefined &&
+			(dto.cordinatX === undefined || dto.cordinatY === undefined)
 
 		await this.prisma.$transaction(async prisma => {
 			await prisma.user.update({
@@ -61,7 +64,9 @@ export class OrganizationService {
 				data: {
 					name,
 					description,
-					address
+					address,
+					cordinatX: shouldResetCoordinates ? null : dto.cordinatX,
+					cordinatY: shouldResetCoordinates ? null : dto.cordinatY
 				}
 			})
 		})
@@ -533,6 +538,8 @@ export class OrganizationService {
 				name: true,
 				description: true,
 				address: true,
+				cordinatX: true,
+				cordinatY: true,
 				owner: {
 					select: {
 						idUser: true,

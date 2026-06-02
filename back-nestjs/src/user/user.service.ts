@@ -49,8 +49,10 @@ export class UserService {
 		const password = await hash(dto.password)
 		const phone = this.optionalString(dto.phone)
 		const contact = this.optionalString(dto.contact)
+		const role = dto.role ?? Role.USER
+		const isRegularUser = role === Role.USER
 
-		if (dto.role === Role.ORGANIZATOR) {
+		if (role === Role.ORGANIZATOR) {
 			return this.prisma.$transaction(async prisma => {
 				const user = await prisma.user.create({
 					data: {
@@ -58,7 +60,7 @@ export class UserService {
 						phone,
 						contact,
 						password,
-						role: dto.role
+						role
 					}
 				})
 
@@ -67,6 +69,8 @@ export class UserService {
 						name: dto.organizationName!.trim(),
 						description: this.optionalString(dto.organizationDescription),
 						address: dto.organizationAddress!.trim(),
+						cordinatX: dto.organizationCordinatX,
+						cordinatY: dto.organizationCordinatY,
 						ownerUserId: user.idUser
 					}
 				})
@@ -90,8 +94,10 @@ export class UserService {
 				surname: this.optionalString(dto.surname),
 				name: this.optionalString(dto.name),
 				patronymic: this.optionalString(dto.patronymic),
+				birthDate: isRegularUser ? new Date(dto.birthDate!) : undefined,
+				city: isRegularUser ? this.optionalString(dto.city) : undefined,
 				password,
-				role: dto.role ?? Role.USER
+				role
 			}
 		})
 	}

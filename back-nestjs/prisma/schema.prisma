@@ -57,6 +57,8 @@ model User {
   surname    String?
   name       String?
   patronymic String?
+  birthDate  DateTime? @map("birth_date")
+  city       String?
 
   verificationToken String? @default(cuid()) @map("verification_token")
 
@@ -98,6 +100,8 @@ model Organization {
   name        String
   description String?
   address     String?
+  cordinatY   Float?
+  cordinatX   Float?
 
   ownerUserId String @map("owner_user_id")
   owner       User   @relation("OrganizationOwner", fields: [ownerUserId], references: [idUser])

@@ -9,6 +9,8 @@ export interface IAdminOrganizationSummary {
 	name: string
 	description?: string
 	address?: string
+	cordinatX?: number | null
+	cordinatY?: number | null
 	owner: IAdminOrganizationOwner
 }
 

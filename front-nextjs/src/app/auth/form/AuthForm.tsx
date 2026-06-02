@@ -1,12 +1,28 @@
 "use client";
 
+import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { MiniLoader } from "@/components/ui/MiniLoader";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { TRole } from "@/types/user.types";
+import dynamic from "next/dynamic";
+import { useState } from "react";
 import { twMerge } from "tailwind-merge";
 import styles from "./AuthForm.module.scss";
 import { AuthToggle } from "./AuthToggle";
 import { useAuthForm } from "./useAuthForm";
+
+const ArcGisPointMap = dynamic(
+  () =>
+    import("@/components/map/ArcGisPointMap").then(
+      (module) => module.ArcGisPointMap,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-72 rounded-md border border-zinc-700 bg-zinc-950" />
+    ),
+  },
+);
 
 interface Props {
   isLogin: boolean;
@@ -19,6 +35,14 @@ const roleOptions: Array<{ label: string; value: TRole }> = [
 ];
 
 export function AuthForm({ isLogin }: Props) {
+  const [organizationCoordinates, setOrganizationCoordinates] = useState<{
+    cordinatX: number | null;
+    cordinatY: number | null;
+  }>({
+    cordinatX: null,
+    cordinatY: null,
+  });
+
   const {
     handleSubmit,
     isLoading,
@@ -31,15 +55,20 @@ export function AuthForm({ isLogin }: Props) {
 
   const isOrganizationCreator = selectedRole === "ORGANIZATOR";
   const phoneValue = watch("phone") ?? "";
+  const isRegularUser = selectedRole === "USER";
+  const organizationAddress = watch("organizationAddress") ?? "";
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="max-w-sm mx-auto">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="w-full max-w-2xl mx-auto"
+    >
       <div className="mb-4">
         <label className="text-gray-600">
           Email
           <input
             type="email"
-            placeholder="Enter email: "
+            placeholder="Введите почту: "
             {...register("email", { required: true })}
             className={styles["input-field"]}
           />
@@ -48,10 +77,10 @@ export function AuthForm({ isLogin }: Props) {
 
       <div className="mb-6">
         <label className="text-gray-600">
-          Password
+          Пароль
           <input
             type="password"
-            placeholder="Enter password: "
+            placeholder="Введите пароль: "
             {...register("password", { required: true })}
             className={styles["input-field"]}
           />
@@ -132,15 +161,50 @@ export function AuthForm({ isLogin }: Props) {
               </div>
 
               <div className="mb-4">
-                <label className="text-gray-600">
-                  Адрес
-                  <input
-                    type="text"
-                    placeholder="Введите адрес организации"
-                    {...register("organizationAddress", { required: true })}
-                    className={styles["input-field"]}
-                  />
-                </label>
+                <AddressAutocomplete
+                  label="Адрес"
+                  value={organizationAddress}
+                  required
+                  onManualChange={(address) => {
+                    setValue("organizationAddress", address, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    setValue("organizationCordinatX", undefined, {
+                      shouldDirty: true,
+                    });
+                    setValue("organizationCordinatY", undefined, {
+                      shouldDirty: true,
+                    });
+                    setOrganizationCoordinates({
+                      cordinatX: null,
+                      cordinatY: null,
+                    });
+                  }}
+                  onSelect={(address) => {
+                    setValue("organizationAddress", address.address, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    setValue("organizationCordinatX", address.cordinatX, {
+                      shouldDirty: true,
+                    });
+                    setValue("organizationCordinatY", address.cordinatY, {
+                      shouldDirty: true,
+                    });
+                    setOrganizationCoordinates({
+                      cordinatX: address.cordinatX,
+                      cordinatY: address.cordinatY,
+                    });
+                  }}
+                />
+              </div>
+
+              <div className="mb-4">
+                <ArcGisPointMap
+                  cordinatX={organizationCoordinates.cordinatX}
+                  cordinatY={organizationCoordinates.cordinatY}
+                />
               </div>
             </>
           ) : (
@@ -180,6 +244,33 @@ export function AuthForm({ isLogin }: Props) {
                   />
                 </label>
               </div>
+
+              {isRegularUser ? (
+                <>
+                  <div className="mb-4">
+                    <label className="text-gray-600">
+                      Дата рождения
+                      <input
+                        type="date"
+                        {...register("birthDate", { required: true })}
+                        className={styles["input-field"]}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="text-gray-600">
+                      Город
+                      <input
+                        type="text"
+                        placeholder="Введите город"
+                        {...register("city", { required: true })}
+                        className={styles["input-field"]}
+                      />
+                    </label>
+                  </div>
+                </>
+              ) : null}
             </>
           )}
         </>
@@ -195,7 +286,7 @@ export function AuthForm({ isLogin }: Props) {
           )}
           disabled={isLoading}
         >
-          {isLoading ? <MiniLoader /> : isLogin ? "Sign In" : "Sign Up"}
+          {isLoading ? <MiniLoader /> : isLogin ? "Авторизация" : "Регистрация"}
         </button>
       </div>
 

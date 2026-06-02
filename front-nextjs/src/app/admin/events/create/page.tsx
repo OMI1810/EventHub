@@ -19,7 +19,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { FormEvent, ReactNode, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { twMerge } from "tailwind-merge";
 
@@ -272,14 +272,54 @@ export default function CreateEventPage() {
     setBaseForm((current) => ({ ...current, [field]: value }));
   };
 
-  const updateFormat = (format: EventFormat) => {
+  const updateOrganization = (organizationId: string) => {
+    const organization = organizations.find(
+      (currentOrganization) =>
+        currentOrganization.idOrganization === organizationId,
+    );
+
     setBaseForm((current) => ({
       ...current,
-      format,
-      address: format === "ONLINE" ? "" : current.address,
-      cordinatX: format === "ONLINE" ? null : current.cordinatX,
-      cordinatY: format === "ONLINE" ? null : current.cordinatY,
+      organizationId,
+      address:
+        current.format !== "ONLINE" && organization?.address
+          ? organization.address
+          : current.address,
+      cordinatX:
+        current.format !== "ONLINE" && organization?.cordinatX !== undefined
+          ? organization.cordinatX
+          : current.cordinatX,
+      cordinatY:
+        current.format !== "ONLINE" && organization?.cordinatY !== undefined
+          ? organization.cordinatY
+          : current.cordinatY,
     }));
+  };
+
+  const updateFormat = (format: EventFormat) => {
+    setBaseForm((current) => {
+      const organization = organizations.find(
+        (currentOrganization) =>
+          currentOrganization.idOrganization === current.organizationId,
+      );
+      const isOnline = format === "ONLINE";
+
+      return {
+        ...current,
+        format,
+        address: isOnline ? "" : organization?.address ?? current.address,
+        cordinatX: isOnline
+          ? null
+          : organization?.cordinatX !== undefined
+            ? organization.cordinatX
+            : current.cordinatX,
+        cordinatY: isOnline
+          ? null
+          : organization?.cordinatY !== undefined
+            ? organization.cordinatY
+            : current.cordinatY,
+      };
+    });
   };
 
   const selectType = (type: EventCreateType) => {
@@ -554,7 +594,7 @@ export default function CreateEventPage() {
             <SelectField
               label="Организация"
               value={baseForm.organizationId}
-              onChange={(value) => updateBaseForm("organizationId", value)}
+              onChange={updateOrganization}
               required
             >
               <option value="">
@@ -671,6 +711,7 @@ export default function CreateEventPage() {
                 search={tagSearch}
                 selectedTags={selectedTags}
                 onAddFromSearch={addTagFromSearch}
+                onClose={() => setIsTagDropdownOpen(false)}
                 onInputFocus={() => setIsTagDropdownOpen(true)}
                 onRemoveTag={removeTag}
                 onSearchChange={(value) => {
@@ -934,6 +975,7 @@ function TagCombobox({
   search,
   selectedTags,
   onAddFromSearch,
+  onClose,
   onInputFocus,
   onRemoveTag,
   onSearchChange,
@@ -944,13 +986,32 @@ function TagCombobox({
   search: string;
   selectedTags: EventTagDraft[];
   onAddFromSearch: () => void;
+  onClose: () => void;
   onInputFocus: () => void;
   onRemoveTag: (tag: EventTagDraft) => void;
   onSearchChange: (value: string) => void;
   onSelectTag: (tag: EventTagOption) => void;
 }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen, onClose]);
+
   return (
-    <div className="grid gap-3">
+    <div ref={wrapperRef} className="grid gap-3">
       <p className="text-sm text-zinc-300">Теги</p>
       <div className="relative">
         <div className="grid gap-2 md:grid-cols-[1fr_auto]">
@@ -1388,6 +1449,9 @@ function CaseModal({
             search={form.tagSearch}
             selectedTags={form.tags}
             onAddFromSearch={addCaseTagFromSearch}
+            onClose={() =>
+              onChange({ ...form, isTagDropdownOpen: false })
+            }
             onInputFocus={() =>
               onChange({ ...form, isTagDropdownOpen: true })
             }

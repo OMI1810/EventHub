@@ -18,6 +18,9 @@ export interface EventFeaturePreset {
 export interface OrganizationOption {
   idOrganization: string;
   name: string;
+  address?: string | null;
+  cordinatX?: number | null;
+  cordinatY?: number | null;
 }
 
 export interface EventTagOption {

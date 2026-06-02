@@ -27,7 +27,11 @@ export interface IFormData extends Pick<IUser, "email"> {
   surname?: string;
   name?: string;
   patronymic?: string;
+  birthDate?: string;
+  city?: string;
   organizationName?: string;
   organizationDescription?: string;
   organizationAddress?: string;
+  organizationCordinatX?: number;
+  organizationCordinatY?: number;
 }

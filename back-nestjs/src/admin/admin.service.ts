@@ -245,6 +245,8 @@ export class AdminService {
 						name: true,
 						description: true,
 						address: true,
+						cordinatX: true,
+						cordinatY: true,
 						owner: {
 							select: {
 								idUser: true,
@@ -282,6 +284,8 @@ export class AdminService {
 						name: true,
 						description: true,
 						address: true,
+						cordinatX: true,
+						cordinatY: true,
 						owner: {
 							select: {
 								idUser: true,

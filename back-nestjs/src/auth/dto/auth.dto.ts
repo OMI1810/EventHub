@@ -2,7 +2,9 @@ import { Role } from "@prisma/client";
 import {
   IsEmail,
   IsEnum,
+  IsISO8601,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MinLength,
@@ -48,6 +50,16 @@ export class RegisterDto extends AuthDto {
   @IsString()
   patronymic?: string;
 
+  @ValidateIf((dto) => !dto.role || dto.role === Role.USER)
+  @IsNotEmpty()
+  @IsISO8601()
+  birthDate?: string;
+
+  @ValidateIf((dto) => !dto.role || dto.role === Role.USER)
+  @IsNotEmpty()
+  @IsString()
+  city?: string;
+
   @ValidateIf((dto) => dto.role === Role.ORGANIZATOR)
   @IsNotEmpty()
   @IsString()
@@ -62,4 +74,14 @@ export class RegisterDto extends AuthDto {
   @IsNotEmpty()
   @IsString()
   organizationAddress?: string;
+
+  @ValidateIf((dto) => dto.role === Role.ORGANIZATOR)
+  @IsOptional()
+  @IsNumber()
+  organizationCordinatX?: number;
+
+  @ValidateIf((dto) => dto.role === Role.ORGANIZATOR)
+  @IsOptional()
+  @IsNumber()
+  organizationCordinatY?: number;
 }
