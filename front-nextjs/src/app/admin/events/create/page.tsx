@@ -951,6 +951,7 @@ export default function CreateEventPage() {
         <CaseModal
           availableTags={availableTags}
           form={caseModal}
+          hasTeams={features?.hasTeams ?? false}
           onChange={setCaseModal}
           onClose={() => setCaseModal(null)}
           onSave={saveCase}
@@ -1318,12 +1319,14 @@ function FeatureCheckbox({
 function CaseModal({
   availableTags,
   form,
+  hasTeams,
   onChange,
   onClose,
   onSave,
 }: {
   availableTags: EventTagOption[];
   form: CaseModalForm;
+  hasTeams: boolean;
   onChange: (form: CaseModalForm) => void;
   onClose: () => void;
   onSave: () => void;
@@ -1469,7 +1472,7 @@ function CaseModal({
           />
           <div className="max-w-56">
             <TextField
-              label="Количество команд"
+              label={hasTeams ? "Количество команд" : "Количество участников"}
               type="number"
               value={form.teamLimit}
               onChange={(value) => update("teamLimit", value)}
