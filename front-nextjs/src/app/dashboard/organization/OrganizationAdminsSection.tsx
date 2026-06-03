@@ -15,16 +15,17 @@ export function OrganizationAdminsSection() {
 	return (
 		<section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
 			<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-				Администраторы
+				Администраторы организации
 			</p>
-			<h2 className="mt-3 text-2xl font-bold">Список администраторов</h2>
+			<h1 className="mt-3 text-3xl font-bold">Список администраторов</h1>
+			<p className="mt-4 max-w-3xl text-sm text-zinc-300">
+				Здесь отображаются все администраторы, которые уже работают от имени
+				этой организации.
+			</p>
 
 			{isLoading ? (
 				<div className="mt-6">
-					<MiniLoader
-						width={80}
-						height={80}
-					/>
+					<MiniLoader width={80} height={80} />
 				</div>
 			) : admins.length === 0 ? (
 				<p className="mt-6 text-sm text-zinc-400">

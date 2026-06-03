@@ -21,11 +21,8 @@ enum EventFormat {
 
 enum EventStatus {
   FINISHED
-  OPEN
   PUBLISHED
   PRIVATE
-  OPEN_REGISTRATION
-  CLOSED_REGISTRATION
 }
 
 enum TagType {
@@ -76,6 +73,7 @@ model User {
 
   tags                    Tag[]
   teamJoinRequest         TeamJoinRequest[]
+  eventJoinRequest        EventJoinRequest[]
   organizationJoinRequest OrganizationJoinRequest[]
   solutions               Solution[]
   results                 Result[]
@@ -170,6 +168,7 @@ model Event {
   user           User         @relation(fields: [userId], references: [idUser])
   tag            EventTag[]
   participant UserEvent[]
+  joinRequest EventJoinRequest[]
 
   @@map("events")
 }
@@ -316,6 +315,20 @@ model TeamJoinRequest {
 
   @@unique([userId, teamId])
   @@map("team_join_request")
+}
+
+model EventJoinRequest {
+  idJoinEvent String @id @default(cuid()) @map("id_join_event")
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
+  userId  String
+  user    User   @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+
+  status StatusJoinRequest @default(PENDING)
+
+  @@unique([userId, eventId])
+  @@map("event_join_request")
 }
 
 model Solution {

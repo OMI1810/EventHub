@@ -2,11 +2,32 @@ import { EventFormat } from './event-create.types'
 
 export type UserEventStatus =
 	| 'FINISHED'
-	| 'OPEN'
 	| 'PUBLISHED'
 	| 'PRIVATE'
-	| 'OPEN_REGISTRATION'
-	| 'CLOSED_REGISTRATION'
+
+export interface IUserEventTimeState {
+	isPrivate: boolean
+	isRegistrationStarted: boolean
+	isRegistrationOpen: boolean
+	isRegistrationFinished: boolean
+	isEventStarted: boolean
+	isEventFinished: boolean
+	canManageTeams: boolean
+	canViewEventMaterials: boolean
+	canUploadSolution: boolean
+	solutionDeadline?: string | null
+	isSolutionDeadlinePassed: boolean
+}
+
+export interface IUserCaseTimeState {
+	isCaseSelectionStarted: boolean
+	isCaseSelectionOpen: boolean
+	isCaseSelectionFinished: boolean
+	canViewCaseMaterials: boolean
+	canUploadCaseSolution: boolean
+	isCaseSolutionDeadlinePassed: boolean
+	solutionDeadline: string
+}
 
 export interface IUserEventFeedItem {
 	idEvent: string
@@ -30,6 +51,7 @@ export interface IUserEventFeedItem {
 	registeredUsersCount: number
 	isParticipating: boolean
 	canParticipate: boolean
+	timeState: IUserEventTimeState
 	organization: {
 		idOrganization: string
 		name: string
@@ -63,6 +85,7 @@ export interface IUserEventCase {
 	dateForEndSelected: string
 	dateStopCode: string
 	occupiedPlaces: number
+	timeState: IUserCaseTimeState
 }
 
 export interface IUserSelectedEventCase extends IUserEventCase {}
@@ -78,6 +101,7 @@ export interface IUserEventResult {
 	idResult: string
 	title: string
 	place: number
+	caseId?: string | null
 	description?: string | null
 	score?: number | null
 	teamName?: string | null

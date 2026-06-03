@@ -6,12 +6,15 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
 } from "@nestjs/common";
 import {
   EventFormat,
   EventStatus,
   Prisma,
   Role,
+  StatusJoinRequest,
   TagType,
 } from "@prisma/client";
 import {
@@ -48,6 +51,27 @@ interface EventInvitePayload extends BaseInvitePayload {
   createdByUserId: string;
 }
 
+type EventDateInput = string | Date | null | undefined;
+
+interface EventTimelineCaseInput {
+  dateForStartSelected: EventDateInput;
+  dateForEndSelected: EventDateInput;
+  dateStopCode?: EventDateInput;
+}
+
+interface EventTimelineInput {
+  dataStart: EventDateInput;
+  dataEnd: EventDateInput;
+  isPublic: boolean;
+  dataStartRegistration?: EventDateInput;
+  dataEndRegistration?: EventDateInput;
+  hasCases: boolean;
+  hasLoadedSolution: boolean;
+  dateDeadLine?: EventDateInput;
+  caseSettings?: EventTimelineCaseInput | null;
+  cases?: EventTimelineCaseInput[];
+}
+
 const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
   [CreateEventType.HACKATHON]: {
     hasCases: true,
@@ -76,14 +100,46 @@ const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
 };
 
 @Injectable()
-export class EventsService {
+export class EventsService implements OnModuleInit, OnModuleDestroy {
   private readonly inviteScope = "event";
   private readonly inviteTtlSeconds = 600;
+  private finishExpiredEventsInterval?: NodeJS.Timeout;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly inviteCoreService: InviteCoreService,
   ) {}
+
+  onModuleInit() {
+    void this.finishExpiredEvents().catch(() => undefined);
+    this.finishExpiredEventsInterval = setInterval(() => {
+      void this.finishExpiredEvents().catch(() => undefined);
+    }, 60_000);
+  }
+
+  onModuleDestroy() {
+    if (this.finishExpiredEventsInterval) {
+      clearInterval(this.finishExpiredEventsInterval);
+    }
+  }
+
+  async finishExpiredEvents(now = new Date()) {
+    const result = await this.prisma.event.updateMany({
+      where: {
+        status: {
+          not: EventStatus.FINISHED,
+        },
+        dataEnd: {
+          lte: now,
+        },
+      },
+      data: {
+        status: EventStatus.FINISHED,
+      },
+    });
+
+    return result.count;
+  }
 
   async getMyEvents(userId: string) {
     const events = await this.prisma.event.findMany({
@@ -318,13 +374,36 @@ export class EventsService {
         results: {
           select: {
             idResult: true,
+            title: true,
             place: true,
+            description: true,
+            score: true,
             caseId: true,
             teamId: true,
             userId: true,
           },
           orderBy: {
             place: "asc",
+          },
+        },
+        joinRequest: {
+          where: {
+            status: "PENDING",
+          },
+          select: {
+            idJoinEvent: true,
+            status: true,
+            user: {
+              select: {
+                idUser: true,
+                email: true,
+                phone: true,
+                contact: true,
+                name: true,
+                surname: true,
+                patronymic: true,
+              },
+            },
           },
         },
       },
@@ -341,12 +420,12 @@ export class EventsService {
         : event.participant.length,
       teams: event.teams.map((team) => ({
         ...team,
+        latestSolution: team.solutions[0] ?? null,
         membersCount: team.user.length,
         members: team.user.map((member) => ({
           role: member.role,
           user: member.user,
         })),
-        latestSolution: team.solutions[0] ?? null,
         solutions: undefined,
         user: undefined,
       })),
@@ -372,7 +451,7 @@ export class EventsService {
     eventId: string,
     dto: UpdateEventGeneralDto,
   ) {
-    const event = await this.ensureEventAccess(userId, eventId);
+    const event = await this.ensureEditableEventAccess(userId, eventId);
 
     if (event.status === EventStatus.FINISHED) {
       throw new BadRequestException(
@@ -380,14 +459,39 @@ export class EventsService {
       );
     }
 
-    this.validateEventDateRange(dto.dataStart, dto.dataEnd);
+    const currentEvent = await this.prisma.event.findUnique({
+      where: {
+        idEvent: eventId,
+      },
+      select: {
+        hasCases: true,
+        hasLoadedSolution: true,
+        dateDeadLine: true,
+        cases: {
+          select: {
+            dateForStartSelected: true,
+            dateForEndSelected: true,
+            dateStopCode: true,
+          },
+        },
+      },
+    });
 
-    if (dto.status === CreateEventStatus.PUBLIC) {
-      this.validateRegistrationDateRange(
-        dto.dataStartRegistration!,
-        dto.dataEndRegistration!,
-      );
+    if (!currentEvent) {
+      throw new NotFoundException("Мероприятие не найдено");
     }
+
+    this.validateEventTimeline({
+      dataStart: dto.dataStart,
+      dataEnd: dto.dataEnd,
+      isPublic: dto.status === CreateEventStatus.PUBLIC,
+      dataStartRegistration: dto.dataStartRegistration,
+      dataEndRegistration: dto.dataEndRegistration,
+      hasCases: currentEvent.hasCases,
+      hasLoadedSolution: currentEvent.hasLoadedSolution,
+      dateDeadLine: currentEvent.dateDeadLine,
+      cases: currentEvent.cases,
+    });
 
     return this.prisma.event.update({
       where: {
@@ -441,6 +545,18 @@ export class EventsService {
         participantLimit: true,
         participanInTeamLimit: true,
         dateDeadLine: true,
+        dataStart: true,
+        dataEnd: true,
+        dataStartRegistration: true,
+        dataEndRegistration: true,
+        status: true,
+        cases: {
+          select: {
+            dateForStartSelected: true,
+            dateForEndSelected: true,
+            dateStopCode: true,
+          },
+        },
       },
     });
 
@@ -451,6 +567,7 @@ export class EventsService {
     const hasParticipantLimit =
       dto.hasParticipantLimit ?? currentEvent.hasParticipantLimit;
     const hasTeams = dto.hasTeams ?? currentEvent.hasTeams;
+    const hasCases = dto.hasCases ?? currentEvent.hasCases;
     const hasLoadedSolution =
       dto.hasLoadedSolution ?? currentEvent.hasLoadedSolution;
     const participantLimit =
@@ -473,12 +590,24 @@ export class EventsService {
       throw new BadRequestException("Требуется дедлайн загрузки решений");
     }
 
+    this.validateEventTimeline({
+      dataStart: currentEvent.dataStart,
+      dataEnd: currentEvent.dataEnd,
+      isPublic: currentEvent.status === EventStatus.PUBLISHED,
+      dataStartRegistration: currentEvent.dataStartRegistration,
+      dataEndRegistration: currentEvent.dataEndRegistration,
+      hasCases,
+      hasLoadedSolution,
+      dateDeadLine,
+      cases: currentEvent.cases,
+    });
+
     return this.prisma.event.update({
       where: {
         idEvent: eventId,
       },
       data: {
-        hasCases: dto.hasCases ?? currentEvent.hasCases,
+        hasCases,
         hasTeams,
         hasParticipantLimit,
         hasLoadedSolution,
@@ -570,6 +699,37 @@ export class EventsService {
     dto: UpdateEventCasesDto,
   ) {
     await this.ensureEditableEventAccess(userId, eventId);
+    const event = await this.prisma.event.findUnique({
+      where: {
+        idEvent: eventId,
+      },
+      select: {
+        dataStart: true,
+        dataEnd: true,
+        dataStartRegistration: true,
+        dataEndRegistration: true,
+        status: true,
+        hasLoadedSolution: true,
+        dateDeadLine: true,
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException("Мероприятие не найдено");
+    }
+
+    this.validateEventTimeline({
+      dataStart: event.dataStart,
+      dataEnd: event.dataEnd,
+      isPublic: event.status === EventStatus.PUBLISHED,
+      dataStartRegistration: event.dataStartRegistration,
+      dataEndRegistration: event.dataEndRegistration,
+      hasCases: dto.cases.length > 0,
+      hasLoadedSolution: event.hasLoadedSolution,
+      dateDeadLine: event.dateDeadLine,
+      cases: dto.cases,
+    });
+
     const caseIds = dto.cases
       .map((eventCase) => eventCase.idCase)
       .filter((id): id is string => Boolean(id));
@@ -664,7 +824,7 @@ export class EventsService {
     eventId: string,
     dto: UpdateEventResultsDto,
   ) {
-    await this.ensureEditableEventAccess(userId, eventId);
+    await this.ensureEventAccess(userId, eventId);
 
     const event = await this.prisma.event.findUnique({
       where: {
@@ -805,6 +965,99 @@ export class EventsService {
     });
   }
 
+  async approveMyEventJoinRequest(
+    userId: string,
+    eventId: string,
+    requestId: string,
+  ) {
+    await this.ensureEventAccess(userId, eventId);
+
+    const request = await this.prisma.eventJoinRequest.findFirst({
+      where: {
+        idJoinEvent: requestId,
+        eventId,
+      },
+      select: {
+        idJoinEvent: true,
+        userId: true,
+        status: true,
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException("Заявка не найдена");
+    }
+
+    if (request.status !== StatusJoinRequest.PENDING) {
+      throw new BadRequestException("Заявка уже обработана");
+    }
+
+    await this.prisma.$transaction(async (prisma) => {
+      await prisma.eventJoinRequest.update({
+        where: {
+          idJoinEvent: requestId,
+        },
+        data: {
+          status: StatusJoinRequest.ACCEPT,
+        },
+      });
+
+      await prisma.userEvent.upsert({
+        where: {
+          eventId_userId: {
+            eventId,
+            userId: request.userId,
+          },
+        },
+        update: {},
+        create: {
+          eventId,
+          userId: request.userId,
+        },
+      });
+    });
+
+    return this.getMyEventDetails(userId, eventId);
+  }
+
+  async rejectMyEventJoinRequest(
+    userId: string,
+    eventId: string,
+    requestId: string,
+  ) {
+    await this.ensureEventAccess(userId, eventId);
+
+    const request = await this.prisma.eventJoinRequest.findFirst({
+      where: {
+        idJoinEvent: requestId,
+        eventId,
+      },
+      select: {
+        idJoinEvent: true,
+        status: true,
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException("Заявка не найдена");
+    }
+
+    if (request.status !== StatusJoinRequest.PENDING) {
+      throw new BadRequestException("Заявка уже обработана");
+    }
+
+    await this.prisma.eventJoinRequest.update({
+      where: {
+        idJoinEvent: requestId,
+      },
+      data: {
+        status: StatusJoinRequest.REJECTED,
+      },
+    });
+
+    return this.getMyEventDetails(userId, eventId);
+  }
+
   async getCreateOptions(userId: string) {
     const organizations = await this.prisma.organization.findMany({
       where: {
@@ -863,14 +1116,17 @@ export class EventsService {
 
     const features = this.resolveFeatures(dto);
     this.validatePresetPayload(dto, features);
-    this.validateEventDateRange(dto.dataStart, dto.dataEnd);
-
-    if (dto.status === CreateEventStatus.PUBLIC) {
-      this.validateRegistrationDateRange(
-        dto.dataStartRegistration!,
-        dto.dataEndRegistration!,
-      );
-    }
+    this.validateEventTimeline({
+      dataStart: dto.dataStart,
+      dataEnd: dto.dataEnd,
+      isPublic: dto.status === CreateEventStatus.PUBLIC,
+      dataStartRegistration: dto.dataStartRegistration,
+      dataEndRegistration: dto.dataEndRegistration,
+      hasCases: features.hasCases,
+      hasLoadedSolution: features.hasLoadedSolution,
+      dateDeadLine: dto.dateDeadLine,
+      caseSettings: dto.caseSettings,
+    });
 
     return this.prisma.$transaction(async (prisma) => {
       const event = await prisma.event.create({
@@ -1070,6 +1326,7 @@ export class EventsService {
       select: {
         idEvent: true,
         status: true,
+        dataStart: true,
       },
     });
 
@@ -1086,6 +1343,12 @@ export class EventsService {
     if (event.status === EventStatus.FINISHED) {
       throw new BadRequestException(
         "Завершенное мероприятие нельзя редактировать",
+      );
+    }
+
+    if (new Date() >= event.dataStart) {
+      throw new BadRequestException(
+        "Мероприятие уже началось, редактирование недоступно",
       );
     }
 
@@ -1516,6 +1779,134 @@ export class EventsService {
   private optionalString(value?: string) {
     const normalized = value?.trim();
     return normalized ? normalized : undefined;
+  }
+
+  private validateEventTimeline(input: EventTimelineInput) {
+    const dataStart = this.requireValidDate(
+      input.dataStart,
+      "Дата начала мероприятия",
+    );
+    const dataEnd = this.requireValidDate(
+      input.dataEnd,
+      "Дата окончания мероприятия",
+    );
+
+    if (dataStart >= dataEnd) {
+      throw new BadRequestException(
+        "Дата окончания мероприятия должна быть позже даты начала мероприятия",
+      );
+    }
+
+    if (input.isPublic) {
+      const registrationStart = this.requireValidDate(
+        input.dataStartRegistration,
+        "Дата начала регистрации",
+      );
+      const registrationEnd = this.requireValidDate(
+        input.dataEndRegistration,
+        "Дата окончания регистрации",
+      );
+
+      if (registrationStart > registrationEnd) {
+        throw new BadRequestException(
+          "Начало регистрации не может быть позже окончания регистрации",
+        );
+      }
+
+      if (registrationEnd > dataStart) {
+        throw new BadRequestException(
+          "Окончание регистрации не может быть позже начала мероприятия",
+        );
+      }
+    }
+
+    if (input.hasCases) {
+      const cases = input.cases?.length
+        ? input.cases
+        : input.caseSettings
+          ? [input.caseSettings]
+          : [];
+
+      if (!cases.length) {
+        throw new BadRequestException("Требуется хотя бы один кейс");
+      }
+
+      cases.forEach((eventCase, index) => {
+        const selectionStart = this.requireValidDate(
+          eventCase.dateForStartSelected,
+          "Дата начала выбора кейсов",
+        );
+        const selectionEnd = this.requireValidDate(
+          eventCase.dateForEndSelected,
+          "Дата окончания выбора кейсов",
+        );
+        const stopCode = eventCase.dateStopCode
+          ? this.requireValidDate(
+              eventCase.dateStopCode,
+              "Стоп-код/дедлайн кейсов",
+            )
+          : selectionEnd;
+
+        if (selectionStart > selectionEnd) {
+          throw new BadRequestException(
+            "Начало выбора кейсов не может быть позже окончания выбора",
+          );
+        }
+
+        if (input.hasLoadedSolution && !eventCase.dateStopCode) {
+          throw new BadRequestException(
+            "Требуется стоп-код/дедлайн загрузки решения",
+          );
+        }
+
+        if (selectionEnd > stopCode) {
+          throw new BadRequestException(
+            "Окончание выбора кейсов не может быть позже стоп-кода/дедлайна",
+          );
+        }
+
+        if (stopCode > dataEnd) {
+          throw new BadRequestException(
+            "Стоп-код/дедлайн кейсов не может быть позже окончания мероприятия",
+          );
+        }
+      });
+
+      return;
+    }
+
+    if (input.hasLoadedSolution) {
+      const deadline = this.requireValidDate(
+        input.dateDeadLine,
+        "Дедлайн загрузки решения",
+      );
+
+      if (deadline < dataStart) {
+        throw new BadRequestException(
+          "Дедлайн загрузки решения не может быть раньше начала мероприятия",
+        );
+      }
+
+      if (deadline > dataEnd) {
+        throw new BadRequestException(
+          "Дедлайн загрузки решения не может быть позже окончания мероприятия",
+        );
+      }
+    }
+  }
+
+  private requireValidDate(value: EventDateInput, fieldName: string) {
+    if (!value) {
+      throw new BadRequestException(`${fieldName} обязательна`);
+    }
+
+    const date = value instanceof Date ? value : new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException(`${fieldName} указана некорректно`);
+    }
+
+    return date;
   }
 
   private validateEventDateRange(start: string, end: string) {

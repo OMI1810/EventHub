@@ -12,7 +12,7 @@ import {
 } from "@/types/user-team.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { UserCreateTeamModal } from "./UserCreateTeamModal";
 import { UserDeleteTeamModal } from "./UserDeleteTeamModal";
@@ -48,6 +48,10 @@ function AccessWarning({ text }: { text: string }) {
   );
 }
 
+function getLastKnownTeamStorageKey(eventId: string) {
+  return `user-team:last-known:${eventId}`;
+}
+
 export function UserTeamTab({ eventId }: Props) {
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -60,6 +64,7 @@ export function UserTeamTab({ eventId }: Props) {
   const [invite, setInvite] = useState<IUserTeamInviteResponse | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false);
+  const [hadTeamBefore, setHadTeamBefore] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["user-team", eventId],
@@ -204,6 +209,20 @@ export function UserTeamTab({ eventId }: Props) {
     [data?.team?.members],
   );
 
+  useEffect(() => {
+    if (!data) return;
+
+    const storageKey = getLastKnownTeamStorageKey(eventId);
+
+    if (data.hasTeam && data.team?.idTeam) {
+      window.localStorage.setItem(storageKey, data.team.idTeam);
+      setHadTeamBefore(true);
+      return;
+    }
+
+    setHadTeamBefore(Boolean(window.localStorage.getItem(storageKey)));
+  }, [data, eventId]);
+
   if (isLoading || !data) {
     return (
       <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 px-5 py-8 text-sm text-zinc-400">
@@ -218,10 +237,56 @@ export function UserTeamTab({ eventId }: Props) {
     );
   }
 
+  const renderJoinModal = () =>
+    isJoinModalOpen ? (
+      <JoinByCodeModal
+        label="Команды"
+        title="Вступление в команду"
+        description="Введите код приглашения вручную или откройте сканер QR-кода."
+        codeLabel="Код приглашения"
+        codePlaceholder="Например, A1B2-C3D4"
+        emptyHint="Вы можете ввести код вручную или считать его через камеру."
+        filledHint="Код можно отредактировать вручную перед отправкой."
+        scanButtonLabel="Отсканировать QR-код"
+        scannerTitle="Сканирование QR-кода"
+        submitLabel="Отправить заявку"
+        isPending={joinByInviteMutation.isPending}
+        onClose={() => setIsJoinModalOpen(false)}
+        onDetected={() => {
+          toast.success("QR-код считан. Проверьте код и отправьте заявку.");
+        }}
+        onSubmit={(code) => joinByInviteMutation.mutate({ code, eventId })}
+      />
+    ) : null;
+
+  const renderCreateModal = () =>
+    isCreateModalOpen ? (
+      <UserCreateTeamModal
+        mode="create"
+        isPending={createTeamMutation.isPending}
+        canChooseFormat={data.canChooseFormat}
+        defaultFormat={data.defaultFormat}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={(formData) => createTeamMutation.mutate(formData)}
+      />
+    ) : null;
+
   if (!data.hasTeam) {
+    if (!data.canManageTeams) {
+      return (
+        <AccessWarning text="Создание и вступление в команды закрыты после начала мероприятия." />
+      );
+    }
+
     return (
       <>
         <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
+          {hadTeamBefore ? (
+            <div className="mb-5 rounded-2xl border border-amber-700/60 bg-amber-950/20 px-4 py-4 text-sm leading-6 text-amber-100">
+              Ваша предыдущая команда была расформирована. Сейчас вы можете
+              вступить в другую команду или создать свою.
+            </div>
+          ) : null}
           <h3 className="text-xl font-bold text-white">
             У вас пока нет команды
           </h3>
@@ -248,37 +313,8 @@ export function UserTeamTab({ eventId }: Props) {
           </div>
         </div>
 
-        {isCreateModalOpen ? (
-          <UserCreateTeamModal
-            mode="create"
-            isPending={createTeamMutation.isPending}
-            canChooseFormat={data.canChooseFormat}
-            defaultFormat={data.defaultFormat}
-            onClose={() => setIsCreateModalOpen(false)}
-            onSubmit={(formData) => createTeamMutation.mutate(formData)}
-          />
-        ) : null}
-
-        {isJoinModalOpen ? (
-          <JoinByCodeModal
-            label="Команды"
-            title="Вступление в команду"
-            description="Введите код приглашения вручную или откройте сканер QR-кода."
-            codeLabel="Код приглашения"
-            codePlaceholder="Например, A1B2-C3D4"
-            emptyHint="Вы можете ввести код вручную или считать его через камеру."
-            filledHint="Код можно отредактировать вручную перед отправкой."
-            scanButtonLabel="Отсканировать QR-код"
-            scannerTitle="Сканирование QR-кода"
-            submitLabel="Отправить заявку"
-            isPending={joinByInviteMutation.isPending}
-            onClose={() => setIsJoinModalOpen(false)}
-            onDetected={() => {
-              toast.success("QR-код считан. Проверьте код и отправьте заявку.");
-            }}
-            onSubmit={(code) => joinByInviteMutation.mutate({ code, eventId })}
-          />
-        ) : null}
+        {renderCreateModal()}
+        {renderJoinModal()}
       </>
     );
   }
@@ -313,7 +349,7 @@ export function UserTeamTab({ eventId }: Props) {
             </div>
           </div>
 
-          {team.isCaptain ? (
+          {team.isCaptain && data.canManageTeams ? (
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
@@ -324,8 +360,17 @@ export function UserTeamTab({ eventId }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => setIsDeleteModalOpen(true)}
-                className="rounded-xl border border-rose-700 px-5 py-2.5 text-sm font-medium text-rose-200 transition-colors hover:bg-rose-950/40"
+                onClick={() => {
+                  if (team.selectedCaseId) return;
+                  setIsDeleteModalOpen(true);
+                }}
+                disabled={Boolean(team.selectedCaseId)}
+                title={
+                  team.selectedCaseId
+                    ? "Команда уже выбрала кейс, поэтому удалить ее нельзя"
+                    : undefined
+                }
+                className="rounded-xl border border-rose-700 px-5 py-2.5 text-sm font-medium text-rose-200 transition-colors hover:bg-rose-950/40 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Удалить команду
               </button>
@@ -354,7 +399,7 @@ export function UserTeamTab({ eventId }: Props) {
           </div>
         </div>
 
-        {team.isCaptain ? (
+        {team.isCaptain && data.canManageTeams ? (
           <InviteCodeCard
             label="Приглашение"
             title="Код приглашения в команду"
@@ -390,7 +435,7 @@ export function UserTeamTab({ eventId }: Props) {
           />
         ) : null}
 
-        {team.isCaptain ? (
+        {team.isCaptain && data.canManageTeams ? (
           <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
               Заявки в команду

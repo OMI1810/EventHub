@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { InviteQrModal } from "@/app/invites/components/InviteQrModal";
+import { InviteSectionCard } from "@/app/invites/components/InviteSectionCard";
 import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { MiniLoader } from "@/components/ui/MiniLoader";
 import { ADMIN_PAGES } from "@/config/pages/admin.config";
@@ -10,6 +10,7 @@ import {
   EventInviteResponse,
   ManagedEventCase,
   ManagedEventDetails,
+  ManagedEventJoinRequest,
   ManagedEventMaterial,
   ManagedEventSolution,
   ManagedEventTeam,
@@ -310,57 +311,132 @@ function SolutionDetailsModal({
 
 function EventInviteSection({ eventId }: { eventId: string }) {
   const [invite, setInvite] = useState<EventInviteResponse | null>(null);
-  const [isQrOpen, setIsQrOpen] = useState(false);
 
   const createInviteMutation = useMutation({
     mutationFn: () => eventService.createMyEventInvite(eventId),
     onSuccess: (response) => {
       setInvite(response.data);
-      setIsQrOpen(false);
       toast.success("Код приглашения создан");
     },
     onError: () => toast.error("Не удалось создать код приглашения"),
   });
 
   return (
-    <DetailPanel title="Система приглашения">
-      <div className="space-y-4">
-        <button
-          type="button"
-          onClick={() => createInviteMutation.mutate()}
-          disabled={createInviteMutation.isPending}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-        >
-          {createInviteMutation.isPending ? "Создание..." : "Создать код"}
-        </button>
+    <InviteSectionCard
+      label="Приглашение"
+      title="Код приглашения в приватное мероприятие"
+      description="Сгенерируйте код для пользователей, которых хотите допустить к приватному мероприятию. После ввода или сканирования кода пользователь отправит заявку на вступление."
+      invite={invite}
+      expiresHint={
+        invite
+          ? `Действует до ${formatDate(invite.expiresAt)}. Нажмите, чтобы скопировать.`
+          : undefined
+      }
+      emptyStateText="Активного кода пока нет. Сгенерируйте его, чтобы показать пользователям."
+      generateLabel="Сгенерировать код"
+      isPending={createInviteMutation.isPending}
+      qrLabel="Приглашение"
+      qrTitle="QR-код приглашения в приватное мероприятие"
+      regenerateLabel="Перегенерация кода"
+      regenerateTitle="Создать новый код приглашения?"
+      regenerateDescription={
+        invite
+          ? `Сейчас уже есть активный код приглашения. Он действует до ${formatDate(invite.expiresAt)}. Если создать новый код, старый сразу перестанет работать.`
+          : undefined
+      }
+      regenerateConfirmLabel="Да, создать новый код"
+      copySuccessMessage="Код приглашения скопирован"
+      copyErrorMessage="Не удалось скопировать код приглашения"
+      onGenerate={() => createInviteMutation.mutate()}
+    />
+  );
+}
 
-        {invite ? (
-          <div className="space-y-3 rounded-md border border-zinc-800 bg-zinc-900/60 p-4">
-            <InfoRow label="Код" value={invite.code} />
-            <InfoRow
-              label="Действует до"
-              value={formatDate(invite.expiresAt)}
-            />
+function EventJoinRequestRow({
+  eventId,
+  request,
+}: {
+  eventId: string;
+  request: ManagedEventJoinRequest;
+}) {
+  const queryClient = useQueryClient();
+  const userName = formatPersonName(request.user);
 
-            <button
-              type="button"
-              onClick={() => setIsQrOpen(true)}
-              className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
-            >
-              Показать QR
-            </button>
-          </div>
-        ) : null}
+  const approveMutation = useMutation({
+    mutationFn: () =>
+      eventService.approveMyEventJoinRequest(eventId, request.idJoinEvent),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-event", eventId] });
+      toast.success("Заявка принята");
+    },
+    onError: () => toast.error("Не удалось принять заявку"),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: () =>
+      eventService.rejectMyEventJoinRequest(eventId, request.idJoinEvent),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-event", eventId] });
+      toast.success("Заявка отклонена");
+    },
+    onError: () => toast.error("Не удалось отклонить заявку"),
+  });
+
+  const isPending = approveMutation.isPending || rejectMutation.isPending;
+
+  return (
+    <div className="flex flex-col gap-4 rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 md:flex-row md:items-center md:justify-between">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-zinc-100">
+          {userName}
+        </p>
+        <div className="mt-1 space-y-1 text-xs text-zinc-500">
+          <p>{request.user.email}</p>
+          {request.user.phone ? <p>{request.user.phone}</p> : null}
+          {request.user.contact ? <p>{request.user.contact}</p> : null}
+        </div>
       </div>
 
-      {invite && isQrOpen ? (
-        <InviteQrModal
-          label="Приглашение"
-          title="QR-код приглашения"
-          code={invite.code}
-          onClose={() => setIsQrOpen(false)}
-        />
-      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => approveMutation.mutate()}
+          disabled={isPending}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        >
+          Принять
+        </button>
+        <button
+          type="button"
+          onClick={() => rejectMutation.mutate()}
+          disabled={isPending}
+          className="rounded-md border border-red-900/70 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-950/30 disabled:opacity-60"
+        >
+          Отклонить
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EventJoinRequestsSection({ event }: { event: ManagedEventDetails }) {
+  return (
+    <DetailPanel title="Заявки в приватное мероприятие">
+      {event.joinRequest.length ? (
+        <div className="space-y-3">
+          {event.joinRequest.map((request) => (
+            <EventJoinRequestRow
+              key={request.idJoinEvent}
+              eventId={event.idEvent}
+              request={request}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-zinc-500">
+          Ожидающих заявок на вступление пока нет.
+        </p>
+      )}
     </DetailPanel>
   );
 }
@@ -1889,7 +1965,12 @@ export function AdminEventDetailsPage() {
         </DetailPanel>
       ) : null}
 
-      <EventInviteSection eventId={event.idEvent} />
+      {event.status === "PRIVATE" ? (
+        <>
+          <EventInviteSection eventId={event.idEvent} />
+          <EventJoinRequestsSection event={event} />
+        </>
+      ) : null}
 
       <div className="flex justify-end">
         <button

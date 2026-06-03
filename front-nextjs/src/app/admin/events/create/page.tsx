@@ -36,6 +36,10 @@ const ArcGisPointMap = dynamic(
   },
 );
 
+function toIsoDateTime(value: string) {
+  return value ? new Date(value).toISOString() : undefined;
+}
+
 interface EventTypeOption {
   value: EventCreateType | "OTHER";
   label: string;
@@ -475,10 +479,12 @@ export default function CreateEventPage() {
       (features.hasLoadedSolution && !features.hasCases);
     const caseSettingsPayload = features.hasCases
       ? {
-          dateForStartSelected: caseSettings.dateForStartSelected,
-          dateForEndSelected: caseSettings.dateForEndSelected,
+          dateForStartSelected:
+            toIsoDateTime(caseSettings.dateForStartSelected) ?? "",
+          dateForEndSelected:
+            toIsoDateTime(caseSettings.dateForEndSelected) ?? "",
           dateStopCode: features.hasLoadedSolution
-            ? caseSettings.dateStopCode
+            ? toIsoDateTime(caseSettings.dateStopCode)
             : undefined,
         }
       : undefined;
@@ -495,16 +501,20 @@ export default function CreateEventPage() {
       description: baseForm.description || undefined,
       slug: baseForm.slug,
       organizationId: baseForm.organizationId,
-      dataStart: baseForm.dataStart,
-      dataEnd: baseForm.dataEnd,
+      dataStart: toIsoDateTime(baseForm.dataStart) ?? "",
+      dataEnd: toIsoDateTime(baseForm.dataEnd) ?? "",
       status: baseForm.status,
       dataStartRegistration:
         baseForm.status === "PUBLIC"
-          ? baseForm.dataStartRegistration
+          ? toIsoDateTime(baseForm.dataStartRegistration)
           : undefined,
       dataEndRegistration:
-        baseForm.status === "PUBLIC" ? baseForm.dataEndRegistration : undefined,
-      dateDeadLine: shouldSendDeadline ? baseForm.dateDeadLine : undefined,
+        baseForm.status === "PUBLIC"
+          ? toIsoDateTime(baseForm.dataEndRegistration)
+          : undefined,
+      dateDeadLine: shouldSendDeadline
+        ? toIsoDateTime(baseForm.dateDeadLine)
+        : undefined,
       format: baseForm.format,
       address: baseForm.format === "ONLINE" ? "Онлайн" : baseForm.address,
       cordinatX: baseForm.cordinatX ?? undefined,

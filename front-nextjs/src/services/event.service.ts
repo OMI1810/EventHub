@@ -96,6 +96,18 @@ class EventService {
       `${this.baseUrl}/my/${eventId}/invite`,
     );
   }
+
+  async approveMyEventJoinRequest(eventId: string, requestId: string) {
+    return instance.post<ManagedEventDetails>(
+      `${this.baseUrl}/my/${eventId}/join-requests/${requestId}/approve`,
+    );
+  }
+
+  async rejectMyEventJoinRequest(eventId: string, requestId: string) {
+    return instance.post<ManagedEventDetails>(
+      `${this.baseUrl}/my/${eventId}/join-requests/${requestId}/reject`,
+    );
+  }
 }
 
 export default new EventService();

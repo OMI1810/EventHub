@@ -1,3 +1,5 @@
+import { IUserEventTimeState } from './user-event.types'
+
 export type UserTeamFormat = 'ONLINE' | 'OFFLINE'
 
 export interface IUserTeamMember {
@@ -22,6 +24,7 @@ export interface IUserTeamDetails {
 	name: string
 	description?: string | null
 	format: UserTeamFormat
+	selectedCaseId?: string | null
 	isCaptain: boolean
 	members: IUserTeamMember[]
 	joinRequests: IUserTeamJoinRequest[]
@@ -30,6 +33,8 @@ export interface IUserTeamDetails {
 export interface IUserTeamState {
 	eventId: string
 	hasTeams: boolean
+	timeState: IUserEventTimeState
+	canManageTeams: boolean
 	isParticipating: boolean
 	canChooseFormat: boolean
 	defaultFormat: UserTeamFormat

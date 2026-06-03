@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { MiniLoader } from "@/components/ui/MiniLoader";
@@ -30,8 +30,8 @@ const ArcGisPointMap = dynamic(
 );
 
 interface Props {
-  onCancel: () => void;
-  organization: IOrganizationSummary;
+	onCancel: () => void
+	organization: IOrganizationSummary
 }
 
 export function OrganizationEditForm({ onCancel, organization }: Props) {
@@ -54,8 +54,8 @@ export function OrganizationEditForm({ onCancel, organization }: Props) {
       },
     });
 
-  useEffect(() => {
-    const source = freshOrganization ?? organization;
+	useEffect(() => {
+		const source = freshOrganization ?? organization
 
     reset({
       name: source.name,
@@ -72,66 +72,66 @@ export function OrganizationEditForm({ onCancel, organization }: Props) {
     });
   }, [freshOrganization, organization, reset]);
 
-  const { mutate: mutateUpdate, isPending } = useMutation({
-    mutationKey: ["organization", "update"],
-    mutationFn: (data: IUpdateOrganizationFormData) =>
-      organizationService.updateMyOrganization(data),
-    onSuccess(response) {
-      queryClient.setQueryData(["organization", "me"], response);
-      toast.success("Данные организации обновлены");
-      onCancel();
-    },
-    onError() {
-      toast.error("Не удалось обновить данные организации");
-    },
-  });
+	const { mutate: mutateUpdate, isPending } = useMutation({
+		mutationKey: ['organization', 'update'],
+		mutationFn: (data: IUpdateOrganizationFormData) =>
+			organizationService.updateMyOrganization(data),
+		onSuccess(response) {
+			queryClient.setQueryData(['organization', 'me'], response)
+			toast.success('Данные организации обновлены')
+			onCancel()
+		},
+		onError() {
+			toast.error('Не удалось обновить данные организации')
+		}
+	})
 
   const phoneValue = watch("phone") ?? "";
   const addressValue = watch("address") ?? "";
 
-  return (
-    <form
-      onSubmit={handleSubmit((data) => mutateUpdate(data))}
-      className="mt-6 space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5"
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm text-zinc-300">
-          Название организации
-          <input
-            type="text"
-            {...register("name")}
-            className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-emerald-500"
-          />
-        </label>
+	return (
+		<form
+			onSubmit={handleSubmit(data => mutateUpdate(data))}
+			className="mt-6 space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5"
+		>
+			<div className="grid gap-4 sm:grid-cols-2">
+				<label className="text-sm text-zinc-300">
+					Название организации
+					<input
+						type="text"
+						{...register('name')}
+						className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-emerald-500"
+					/>
+				</label>
 
-        <label className="text-sm text-zinc-300">
-          Телефон
-          <PhoneInput
-            value={phoneValue}
-            onChange={(value) =>
-              setValue("phone", value, { shouldDirty: true })
-            }
-            className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-emerald-500"
-          />
-        </label>
+				<label className="text-sm text-zinc-300">
+					Телефон
+					<PhoneInput
+						value={phoneValue}
+						onChange={value =>
+							setValue('phone', value, { shouldDirty: true })
+						}
+						className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-emerald-500"
+					/>
+				</label>
 
-        <label className="text-sm text-zinc-300 sm:col-span-2">
-          Дополнительный контакт
-          <input
-            type="text"
-            {...register("contact")}
-            className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-emerald-500"
-          />
-        </label>
+				<label className="text-sm text-zinc-300 sm:col-span-2">
+					Дополнительный контакт
+					<input
+						type="text"
+						{...register('contact')}
+						className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-emerald-500"
+					/>
+				</label>
 
-        <label className="text-sm text-zinc-300 sm:col-span-2">
-          Описание
-          <textarea
-            rows={4}
-            {...register("description")}
-            className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-emerald-500"
-          />
-        </label>
+				<label className="text-sm text-zinc-300 sm:col-span-2">
+					Описание
+					<textarea
+						rows={4}
+						{...register('description')}
+						className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-emerald-500"
+					/>
+				</label>
 
         <div className="sm:col-span-2">
           <AddressAutocomplete
@@ -172,24 +172,24 @@ export function OrganizationEditForm({ onCancel, organization }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isPending}
-          className="rounded-xl border border-zinc-700 px-5 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Отмена
-        </button>
+			<div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
+				<button
+					type="button"
+					onClick={onCancel}
+					disabled={isPending}
+					className="rounded-xl border border-zinc-700 px-5 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+				>
+					Отмена
+				</button>
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isPending ? <MiniLoader width={20} height={20} /> : "Сохранить"}
-        </button>
-      </div>
-    </form>
-  );
+				<button
+					type="submit"
+					disabled={isPending}
+					className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+				>
+					{isPending ? <MiniLoader width={20} height={20} /> : 'Сохранить'}
+				</button>
+			</div>
+		</form>
+	)
 }

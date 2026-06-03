@@ -1,5 +1,10 @@
 'use client'
 
+import { EventAccessNotice } from '@/components/events/EventAccessNotice'
+import { EventCaseCard } from '@/components/events/EventCaseCard'
+import { EventMaterialsList } from '@/components/events/EventMaterialsList'
+import { EventResultsList } from '@/components/events/EventResultsList'
+import { EventTabsBase } from '@/components/events/EventTabsBase'
 import userEventService from '@/services/user-event.service'
 import { IUserEventDetails } from '@/types/user-event.types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -12,30 +17,28 @@ interface Props {
 	event: IUserEventDetails
 }
 
-type TabKey = 'cases' | 'team' | 'materials' | 'solution' | 'results'
+type TabKey =
+	| 'cases'
+	| 'team'
+	| 'materials'
+	| 'solution'
+	| 'results'
+	| 'status'
 
 interface TabItem {
 	key: TabKey
 	label: string
 }
 
-function AccessWarning({ text }: { text: string }) {
-	return (
-		<div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/50 px-5 py-8 text-sm leading-6 text-zinc-400">
-			{text}
-		</div>
-	)
-}
+type StatusStepState = 'done' | 'available' | 'locked'
 
-function formatCaseSchedule(start: string, end: string) {
-	const formatter = new Intl.DateTimeFormat('ru-RU', {
-		day: '2-digit',
-		month: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit'
-	})
-
-	return `${formatter.format(new Date(start))} - ${formatter.format(new Date(end))}`
+interface StatusStep {
+	key: string
+	title: string
+	state: StatusStepState
+	detail: string
+	targetTab?: Exclude<TabKey, 'status'>
+	onClick?: () => void
 }
 
 function formatDateTime(date: string) {
@@ -46,6 +49,42 @@ function formatDateTime(date: string) {
 		hour: '2-digit',
 		minute: '2-digit'
 	}).format(new Date(date))
+}
+
+function getStepAccentClass(state: StatusStepState) {
+	if (state === 'done') {
+		return 'bg-emerald-500'
+	}
+
+	if (state === 'available') {
+		return 'bg-zinc-500'
+	}
+
+	return 'border border-dashed border-zinc-600 bg-zinc-950'
+}
+
+function getStepBadgeClass(state: StatusStepState) {
+	if (state === 'done') {
+		return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+	}
+
+	if (state === 'available') {
+		return 'border-zinc-700 bg-zinc-900 text-zinc-300'
+	}
+
+	return 'border-zinc-800 bg-zinc-950 text-zinc-500'
+}
+
+function getStepLabel(state: StatusStepState) {
+	if (state === 'done') {
+		return 'Выполнено'
+	}
+
+	if (state === 'available') {
+		return 'Доступно'
+	}
+
+	return 'Недоступно'
 }
 
 export function UserEventTabs({ event }: Props) {
@@ -61,12 +100,13 @@ export function UserEventTabs({ event }: Props) {
 		const nextTabs: TabItem[] = []
 
 		if (event.hasCases) nextTabs.push({ key: 'cases', label: 'Кейсы' })
-		if (event.hasTeams) nextTabs.push({ key: 'team', label: 'Команда' })
-		if (event.hasMaterials) nextTabs.push({ key: 'materials', label: 'Материалы' })
-		if (event.hasLoadedSolution) {
+		if (event.hasTeams && event.isParticipating) nextTabs.push({ key: 'team', label: 'Команда' })
+		if (event.hasMaterials && event.timeState.canViewEventMaterials) nextTabs.push({ key: 'materials', label: 'Материалы' })
+		if (event.hasLoadedSolution && event.timeState.isEventStarted) {
 			nextTabs.push({ key: 'solution', label: 'Загрузить решение' })
 		}
-		if (event.hasResualt) nextTabs.push({ key: 'results', label: 'Итоги' })
+		if (event.hasResualt && event.timeState.isEventFinished) nextTabs.push({ key: 'results', label: 'Итоги' })
+		nextTabs.push({ key: 'status', label: 'Статус' })
 
 		return nextTabs
 	}, [
@@ -74,7 +114,11 @@ export function UserEventTabs({ event }: Props) {
 		event.hasLoadedSolution,
 		event.hasMaterials,
 		event.hasResualt,
-		event.hasTeams
+		event.hasTeams,
+		event.isParticipating,
+		event.timeState.canViewEventMaterials,
+		event.timeState.isEventFinished,
+		event.timeState.isEventStarted
 	])
 
 	const [activeTab, setActiveTab] = useState<TabKey | null>(tabs[0]?.key ?? null)
@@ -112,6 +156,23 @@ export function UserEventTabs({ event }: Props) {
 		solutionForm.urlPresentation !== initialSolutionSnapshot.urlPresentation ||
 		solutionForm.description !== initialSolutionSnapshot.description
 
+	const participateMutation = useMutation({
+		mutationFn: () => userEventService.participate(event.idEvent),
+		onSuccess() {
+			queryClient.invalidateQueries({ queryKey: ['user-events', 'feed'] })
+			queryClient.invalidateQueries({ queryKey: ['user-events', 'my'] })
+			queryClient.invalidateQueries({
+				queryKey: ['user-events', 'details', event.idEvent]
+			})
+			toast.success('Вы зарегистрировались на мероприятие')
+		},
+		onError(error: AxiosError<{ message?: string | string[] }>) {
+			const message =
+				error.response?.data?.message ?? 'Не удалось зарегистрироваться на мероприятие'
+			toast.error(Array.isArray(message) ? message[0] : message)
+		}
+	})
+
 	const selectCaseMutation = useMutation({
 		mutationFn: (caseId: string) => userEventService.selectCase(event.idEvent, caseId),
 		onSuccess() {
@@ -144,17 +205,148 @@ export function UserEventTabs({ event }: Props) {
 			toast.success('Решение сохранено')
 		},
 		onError(error: AxiosError<{ message?: string | string[] }>) {
-			const message =
-				error.response?.data?.message ?? 'Не удалось сохранить решение'
+			const message = error.response?.data?.message ?? 'Не удалось сохранить решение'
 			toast.error(Array.isArray(message) ? message[0] : message)
 		}
 	})
+
+	const solutionIsAvailable =
+		event.isParticipating &&
+		(!event.hasTeams ||
+			(Boolean(event.teamContext?.hasTeam) && Boolean(event.teamContext?.isCaptain))) &&
+		(!event.hasCases || Boolean(event.selectedCase)) &&
+		event.timeState.canUploadSolution
+
+	const statusSteps = useMemo<StatusStep[]>(() => {
+		const steps: StatusStep[] = []
+
+		steps.push({
+			key: 'participation',
+			title: 'Регистрация / участие',
+			state: event.isParticipating
+				? 'done'
+				: event.canParticipate
+					? 'available'
+					: 'locked',
+			detail: event.isParticipating
+				? 'Вы участвуете'
+				: event.canParticipate
+					? 'Можно зарегистрироваться на мероприятие'
+					: 'Регистрация сейчас недоступна',
+			onClick:
+				!event.isParticipating && event.canParticipate && !participateMutation.isPending
+					? () => participateMutation.mutate()
+					: undefined
+		})
+
+		if (event.hasTeams) {
+			steps.push({
+				key: 'team',
+				title: 'Команда',
+				state: event.teamContext?.hasTeam
+					? 'done'
+					: event.isParticipating
+						? 'available'
+						: 'locked',
+				detail: event.teamContext?.hasTeam
+					? event.teamContext.isCaptain
+						? 'Капитан'
+						: 'Участник'
+					: event.isParticipating
+						? 'Нужно создать команду или вступить в существующую'
+						: 'Станет доступно после участия в мероприятии',
+				targetTab: 'team'
+			})
+		}
+
+		if (event.hasCases) {
+			const caseSelectionAvailable =
+				event.isParticipating && (!event.hasTeams || Boolean(event.teamContext?.hasTeam))
+
+			steps.push({
+				key: 'case',
+				title: 'Выбор кейса',
+				state: event.selectedCase
+					? 'done'
+					: caseSelectionAvailable
+						? 'available'
+						: 'locked',
+				detail: event.selectedCase
+					? event.selectedCase.title
+					: caseSelectionAvailable
+						? 'Кейс ещё не выбран'
+						: event.hasTeams
+							? 'Нужна команда, чтобы выбрать кейс'
+							: 'Станет доступно после участия в мероприятии',
+				targetTab: 'cases'
+			})
+		}
+
+		if (event.hasLoadedSolution) {
+			steps.push({
+				key: 'solution',
+				title: 'Загрузка решения',
+				state: event.solution
+					? 'done'
+					: solutionIsAvailable
+						? 'available'
+						: 'locked',
+				detail: event.solution?.updatedAt
+					? `Обновлено ${formatDateTime(event.solution.updatedAt)}`
+					: solutionIsAvailable
+						? 'Решение ещё не сохранено'
+						: 'Сначала выполните предыдущие шаги',
+				targetTab: 'solution'
+			})
+		}
+
+		if (event.hasResualt) {
+			const userPlace = event.results[0]?.place ?? null
+
+			steps.push({
+				key: 'results',
+				title: 'Итоги',
+				state: event.results.length
+					? 'done'
+					: event.isParticipating
+						? 'available'
+						: 'locked',
+				detail: event.results.length
+					? userPlace
+						? `${userPlace} место`
+						: 'Итоги опубликованы'
+					: event.isParticipating
+						? 'Итоги ещё не опубликованы'
+						: 'Станет доступно после участия в мероприятии',
+				targetTab: 'results'
+			})
+		}
+
+		return steps
+	}, [
+		event.canParticipate,
+		event.hasCases,
+		event.hasLoadedSolution,
+		event.hasResualt,
+		event.hasTeams,
+		event.isParticipating,
+		event.results,
+		event.selectedCase,
+		event.solution,
+		event.teamContext,
+		participateMutation.isPending,
+		solutionIsAvailable
+	])
+
+	const completedStepsCount = statusSteps.filter(step => step.state === 'done').length
 
 	if (!tabs.length || !activeTab) {
 		return null
 	}
 
 	const handleSelectCase = (caseId: string) => {
+		const eventCase = event.cases.find(eventCase => eventCase.idCase === caseId)
+
 		if (!event.isParticipating) {
 			toast.error('Чтобы выбрать кейс, необходимо участвовать в мероприятии')
 			return
@@ -172,6 +364,11 @@ export function UserEventTabs({ event }: Props) {
 
 		if (event.hasTeams && event.teamContext?.hasTeam && !event.teamContext.isCaptain) {
 			toast.error('Выбирать кейс для команды может только капитан')
+			return
+		}
+
+		if (!eventCase?.timeState.isCaseSelectionOpen) {
+			toast.error('Сейчас кейс нельзя выбрать')
 			return
 		}
 
@@ -208,55 +405,33 @@ export function UserEventTabs({ event }: Props) {
 								const isSelected = event.selectedCaseId === eventCase.idCase
 
 								return (
-									<article
+									<EventCaseCard
 										key={eventCase.idCase}
-										className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5"
-									>
-										<div className="flex flex-wrap items-start justify-between gap-3">
-											<div>
-												<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-													{eventCase.holder || 'Кейсодержатель не указан'}
-												</p>
-												<h3 className="mt-3 text-xl font-bold">{eventCase.title}</h3>
-											</div>
-
-											{eventCase.teamLimit ? (
-												<span className="rounded-full border border-zinc-800 px-3 py-1 text-xs text-zinc-400">
-													{eventCase.occupiedPlaces}/{eventCase.teamLimit}
-												</span>
-											) : null}
-										</div>
-
-										<p className="mt-4 text-sm leading-6 text-zinc-400">
-											{eventCase.description || 'Описание кейса отсутствует.'}
-										</p>
-
-										<p className="mt-4 text-xs text-zinc-500">
-											{formatCaseSchedule(
-												eventCase.dateForStartSelected,
-												eventCase.dateForEndSelected
-											)}
-										</p>
-
-										<div className="mt-5 flex flex-wrap gap-3">
-											<button
-												type="button"
-												onClick={() => handleSelectCase(eventCase.idCase)}
-												disabled={selectCaseMutation.isPending || Boolean(event.selectedCaseId)}
-												className="rounded-xl border border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-											>
-												{isSelected
-													? 'Кейс выбран'
-													: selectCaseMutation.isPending
-														? 'Выбор...'
-														: 'Выбрать кейс'}
-											</button>
-										</div>
-									</article>
+										holder={eventCase.holder}
+										title={eventCase.title}
+										description={eventCase.description}
+										teamLimit={eventCase.teamLimit}
+										occupiedPlaces={eventCase.occupiedPlaces}
+										dateForStartSelected={eventCase.dateForStartSelected}
+										dateForEndSelected={eventCase.dateForEndSelected}
+										actionLabel={
+											isSelected
+												? 'Кейс выбран'
+												: selectCaseMutation.isPending
+													? 'Выбор...'
+													: 'Выбрать кейс'
+										}
+										onAction={() => handleSelectCase(eventCase.idCase)}
+										disabled={
+											selectCaseMutation.isPending ||
+											Boolean(event.selectedCaseId) ||
+											!eventCase.timeState.isCaseSelectionOpen
+										}
+									/>
 								)
 							})
 						) : (
-							<AccessWarning text="Список кейсов пока пуст." />
+							<EventAccessNotice text="Список кейсов пока пуст." />
 						)}
 					</div>
 				)
@@ -267,95 +442,78 @@ export function UserEventTabs({ event }: Props) {
 			case 'materials': {
 				if (!event.isParticipating) {
 					return (
-						<AccessWarning text="Материалы доступны только участникам мероприятия." />
+						<EventAccessNotice text="Материалы доступны только участникам мероприятия." />
 					)
 				}
 
 				if (event.hasCases && !event.selectedCase) {
 					return (
-						<AccessWarning text="Чтобы открыть материалы, необходимо сначала выбрать кейс." />
+						<EventAccessNotice text="Чтобы открыть материалы, необходимо сначала выбрать кейс." />
 					)
 				}
 
 				if (event.selectedCase && !event.selectedCase.isOpen) {
 					return (
-						<AccessWarning text="Материалы выбранного кейса пока недоступны: кейс ещё не открыт администратором." />
+						<EventAccessNotice text="Материалы выбранного кейса пока недоступны: кейс ещё не открыт администратором." />
 					)
 				}
 
 				const materials = event.hasCases ? event.selectedCaseMaterials : event.materials
 
 				return materials.length ? (
-					<div className="grid gap-4">
-						{event.selectedCase ? (
-							<div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
-								<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-									Выбранный кейс
-								</p>
-								<h3 className="mt-3 text-lg font-semibold text-zinc-100">
-									{event.selectedCase.title}
-								</h3>
-								<p className="mt-2 text-sm text-zinc-400">
-									{event.selectedCase.holder || 'Кейсодержатель не указан'}
-								</p>
-							</div>
-						) : null}
-
-						{materials.map(material => (
-							<a
-								key={material.idMaterial}
-								href={material.url}
-								target="_blank"
-								rel="noreferrer"
-								className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-4 transition-colors hover:border-emerald-500/40 hover:bg-zinc-950"
-							>
-								<p className="text-sm font-semibold text-zinc-100">
-									{material.title}
-								</p>
-								<p className="mt-2 text-sm text-zinc-400">
-									{material.description || material.url}
-								</p>
-							</a>
-						))}
-					</div>
+					<EventMaterialsList
+						materials={materials}
+						selectedCase={
+							event.selectedCase
+								? {
+										title: event.selectedCase.title,
+										holder: event.selectedCase.holder
+									}
+								: null
+						}
+					/>
 				) : (
-					<AccessWarning text="Материалы для текущего сценария пока не добавлены." />
+					<EventAccessNotice text="Материалы для текущего сценария пока не добавлены." />
 				)
 			}
 
 			case 'solution': {
 				if (!event.isParticipating) {
 					return (
-						<AccessWarning text="Загрузка решения доступна только участникам мероприятия." />
+						<EventAccessNotice text="Загрузка решения доступна только участникам мероприятия." />
 					)
 				}
 
 				if (event.hasTeams && !event.teamContext?.hasTeam) {
 					return (
-						<AccessWarning text="Чтобы загрузить решение, сначала необходимо создать команду или вступить в неё." />
+						<EventAccessNotice text="Чтобы загрузить решение, сначала необходимо создать команду или вступить в неё." />
 					)
 				}
 
 				if (event.hasTeams && event.teamContext?.hasTeam && !event.teamContext.isCaptain) {
 					return (
-						<AccessWarning text="Загружать решение для команды может только капитан." />
+						<EventAccessNotice text="Загружать решение для команды может только капитан." />
 					)
 				}
 
 				if (event.hasCases && !event.selectedCase) {
 					return (
-						<AccessWarning text="Чтобы загрузить решение, сначала необходимо выбрать кейс." />
+						<EventAccessNotice text="Чтобы загрузить решение, сначала необходимо выбрать кейс." />
 					)
 				}
 
-				if (event.status !== 'OPEN') {
+				if (!event.timeState.isEventStarted) {
 					return (
-						<AccessWarning text="Загрузить решение можно только когда мероприятие открыто." />
+						<EventAccessNotice text="Загрузить решение можно только когда мероприятие открыто." />
 					)
 				}
 
-				if (event.dateDeadLine && new Date(event.dateDeadLine) < new Date()) {
-					return <AccessWarning text="Дедлайн загрузки решения уже завершён." />
+				if (event.timeState.isSolutionDeadlinePassed) {
+					return <EventAccessNotice text="Время для загрузки решения завершилось" />
+				}
+
+				if (!event.timeState.canUploadSolution) {
+					return <EventAccessNotice text="Загрузка решения сейчас недоступна." />
 				}
 
 				const solutionStatusText = saveSolutionMutation.isPending
@@ -382,9 +540,7 @@ export function UserEventTabs({ event }: Props) {
 
 				return (
 					<div className="grid gap-4">
-						<div
-							className={`rounded-2xl border px-5 py-4 ${solutionStatusClass}`}
-						>
+						<div className={`rounded-2xl border px-5 py-4 ${solutionStatusClass}`}>
 							<p className="text-sm font-medium">{solutionStatusText}</p>
 							{event.solution?.updatedAt ? (
 								<p className="mt-2 text-xs text-zinc-400">
@@ -404,13 +560,13 @@ export function UserEventTabs({ event }: Props) {
 							</div>
 						) : null}
 
-						{event.dateDeadLine ? (
+						{event.timeState.solutionDeadline ? (
 							<div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
 								<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 									Дедлайн сдачи
 								</p>
 								<p className="mt-3 text-sm text-zinc-300">
-									{formatDateTime(event.dateDeadLine)}
+									{formatDateTime(event.timeState.solutionDeadline)}
 								</p>
 							</div>
 						) : null}
@@ -423,8 +579,8 @@ export function UserEventTabs({ event }: Props) {
 								<input
 									type="url"
 									value={solutionForm.urlSolution}
-									onChange={event =>
-										handleSolutionFieldChange('urlSolution', event.target.value)
+									onChange={currentEvent =>
+										handleSolutionFieldChange('urlSolution', currentEvent.target.value)
 									}
 									placeholder="https://..."
 									className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-500 focus:border-emerald-500"
@@ -438,10 +594,10 @@ export function UserEventTabs({ event }: Props) {
 								<input
 									type="url"
 									value={solutionForm.urlPresentation}
-									onChange={event =>
+									onChange={currentEvent =>
 										handleSolutionFieldChange(
 											'urlPresentation',
-											event.target.value
+											currentEvent.target.value
 										)
 									}
 									placeholder="https://..."
@@ -455,8 +611,8 @@ export function UserEventTabs({ event }: Props) {
 								</span>
 								<textarea
 									value={solutionForm.description}
-									onChange={event =>
-										handleSolutionFieldChange('description', event.target.value)
+									onChange={currentEvent =>
+										handleSolutionFieldChange('description', currentEvent.target.value)
 									}
 									placeholder="Коротко опиши решение, ключевые идеи и важные замечания."
 									rows={5}
@@ -491,44 +647,81 @@ export function UserEventTabs({ event }: Props) {
 
 			case 'results':
 				if (!event.isParticipating) {
-					return <AccessWarning text="Итоги доступны только участникам мероприятия." />
+					return <EventAccessNotice text="Итоги доступны только участникам мероприятия." />
 				}
 
 				return event.results.length ? (
+					<EventResultsList results={event.results} />
+				) : (
+					<EventAccessNotice text="Администратор ещё не выставил итоги мероприятия." />
+				)
+
+			case 'status':
+				return (
 					<div className="grid gap-4">
-						{event.results.map(result => (
-							<div
-								key={result.idResult}
-								className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-4"
-							>
-								<div className="flex items-start justify-between gap-4">
-									<div>
-										<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-											Место {result.place}
-										</p>
-										<h3 className="mt-2 text-lg font-semibold">{result.title}</h3>
+						<div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
+							<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+								Прогресс
+							</p>
+							<p className="mt-3 text-sm text-zinc-300">
+								Выполнено: {completedStepsCount} из {statusSteps.length} шагов
+							</p>
+						</div>
+
+						<div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5">
+							<div className="flex gap-4">
+								<div className="relative flex w-8 shrink-0 justify-center">
+									<div className="absolute bottom-3 top-3 left-1/2 w-px -translate-x-1/2 bg-zinc-800" />
+									<div className="relative z-10 flex w-full flex-col gap-3">
+										{statusSteps.map(step => (
+											<div
+												key={`${step.key}-indicator`}
+												className="flex min-h-[92px] items-center justify-center"
+											>
+												<div
+													className={`h-4 w-4 rounded-full ${getStepAccentClass(step.state)}`}
+												/>
+											</div>
+										))}
 									</div>
-									{result.score !== null && result.score !== undefined ? (
-										<span className="rounded-full border border-zinc-800 px-3 py-1 text-xs text-zinc-400">
-											{result.score} баллов
-										</span>
-									) : null}
 								</div>
 
-								<p className="mt-3 text-sm text-zinc-400">
-									{result.teamName || result.userName || 'Участник не указан'}
-								</p>
+								<div className="grid flex-1 gap-3">
+									{statusSteps.map(step => (
+										<button
+											key={step.key}
+											type="button"
+											onClick={() => {
+												if (step.onClick) {
+													step.onClick()
+													return
+												}
 
-								{result.description ? (
-									<p className="mt-3 text-sm leading-6 text-zinc-400">
-										{result.description}
-									</p>
-								) : null}
+												if (step.targetTab) {
+													setActiveTab(step.targetTab)
+												}
+											}}
+											disabled={
+												step.state === 'locked' ||
+												(step.key === 'participation' && participateMutation.isPending)
+											}
+											className="group flex min-h-[92px] w-full items-start justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-5 py-4 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-80"
+										>
+											<div className="min-w-0">
+												<p className="text-sm font-semibold text-zinc-100">{step.title}</p>
+												<p className="mt-2 text-sm text-zinc-400">{step.detail}</p>
+											</div>
+											<span
+												className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${getStepBadgeClass(step.state)}`}
+											>
+												{getStepLabel(step.state)}
+											</span>
+										</button>
+									))}
+								</div>
 							</div>
-						))}
+						</div>
 					</div>
-				) : (
-					<AccessWarning text="Администратор ещё не выставил итоги мероприятия." />
 				)
 
 			default:
@@ -537,25 +730,8 @@ export function UserEventTabs({ event }: Props) {
 	}
 
 	return (
-		<section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
-			<div className="flex flex-wrap gap-2">
-				{tabs.map(tab => (
-					<button
-						key={tab.key}
-						type="button"
-						onClick={() => setActiveTab(tab.key)}
-						className={
-							activeTab === tab.key
-								? 'rounded-xl border border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300'
-								: 'rounded-xl border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800'
-						}
-					>
-						{tab.label}
-					</button>
-				))}
-			</div>
-
-			<div className="mt-6">{renderContent()}</div>
-		</section>
+		<EventTabsBase tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
+			{renderContent()}
+		</EventTabsBase>
 	)
 }

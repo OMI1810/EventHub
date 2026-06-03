@@ -57,6 +57,28 @@ export class EventsController {
   }
 
   @Auth()
+  @HttpCode(200)
+  @Post("my/:eventId/join-requests/:requestId/approve")
+  async approveMyEventJoinRequest(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Param("requestId") requestId: string,
+  ) {
+    return this.eventsService.approveMyEventJoinRequest(userId, eventId, requestId);
+  }
+
+  @Auth()
+  @HttpCode(200)
+  @Post("my/:eventId/join-requests/:requestId/reject")
+  async rejectMyEventJoinRequest(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Param("requestId") requestId: string,
+  ) {
+    return this.eventsService.rejectMyEventJoinRequest(userId, eventId, requestId);
+  }
+
+  @Auth()
   @UsePipes(new ValidationPipe({ transform: true }))
   @HttpCode(200)
   @Patch("my/:eventId")

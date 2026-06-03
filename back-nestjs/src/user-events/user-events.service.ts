@@ -6,6 +6,7 @@ import {
 	NotFoundException
 } from '@nestjs/common'
 import { EventStatus, Prisma, Role } from '@prisma/client'
+import { getCaseTimeState, getEventTimeState } from '@/events/event-time-state'
 import { SaveUserEventSolutionDto } from './dto/save-user-event-solution.dto'
 
 @Injectable()
@@ -18,7 +19,7 @@ export class UserEventsService {
 		const events = await this.prisma.event.findMany({
 			where: {
 				status: {
-					not: EventStatus.PRIVATE
+					notIn: [EventStatus.PRIVATE, EventStatus.FINISHED]
 				}
 			},
 			select: {
@@ -33,6 +34,7 @@ export class UserEventsService {
 				dataEnd: true,
 				dataStartRegistration: true,
 				dataEndRegistration: true,
+				dateDeadLine: true,
 				hasCases: true,
 				hasTeams: true,
 				hasMaterials: true,
@@ -65,6 +67,7 @@ export class UserEventsService {
 
 		return events.map(event => {
 			const isParticipating = event.participant.length > 0
+			const timeState = getEventTimeState(event)
 
 			return {
 				idEvent: event.idEvent,
@@ -78,6 +81,7 @@ export class UserEventsService {
 				dataEnd: event.dataEnd,
 				dataStartRegistration: event.dataStartRegistration,
 				dataEndRegistration: event.dataEndRegistration,
+				timeState,
 				hasCases: event.hasCases,
 				hasTeams: event.hasTeams,
 				hasMaterials: event.hasMaterials,
@@ -94,6 +98,7 @@ export class UserEventsService {
 							status: event.status,
 							dataStartRegistration: event.dataStartRegistration,
 							dataEndRegistration: event.dataEndRegistration,
+							dataStart: event.dataStart,
 							hasParticipantLimit: event.hasParticipantLimit,
 							participantLimit: event.participantLimit,
 							registeredUsersCount: event._count.participant
@@ -138,9 +143,18 @@ export class UserEventsService {
 		const event = await this.prisma.event.findFirst({
 			where: {
 				idEvent: eventId,
-				status: {
-					not: EventStatus.PRIVATE
-				}
+				OR: [
+					{
+						status: EventStatus.PUBLISHED
+					},
+					{
+						participant: {
+							some: {
+								userId
+							}
+						}
+					}
+				]
 			},
 			select: {
 				idEvent: true,
@@ -263,6 +277,7 @@ export class UserEventsService {
 						place: true,
 						description: true,
 						score: true,
+						caseId: true,
 						team: {
 							select: {
 								name: true
@@ -285,6 +300,7 @@ export class UserEventsService {
 			throw new NotFoundException('РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ')
 		}
 
+		const timeState = getEventTimeState(event)
 		const currentParticipant = event.participant[0] ?? null
 		const isParticipating = Boolean(currentParticipant)
 		const teamContext =
@@ -345,6 +361,22 @@ export class UserEventsService {
 			})
 		}
 
+		const selectedCaseTimeState = resolvedSelectedCase
+			? getCaseTimeState(resolvedSelectedCase)
+			: null
+		const solutionDeadline =
+			event.hasCases && selectedCaseTimeState
+				? selectedCaseTimeState.solutionDeadline
+				: event.dateDeadLine
+		const isSolutionDeadlinePassed = solutionDeadline
+			? new Date() >= solutionDeadline
+			: false
+		const canUploadSolution =
+			timeState.isEventStarted &&
+			!timeState.isEventFinished &&
+			!isSolutionDeadlinePassed &&
+			(!event.hasCases || Boolean(resolvedSelectedCase))
+
 		return {
 			idEvent: event.idEvent,
 			title: event.title,
@@ -361,6 +393,12 @@ export class UserEventsService {
 			dataStartRegistration: event.dataStartRegistration,
 			dataEndRegistration: event.dataEndRegistration,
 			dateDeadLine: event.dateDeadLine,
+			timeState: {
+				...timeState,
+				canUploadSolution,
+				solutionDeadline,
+				isSolutionDeadlinePassed
+			},
 			hasCases: event.hasCases,
 			hasTeams: event.hasTeams,
 			hasMaterials: event.hasMaterials,
@@ -377,6 +415,7 @@ export class UserEventsService {
 						status: event.status,
 						dataStartRegistration: event.dataStartRegistration,
 						dataEndRegistration: event.dataEndRegistration,
+						dataStart: event.dataStart,
 						hasParticipantLimit: event.hasParticipantLimit,
 						participantLimit: event.participantLimit,
 						registeredUsersCount: event._count.participant
@@ -391,21 +430,29 @@ export class UserEventsService {
 				email: event.organization.owner.email,
 				contact: event.organization.owner.contact
 			},
-			cases: event.cases.map(eventCase => ({
-				idCase: eventCase.idCase,
-				title: eventCase.title,
-				description: eventCase.description,
-				holder: eventCase.holder,
-				teamLimit: eventCase.teamLimit,
-				isOpen: eventCase.isOpen,
-				dateForStartSelected: eventCase.dateForStartSelected,
-				dateForEndSelected: eventCase.dateForEndSelected,
-				dateStopCode: eventCase.dateStopCode,
-				occupiedPlaces: event.hasTeams
-					? eventCase._count.teams
-					: eventCase._count.userEvent
-			})),
-			materials: event.materials,
+			cases: event.cases.map(eventCase => {
+				const caseTimeState = getCaseTimeState(eventCase)
+
+				return {
+					idCase: eventCase.idCase,
+					title: eventCase.title,
+					description: eventCase.description,
+					holder: eventCase.holder,
+					teamLimit: eventCase.teamLimit,
+					isOpen: eventCase.isOpen,
+					dateForStartSelected: eventCase.dateForStartSelected,
+					dateForEndSelected: eventCase.dateForEndSelected,
+					dateStopCode: eventCase.dateStopCode,
+					timeState: {
+						...caseTimeState,
+						canViewCaseMaterials: timeState.isEventStarted
+					},
+					occupiedPlaces: event.hasTeams
+						? eventCase._count.teams
+						: eventCase._count.userEvent
+				}
+			}),
+			materials: timeState.canViewEventMaterials ? event.materials : [],
 			selectedCase: resolvedSelectedCase
 				? {
 						idCase: resolvedSelectedCase.idCase,
@@ -419,7 +466,10 @@ export class UserEventsService {
 						dateStopCode: resolvedSelectedCase.dateStopCode
 				  }
 				: null,
-			selectedCaseMaterials: resolvedSelectedCase?.materials ?? [],
+			selectedCaseMaterials:
+				timeState.isEventStarted && resolvedSelectedCase
+					? resolvedSelectedCase.materials
+					: [],
 			teamContext,
 			solution: currentSolution
 				? {
@@ -430,10 +480,11 @@ export class UserEventsService {
 						updatedAt: currentSolution.updateAt
 				  }
 				: null,
-			results: event.results.map(result => ({
+			results: timeState.isEventFinished ? event.results.map(result => ({
 				idResult: result.idResult,
 				title: result.title,
 				place: result.place,
+				caseId: result.caseId,
 				description: result.description,
 				score: result.score,
 				teamName: result.team?.name ?? null,
@@ -441,7 +492,7 @@ export class UserEventsService {
 					result.user?.name || result.user?.surname
 						? [result.user?.surname, result.user?.name].filter(Boolean).join(' ')
 						: result.user?.email ?? null
-			}))
+			})) : []
 		}
 	}
 
@@ -455,6 +506,7 @@ export class UserEventsService {
 			select: {
 				idEvent: true,
 				status: true,
+				dataStart: true,
 				dataStartRegistration: true,
 				dataEndRegistration: true,
 				hasParticipantLimit: true,
@@ -489,6 +541,7 @@ export class UserEventsService {
 				status: event.status,
 				dataStartRegistration: event.dataStartRegistration,
 				dataEndRegistration: event.dataEndRegistration,
+				dataStart: event.dataStart,
 				hasParticipantLimit: event.hasParticipantLimit,
 				participantLimit: event.participantLimit,
 				registeredUsersCount: event._count.participant
@@ -588,6 +641,7 @@ export class UserEventsService {
 			select: {
 				idTeam: true,
 				captionId: true,
+				caseId: true,
 				user: {
 					select: {
 						userId: true
@@ -595,6 +649,12 @@ export class UserEventsService {
 				}
 			}
 		})
+
+		if (team?.caseId) {
+			throw new BadRequestException(
+				'Команда уже выбрала кейс, поэтому покинуть мероприятие нельзя'
+			)
+		}
 
 		await this.prisma.$transaction(async prisma => {
 			await prisma.teamJoinRequest.deleteMany({
@@ -861,6 +921,10 @@ export class UserEventsService {
 						hasTeams: true,
 						hasLoadedSolution: true,
 						status: true,
+						dataStart: true,
+						dataEnd: true,
+						dataStartRegistration: true,
+						dataEndRegistration: true,
 						dateDeadLine: true
 					}
 				}
@@ -879,19 +943,25 @@ export class UserEventsService {
 			)
 		}
 
-		if (participant.event.status !== EventStatus.OPEN) {
+		const timeState = getEventTimeState(participant.event)
+
+		if (!timeState.isEventStarted) {
 			throw new BadRequestException(
 				'Загружать решение можно только когда мероприятие открыто'
 			)
 		}
 
+		if (timeState.isEventFinished) {
+			throw new BadRequestException('Мероприятие уже завершилось')
+		}
+
 		if (
+			!participant.event.hasCases &&
 			participant.event.dateDeadLine &&
-			new Date() > participant.event.dateDeadLine
+			new Date() >= participant.event.dateDeadLine
 		) {
 			throw new BadRequestException('Дедлайн загрузки решения уже завершён')
 		}
-
 		if (participant.event.hasTeams) {
 			const teamContext = await this.findUserTeamContext(userId, eventId)
 
@@ -914,6 +984,10 @@ export class UserEventsService {
 				throw new BadRequestException(
 					'Сначала необходимо выбрать кейс для команды'
 				)
+			}
+
+			if (participant.event.hasCases && resolvedCaseId) {
+				await this.assertSolutionDeadlineAvailable(resolvedCaseId)
 			}
 
 			await this.prisma.solution.upsert({
@@ -940,6 +1014,10 @@ export class UserEventsService {
 			})
 
 			return this.getEventDetails(userId, eventId)
+		}
+
+		if (participant.event.hasCases && participant.caseId) {
+			await this.assertSolutionDeadlineAvailable(participant.caseId)
 		}
 
 		if (participant.event.hasCases && !participant.caseId) {
@@ -1000,19 +1078,24 @@ export class UserEventsService {
 		status: EventStatus
 		dataStartRegistration: Date | null
 		dataEndRegistration: Date | null
+		dataStart: Date
 		hasParticipantLimit: boolean
 		participantLimit: number | null
 		registeredUsersCount: number
 	}) {
 		if (
 			params.status === EventStatus.PRIVATE ||
-			params.status === EventStatus.FINISHED ||
-			params.status === EventStatus.CLOSED_REGISTRATION
+			params.status === EventStatus.FINISHED
 		) {
 			return false
 		}
 
 		const now = new Date()
+
+		if (now >= params.dataStart) {
+			return false
+		}
+
 		const hasBrokenRegistrationWindow =
 			params.dataStartRegistration &&
 			params.dataEndRegistration &&
@@ -1029,7 +1112,7 @@ export class UserEventsService {
 		if (
 			!hasBrokenRegistrationWindow &&
 			params.dataEndRegistration &&
-			now > params.dataEndRegistration
+			now >= params.dataEndRegistration
 		) {
 			return false
 		}
@@ -1060,11 +1143,29 @@ export class UserEventsService {
 			throw new BadRequestException('Период выбора кейса ещё не начался')
 		}
 
-		if (now > eventCase.dateForEndSelected) {
+		if (now >= eventCase.dateForEndSelected) {
 			throw new BadRequestException('Период выбора кейса уже завершён')
 		}
 	}
 
+	private async assertSolutionDeadlineAvailable(caseId: string) {
+		const eventCase = await this.prisma.case.findUnique({
+			where: {
+				idCase: caseId
+			},
+			select: {
+				dateStopCode: true
+			}
+		})
+
+		if (!eventCase) {
+			throw new NotFoundException('Кейс не найден')
+		}
+
+		if (new Date() >= eventCase.dateStopCode) {
+			throw new BadRequestException('Время для загрузки решения завершилось')
+		}
+	}
 	private async findUserTeamContext(userId: string, eventId: string) {
 		const team = await this.prisma.team.findFirst({
 			where: {
