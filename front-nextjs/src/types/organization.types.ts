@@ -27,6 +27,30 @@ export interface IOrganizationAdminSummary {
 	role?: TRole
 }
 
+export interface IOrganizationEventSummary {
+	idEvent: string
+	title: string
+	description?: string
+	type: string
+	format: 'OFFLINE' | 'ONLINE' | 'HYBRID'
+	status:
+		| 'FINISHED'
+		| 'OPEN'
+		| 'PUBLISHED'
+		| 'PRIVATE'
+		| 'OPEN_REGISTRATION'
+		| 'CLOSED_REGISTRATION'
+	dataStart: string
+	dataEnd: string
+	hasTeams: boolean
+	hasCases: boolean
+	hasLoadedSolution: boolean
+	hasMaterials: boolean
+	hasResualt: boolean
+	participantsCount: number
+	teamsCount: number
+}
+
 export interface IUpdateOrganizationFormData {
 	phone?: string
 	contact?: string
