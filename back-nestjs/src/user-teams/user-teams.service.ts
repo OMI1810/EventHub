@@ -6,6 +6,7 @@ import {
 	NotFoundException
 } from '@nestjs/common'
 import { EventFormat, Role, StatusJoinRequest, TeamFormat } from '@prisma/client'
+import { getEventTimeState } from '@/events/event-time-state'
 import { CreateUserTeamDto } from './dto/create-user-team.dto'
 import { JoinTeamByInviteDto } from './dto/join-team-by-invite.dto'
 import { UpdateUserTeamDto } from './dto/update-user-team.dto'
@@ -28,7 +29,14 @@ export class UserTeamsService {
 			select: {
 				idEvent: true,
 				hasTeams: true,
+				hasCases: true,
 				format: true,
+				status: true,
+				dataStart: true,
+				dataEnd: true,
+				dataStartRegistration: true,
+				dataEndRegistration: true,
+				dateDeadLine: true,
 				participanInTeamLimit: true,
 				participant: {
 					where: {
@@ -46,10 +54,13 @@ export class UserTeamsService {
 		}
 
 		const team = await this.findUserTeamForEvent(userId, eventId)
+		const timeState = getEventTimeState(event)
 
 		return {
 			eventId,
 			hasTeams: event.hasTeams,
+			timeState,
+			canManageTeams: timeState.canManageTeams,
 			isParticipating: Boolean(event.participant.length),
 			canChooseFormat: event.format === EventFormat.HYBRID,
 			defaultFormat: this.resolveTeamFormatForEvent(event.format),
@@ -62,6 +73,7 @@ export class UserTeamsService {
 						name: team.name,
 						description: team.description,
 						format: team.format,
+						selectedCaseId: team.caseId,
 						isCaptain: team.caption.idUser === userId,
 						members: team.user.map(member => ({
 							idUser: member.user.idUser,
@@ -170,6 +182,12 @@ export class UserTeamsService {
 		await this.requireRegularUser(userId)
 		const team = await this.requireCaptainTeamAccess(userId, teamId)
 
+		if (team.caseId) {
+			throw new BadRequestException(
+				'Команда уже выбрала кейс, поэтому удалить ее нельзя'
+			)
+		}
+
 		await this.prisma.$transaction(async prisma => {
 			const members = await prisma.userTeam.findMany({
 				where: {
@@ -229,6 +247,12 @@ export class UserTeamsService {
 	async createTeamInvite(userId: string, teamId: string) {
 		await this.requireRegularUser(userId)
 		const team = await this.requireCaptainTeamAccess(userId, teamId)
+
+		if (!getEventTimeState(team.event).canManageTeams) {
+			throw new BadRequestException(
+				'Приглашения в команду закрыты после начала мероприятия'
+			)
+		}
 
 		return this.teamInviteService.createTeamInvite(teamId, team.eventId, userId)
 	}
@@ -316,6 +340,13 @@ export class UserTeamsService {
 						caseId: true,
 						event: {
 							select: {
+								hasCases: true,
+								status: true,
+								dataStart: true,
+								dataEnd: true,
+								dataStartRegistration: true,
+								dataEndRegistration: true,
+								dateDeadLine: true,
 								participanInTeamLimit: true
 							}
 						},
@@ -339,6 +370,12 @@ export class UserTeamsService {
 
 		if (request.status !== StatusJoinRequest.PENDING) {
 			throw new BadRequestException('Можно одобрить только ожидающую заявку')
+		}
+
+		if (!getEventTimeState(request.team.event).canManageTeams) {
+			throw new BadRequestException(
+				'Вступление в команды закрыто после начала мероприятия'
+			)
 		}
 
 		const existingTeam = await this.findUserTeamForEvent(request.userId, request.team.eventId)
@@ -460,7 +497,14 @@ export class UserTeamsService {
 			select: {
 				idEvent: true,
 				hasTeams: true,
+				hasCases: true,
 				format: true,
+				status: true,
+				dataStart: true,
+				dataEnd: true,
+				dataStartRegistration: true,
+				dataEndRegistration: true,
+				dateDeadLine: true,
 				participant: {
 					where: {
 						userId
@@ -484,6 +528,12 @@ export class UserTeamsService {
 			throw new ForbiddenException('Сначала необходимо зарегистрироваться на мероприятие')
 		}
 
+		if (!getEventTimeState(event).canManageTeams) {
+			throw new BadRequestException(
+				'Создание и вступление в команды закрыты после начала мероприятия'
+			)
+		}
+
 		return event
 	}
 
@@ -496,9 +546,17 @@ export class UserTeamsService {
 				idTeam: true,
 				eventId: true,
 				captionId: true,
+				caseId: true,
 				event: {
 					select: {
-						format: true
+						format: true,
+						hasCases: true,
+						status: true,
+						dataStart: true,
+						dataEnd: true,
+						dataStartRegistration: true,
+						dataEndRegistration: true,
+						dateDeadLine: true
 					}
 				}
 			}
@@ -530,6 +588,7 @@ export class UserTeamsService {
 				name: true,
 				description: true,
 				format: true,
+				caseId: true,
 				caption: {
 					select: {
 						idUser: true

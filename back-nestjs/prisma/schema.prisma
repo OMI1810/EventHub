@@ -21,11 +21,8 @@ enum EventFormat {
 
 enum EventStatus {
   FINISHED
-  OPEN
   PUBLISHED
   PRIVATE
-  OPEN_REGISTRATION
-  CLOSED_REGISTRATION
 }
 
 enum TagType {

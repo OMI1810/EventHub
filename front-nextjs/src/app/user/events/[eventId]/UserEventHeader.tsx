@@ -26,7 +26,37 @@ function formatDateRange(start: string, end: string) {
 	)}`
 }
 
+function formatDateTime(date: string) {
+	return new Intl.DateTimeFormat('ru-RU', {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit'
+	}).format(new Date(date))
+}
+
+function getParticipationUnavailableText(event: IUserEventDetails) {
+	if (!event.timeState.isRegistrationStarted && event.dataStartRegistration) {
+		return `Регистрация начнётся ${formatDateTime(event.dataStartRegistration)}`
+	}
+
+	if (event.timeState.isRegistrationFinished) {
+		return 'Регистрация завершена'
+	}
+
+	if (event.timeState.isEventStarted) {
+		return 'Мероприятие уже началось'
+	}
+
+	return 'Участие сейчас недоступно'
+}
+
 function getLeaveWarning(event: IUserEventDetails) {
+	if (event.hasTeams && event.teamContext?.selectedCaseId) {
+		return 'Команда уже выбрала кейс, поэтому покинуть мероприятие нельзя.'
+	}
+
 	if (!event.hasTeams || !event.teamContext?.hasTeam) {
 		return 'Вы уверены, что хотите покинуть мероприятие? Ваше участие будет удалено.'
 	}
@@ -42,6 +72,9 @@ export function UserEventHeader({ event }: Props) {
 	const queryClient = useQueryClient()
 	const [isOrganizationModalOpen, setIsOrganizationModalOpen] = useState(false)
 	const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false)
+	const cannotLeaveSelectedCaseTeam = Boolean(
+		event.hasTeams && event.teamContext?.selectedCaseId
+	)
 
 	const { mutate: mutateParticipate, isPending: isParticipatingPending } = useMutation({
 		mutationKey: ['user-events', 'participate', event.idEvent],
@@ -117,21 +150,33 @@ export function UserEventHeader({ event }: Props) {
 						{event.isParticipating ? (
 							<button
 								type="button"
-								onClick={() => setIsLeaveModalOpen(true)}
-								disabled={isLeavePending}
+								onClick={() => {
+									if (cannotLeaveSelectedCaseTeam) return
+									setIsLeaveModalOpen(true)
+								}}
+								disabled={isLeavePending || cannotLeaveSelectedCaseTeam}
 								className="rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
+								title={
+									cannotLeaveSelectedCaseTeam
+										? 'Команда уже выбрала кейс, покинуть мероприятие нельзя'
+										: undefined
+								}
 							>
 								{isLeavePending ? 'Выходим...' : 'Покинуть мероприятие'}
 							</button>
-						) : (
+						) : event.canParticipate ? (
 							<button
 								type="button"
 								onClick={() => mutateParticipate()}
-								disabled={!event.canParticipate || isParticipatingPending}
+								disabled={isParticipatingPending}
 								className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
 							>
 								{isParticipatingPending ? 'Регистрация...' : 'Участвовать'}
 							</button>
+						) : (
+							<div className="max-w-64 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-sm leading-5 text-zinc-300">
+								{getParticipationUnavailableText(event)}
+							</div>
 						)}
 					</div>
 				</div>

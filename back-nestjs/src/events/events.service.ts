@@ -372,7 +372,7 @@ export class EventsService {
     eventId: string,
     dto: UpdateEventGeneralDto,
   ) {
-    const event = await this.ensureEventAccess(userId, eventId);
+    const event = await this.ensureEditableEventAccess(userId, eventId);
 
     if (event.status === EventStatus.FINISHED) {
       throw new BadRequestException(
@@ -664,7 +664,7 @@ export class EventsService {
     eventId: string,
     dto: UpdateEventResultsDto,
   ) {
-    await this.ensureEditableEventAccess(userId, eventId);
+    await this.ensureEventAccess(userId, eventId);
 
     const event = await this.prisma.event.findUnique({
       where: {
@@ -1070,6 +1070,7 @@ export class EventsService {
       select: {
         idEvent: true,
         status: true,
+        dataStart: true,
       },
     });
 
@@ -1086,6 +1087,12 @@ export class EventsService {
     if (event.status === EventStatus.FINISHED) {
       throw new BadRequestException(
         "Завершенное мероприятие нельзя редактировать",
+      );
+    }
+
+    if (new Date() >= event.dataStart) {
+      throw new BadRequestException(
+        "Мероприятие уже началось, редактирование недоступно",
       );
     }
 

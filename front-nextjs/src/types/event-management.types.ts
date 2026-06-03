@@ -7,11 +7,8 @@ import {
 
 export type ManagedEventStatus =
   | "FINISHED"
-  | "OPEN"
   | "PUBLISHED"
-  | "PRIVATE"
-  | "OPEN_REGISTRATION"
-  | "CLOSED_REGISTRATION";
+  | "PRIVATE";
 
 export interface ManagedEventOrganization {
   idOrganization: string;

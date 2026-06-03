@@ -61,12 +61,12 @@ export function UserEventTabs({ event }: Props) {
 		const nextTabs: TabItem[] = []
 
 		if (event.hasCases) nextTabs.push({ key: 'cases', label: 'Кейсы' })
-		if (event.hasTeams) nextTabs.push({ key: 'team', label: 'Команда' })
-		if (event.hasMaterials) nextTabs.push({ key: 'materials', label: 'Материалы' })
-		if (event.hasLoadedSolution) {
+		if (event.hasTeams && event.isParticipating) nextTabs.push({ key: 'team', label: 'Команда' })
+		if (event.hasMaterials && event.timeState.canViewEventMaterials) nextTabs.push({ key: 'materials', label: 'Материалы' })
+		if (event.hasLoadedSolution && event.timeState.isEventStarted) {
 			nextTabs.push({ key: 'solution', label: 'Загрузить решение' })
 		}
-		if (event.hasResualt) nextTabs.push({ key: 'results', label: 'Итоги' })
+		if (event.hasResualt && event.timeState.isEventFinished) nextTabs.push({ key: 'results', label: 'Итоги' })
 
 		return nextTabs
 	}, [
@@ -74,7 +74,11 @@ export function UserEventTabs({ event }: Props) {
 		event.hasLoadedSolution,
 		event.hasMaterials,
 		event.hasResualt,
-		event.hasTeams
+		event.hasTeams,
+		event.isParticipating,
+		event.timeState.canViewEventMaterials,
+		event.timeState.isEventFinished,
+		event.timeState.isEventStarted
 	])
 
 	const [activeTab, setActiveTab] = useState<TabKey | null>(tabs[0]?.key ?? null)
@@ -155,6 +159,8 @@ export function UserEventTabs({ event }: Props) {
 	}
 
 	const handleSelectCase = (caseId: string) => {
+		const eventCase = event.cases.find(eventCase => eventCase.idCase === caseId)
+
 		if (!event.isParticipating) {
 			toast.error('Чтобы выбрать кейс, необходимо участвовать в мероприятии')
 			return
@@ -172,6 +178,11 @@ export function UserEventTabs({ event }: Props) {
 
 		if (event.hasTeams && event.teamContext?.hasTeam && !event.teamContext.isCaptain) {
 			toast.error('Выбирать кейс для команды может только капитан')
+			return
+		}
+
+		if (!eventCase?.timeState.isCaseSelectionOpen) {
+			toast.error('Сейчас кейс нельзя выбрать')
 			return
 		}
 
@@ -242,7 +253,11 @@ export function UserEventTabs({ event }: Props) {
 											<button
 												type="button"
 												onClick={() => handleSelectCase(eventCase.idCase)}
-												disabled={selectCaseMutation.isPending || Boolean(event.selectedCaseId)}
+												disabled={
+													selectCaseMutation.isPending ||
+													Boolean(event.selectedCaseId) ||
+													!eventCase.timeState.isCaseSelectionOpen
+												}
 												className="rounded-xl border border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
 											>
 												{isSelected
@@ -274,12 +289,6 @@ export function UserEventTabs({ event }: Props) {
 				if (event.hasCases && !event.selectedCase) {
 					return (
 						<AccessWarning text="Чтобы открыть материалы, необходимо сначала выбрать кейс." />
-					)
-				}
-
-				if (event.selectedCase && !event.selectedCase.isOpen) {
-					return (
-						<AccessWarning text="Материалы выбранного кейса пока недоступны: кейс ещё не открыт администратором." />
 					)
 				}
 
@@ -348,14 +357,18 @@ export function UserEventTabs({ event }: Props) {
 					)
 				}
 
-				if (event.status !== 'OPEN') {
+				if (!event.timeState.isEventStarted) {
 					return (
-						<AccessWarning text="Загрузить решение можно только когда мероприятие открыто." />
+						<AccessWarning text="Загрузить решение можно только после начала мероприятия." />
 					)
 				}
 
-				if (event.dateDeadLine && new Date(event.dateDeadLine) < new Date()) {
-					return <AccessWarning text="Дедлайн загрузки решения уже завершён." />
+				if (event.timeState.isSolutionDeadlinePassed) {
+					return <AccessWarning text="Время для загрузки решения завершилось" />
+				}
+
+				if (!event.timeState.canUploadSolution) {
+					return <AccessWarning text="Загрузка решения сейчас недоступна." />
 				}
 
 				const solutionStatusText = saveSolutionMutation.isPending
@@ -404,13 +417,13 @@ export function UserEventTabs({ event }: Props) {
 							</div>
 						) : null}
 
-						{event.dateDeadLine ? (
+						{event.timeState.solutionDeadline ? (
 							<div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
 								<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 									Дедлайн сдачи
 								</p>
 								<p className="mt-3 text-sm text-zinc-300">
-									{formatDateTime(event.dateDeadLine)}
+									{formatDateTime(event.timeState.solutionDeadline)}
 								</p>
 							</div>
 						) : null}
@@ -494,38 +507,75 @@ export function UserEventTabs({ event }: Props) {
 					return <AccessWarning text="Итоги доступны только участникам мероприятия." />
 				}
 
-				return event.results.length ? (
-					<div className="grid gap-4">
-						{event.results.map(result => (
-							<div
-								key={result.idResult}
-								className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-4"
-							>
-								<div className="flex items-start justify-between gap-4">
+				const renderResultCard = (result: (typeof event.results)[number]) => (
+					<div
+						key={result.idResult}
+						className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-4"
+					>
+						<div className="flex items-start justify-between gap-4">
+							<div>
+								<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+									Место {result.place}
+								</p>
+								<h3 className="mt-2 text-lg font-semibold">{result.title}</h3>
+							</div>
+							{result.score !== null && result.score !== undefined ? (
+								<span className="rounded-full border border-zinc-800 px-3 py-1 text-xs text-zinc-400">
+									{result.score} баллов
+								</span>
+							) : null}
+						</div>
+
+						<p className="mt-3 text-sm text-zinc-400">
+							{result.teamName || result.userName || 'Участник не указан'}
+						</p>
+
+						{result.description ? (
+							<p className="mt-3 text-sm leading-6 text-zinc-400">
+								{result.description}
+							</p>
+						) : null}
+					</div>
+				)
+
+				if (event.hasCases && event.results.length) {
+					const resultsByCase = event.cases
+						.map(eventCase => ({
+							eventCase,
+							results: event.results.filter(result => result.caseId === eventCase.idCase)
+						}))
+						.filter(group => group.results.length)
+
+					return resultsByCase.length ? (
+						<div className="grid gap-5">
+							{resultsByCase.map(({ eventCase, results }) => (
+								<section
+									key={eventCase.idCase}
+									className="grid gap-4 rounded-2xl border border-zinc-800 bg-zinc-950/50 p-5"
+								>
 									<div>
 										<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-											Место {result.place}
+											Кейс
 										</p>
-										<h3 className="mt-2 text-lg font-semibold">{result.title}</h3>
+										<h3 className="mt-2 text-xl font-semibold text-zinc-100">
+											{eventCase.title}
+										</h3>
 									</div>
-									{result.score !== null && result.score !== undefined ? (
-										<span className="rounded-full border border-zinc-800 px-3 py-1 text-xs text-zinc-400">
-											{result.score} баллов
-										</span>
-									) : null}
-								</div>
 
-								<p className="mt-3 text-sm text-zinc-400">
-									{result.teamName || result.userName || 'Участник не указан'}
-								</p>
+									<div className="grid gap-4">
+										{results.map(renderResultCard)}
+									</div>
+								</section>
+							))}
+						</div>
+					) : (
+						<AccessWarning text="Администратор ещё не выставил итоги мероприятия." />
+					)
+				}
 
-								{result.description ? (
-									<p className="mt-3 text-sm leading-6 text-zinc-400">
-										{result.description}
-									</p>
-								) : null}
-							</div>
-						))}
+				return event.results.length ? (
+					<div className="grid gap-4">
+						{event.results.map(renderResultCard)}
 					</div>
 				) : (
 					<AccessWarning text="Администратор ещё не выставил итоги мероприятия." />

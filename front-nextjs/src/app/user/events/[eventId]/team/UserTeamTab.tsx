@@ -219,6 +219,12 @@ export function UserTeamTab({ eventId }: Props) {
   }
 
   if (!data.hasTeam) {
+    if (!data.canManageTeams) {
+      return (
+        <AccessWarning text="Создание и вступление в команды закрыты после начала мероприятия." />
+      );
+    }
+
     return (
       <>
         <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
@@ -324,8 +330,17 @@ export function UserTeamTab({ eventId }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => setIsDeleteModalOpen(true)}
-                className="rounded-xl border border-rose-700 px-5 py-2.5 text-sm font-medium text-rose-200 transition-colors hover:bg-rose-950/40"
+                onClick={() => {
+                  if (team.selectedCaseId) return;
+                  setIsDeleteModalOpen(true);
+                }}
+                disabled={Boolean(team.selectedCaseId)}
+                title={
+                  team.selectedCaseId
+                    ? "Команда уже выбрала кейс, поэтому удалить ее нельзя"
+                    : undefined
+                }
+                className="rounded-xl border border-rose-700 px-5 py-2.5 text-sm font-medium text-rose-200 transition-colors hover:bg-rose-950/40 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Удалить команду
               </button>
@@ -354,7 +369,7 @@ export function UserTeamTab({ eventId }: Props) {
           </div>
         </div>
 
-        {team.isCaptain ? (
+        {team.isCaptain && data.canManageTeams ? (
           <InviteCodeCard
             label="Приглашение"
             title="Код приглашения в команду"
@@ -390,7 +405,7 @@ export function UserTeamTab({ eventId }: Props) {
           />
         ) : null}
 
-        {team.isCaptain ? (
+        {team.isCaptain && data.canManageTeams ? (
           <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
               Заявки в команду

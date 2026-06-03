@@ -25,6 +25,32 @@ function formatEventDates(start: string, end: string) {
 	)}`
 }
 
+function formatDateTime(date: string) {
+	return new Intl.DateTimeFormat('ru-RU', {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit'
+	}).format(new Date(date))
+}
+
+function getParticipationUnavailableText(event: IUserEventFeedItem) {
+	if (!event.timeState.isRegistrationStarted && event.dataStartRegistration) {
+		return `Регистрация начнётся ${formatDateTime(event.dataStartRegistration)}`
+	}
+
+	if (event.timeState.isRegistrationFinished) {
+		return 'Регистрация завершена'
+	}
+
+	if (event.timeState.isEventStarted) {
+		return 'Мероприятие уже началось'
+	}
+
+	return 'Участие сейчас недоступно'
+}
+
 export function UserEventCard({ event }: Props) {
 	const queryClient = useQueryClient()
 	const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false)
@@ -117,15 +143,19 @@ export function UserEventCard({ event }: Props) {
 						>
 							{isLeavingPending ? 'Выходим...' : 'Покинуть мероприятие'}
 						</button>
-					) : (
+					) : event.canParticipate ? (
 						<button
 							type="button"
 							onClick={() => mutateParticipate()}
-							disabled={!event.canParticipate || isParticipatingPending}
+							disabled={isParticipatingPending}
 							className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
 						>
 							{isParticipatingPending ? 'Регистрация...' : 'Участвовать'}
 						</button>
+					) : (
+						<div className="rounded-xl border border-zinc-800 bg-zinc-950/70 px-4 py-2.5 text-sm text-zinc-300">
+							{getParticipationUnavailableText(event)}
+						</div>
 					)}
 				</div>
 			</article>
