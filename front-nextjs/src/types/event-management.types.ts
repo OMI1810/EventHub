@@ -70,7 +70,6 @@ export interface ManagedEventTeam {
       patronymic?: string | null;
     };
   }>;
-  latestSolution?: ManagedEventSolution | null;
 }
 
 export interface ManagedEventCase {

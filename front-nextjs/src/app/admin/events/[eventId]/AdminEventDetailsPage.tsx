@@ -316,7 +316,6 @@ function EventInviteSection({ eventId }: { eventId: string }) {
     mutationFn: () => eventService.createMyEventInvite(eventId),
     onSuccess: (response) => {
       setInvite(response.data);
-      setIsQrOpen(false);
       toast.success("Код приглашения создан");
     },
     onError: () => toast.error("Не удалось создать код приглашения"),

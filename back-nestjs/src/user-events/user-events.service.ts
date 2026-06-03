@@ -145,9 +145,7 @@ export class UserEventsService {
 				idEvent: eventId,
 				OR: [
 					{
-						status: {
-							not: EventStatus.PRIVATE
-						}
+						status: EventStatus.PUBLISHED
 					},
 					{
 						participant: {
@@ -273,11 +271,6 @@ export class UserEventsService {
 					}
 				},
 				results: {
-					where: {
-						place: {
-							not: null
-						}
-					},
 					select: {
 						idResult: true,
 						title: true,
@@ -376,7 +369,7 @@ export class UserEventsService {
 				? selectedCaseTimeState.solutionDeadline
 				: event.dateDeadLine
 		const isSolutionDeadlinePassed = solutionDeadline
-			? new Date() > solutionDeadline
+			? new Date() >= solutionDeadline
 			: false
 		const canUploadSolution =
 			timeState.isEventStarted &&
@@ -965,7 +958,7 @@ export class UserEventsService {
 		if (
 			!participant.event.hasCases &&
 			participant.event.dateDeadLine &&
-			new Date() > participant.event.dateDeadLine
+			new Date() >= participant.event.dateDeadLine
 		) {
 			throw new BadRequestException('Дедлайн загрузки решения уже завершён')
 		}
@@ -1119,7 +1112,7 @@ export class UserEventsService {
 		if (
 			!hasBrokenRegistrationWindow &&
 			params.dataEndRegistration &&
-			now > params.dataEndRegistration
+			now >= params.dataEndRegistration
 		) {
 			return false
 		}
@@ -1150,7 +1143,7 @@ export class UserEventsService {
 			throw new BadRequestException('Период выбора кейса ещё не начался')
 		}
 
-		if (now > eventCase.dateForEndSelected) {
+		if (now >= eventCase.dateForEndSelected) {
 			throw new BadRequestException('Период выбора кейса уже завершён')
 		}
 	}
@@ -1169,7 +1162,7 @@ export class UserEventsService {
 			throw new NotFoundException('Кейс не найден')
 		}
 
-		if (new Date() > eventCase.dateStopCode) {
+		if (new Date() >= eventCase.dateStopCode) {
 			throw new BadRequestException('Время для загрузки решения завершилось')
 		}
 	}

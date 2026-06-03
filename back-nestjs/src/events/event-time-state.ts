@@ -25,7 +25,7 @@ export function getEventTimeState(event: EventTimeStateInput, now = new Date()) 
 		? now >= event.dataStartRegistration
 		: true
 	const isRegistrationFinished = event.dataEndRegistration
-		? now > event.dataEndRegistration
+		? now >= event.dataEndRegistration
 		: false
 	const isRegistrationOpen =
 		!isPrivate &&
@@ -34,7 +34,7 @@ export function getEventTimeState(event: EventTimeStateInput, now = new Date()) 
 		!isRegistrationFinished
 	const solutionDeadline = event.hasCases ? null : event.dateDeadLine
 	const isSolutionDeadlinePassed = solutionDeadline
-		? now > solutionDeadline
+		? now >= solutionDeadline
 		: false
 
 	return {
@@ -54,12 +54,12 @@ export function getEventTimeState(event: EventTimeStateInput, now = new Date()) 
 
 export function getCaseTimeState(eventCase: CaseTimeStateInput, now = new Date()) {
 	const isCaseSelectionStarted = now >= eventCase.dateForStartSelected
-	const isCaseSelectionFinished = now > eventCase.dateForEndSelected
+	const isCaseSelectionFinished = now >= eventCase.dateForEndSelected
 	const isCaseSelectionOpen =
 		Boolean(eventCase.isOpen ?? true) &&
 		isCaseSelectionStarted &&
 		!isCaseSelectionFinished
-	const isCaseSolutionDeadlinePassed = now > eventCase.dateStopCode
+	const isCaseSolutionDeadlinePassed = now >= eventCase.dateStopCode
 
 	return {
 		isCaseSelectionStarted,

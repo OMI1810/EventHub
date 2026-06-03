@@ -105,7 +105,7 @@ export function UserEventTabs({ event }: Props) {
 		if (event.hasLoadedSolution && event.timeState.isEventStarted) {
 			nextTabs.push({ key: 'solution', label: 'Загрузить решение' })
 		}
-		if (event.hasResualt) nextTabs.push({ key: 'results', label: 'Итоги' })
+		if (event.hasResualt && event.timeState.isEventFinished) nextTabs.push({ key: 'results', label: 'Итоги' })
 		nextTabs.push({ key: 'status', label: 'Статус' })
 
 		return nextTabs
@@ -215,8 +215,7 @@ export function UserEventTabs({ event }: Props) {
 		(!event.hasTeams ||
 			(Boolean(event.teamContext?.hasTeam) && Boolean(event.teamContext?.isCaptain))) &&
 		(!event.hasCases || Boolean(event.selectedCase)) &&
-		event.status === 'OPEN' &&
-		(!event.dateDeadLine || new Date(event.dateDeadLine) >= new Date())
+		event.timeState.canUploadSolution
 
 	const statusSteps = useMemo<StatusStep[]>(() => {
 		const steps: StatusStep[] = []
@@ -408,53 +407,27 @@ export function UserEventTabs({ event }: Props) {
 								return (
 									<EventCaseCard
 										key={eventCase.idCase}
-										className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5"
-									>
-										<div className="flex flex-wrap items-start justify-between gap-3">
-											<div>
-												<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-													{eventCase.holder || 'Кейсодержатель не указан'}
-												</p>
-												<h3 className="mt-3 text-xl font-bold">{eventCase.title}</h3>
-											</div>
-
-											{eventCase.teamLimit ? (
-												<span className="rounded-full border border-zinc-800 px-3 py-1 text-xs text-zinc-400">
-													{eventCase.occupiedPlaces}/{eventCase.teamLimit}
-												</span>
-											) : null}
-										</div>
-
-										<p className="mt-4 text-sm leading-6 text-zinc-400">
-											{eventCase.description || 'Описание кейса отсутствует.'}
-										</p>
-
-										<p className="mt-4 text-xs text-zinc-500">
-											{formatCaseSchedule(
-												eventCase.dateForStartSelected,
-												eventCase.dateForEndSelected
-											)}
-										</p>
-
-										<div className="mt-5 flex flex-wrap gap-3">
-											<button
-												type="button"
-												onClick={() => handleSelectCase(eventCase.idCase)}
-												disabled={
-													selectCaseMutation.isPending ||
-													Boolean(event.selectedCaseId) ||
-													!eventCase.timeState.isCaseSelectionOpen
-												}
-												className="rounded-xl border border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-											>
-												{isSelected
-													? 'Кейс выбран'
-													: selectCaseMutation.isPending
-														? 'Выбор...'
-														: 'Выбрать кейс'}
-											</button>
-										</div>
-									</article>
+										holder={eventCase.holder}
+										title={eventCase.title}
+										description={eventCase.description}
+										teamLimit={eventCase.teamLimit}
+										occupiedPlaces={eventCase.occupiedPlaces}
+										dateForStartSelected={eventCase.dateForStartSelected}
+										dateForEndSelected={eventCase.dateForEndSelected}
+										actionLabel={
+											isSelected
+												? 'Кейс выбран'
+												: selectCaseMutation.isPending
+													? 'Выбор...'
+													: 'Выбрать кейс'
+										}
+										onAction={() => handleSelectCase(eventCase.idCase)}
+										disabled={
+											selectCaseMutation.isPending ||
+											Boolean(event.selectedCaseId) ||
+											!eventCase.timeState.isCaseSelectionOpen
+										}
+									/>
 								)
 							})
 						) : (
@@ -535,14 +508,12 @@ export function UserEventTabs({ event }: Props) {
 					)
 				}
 
-				if (event.dateDeadLine && new Date(event.dateDeadLine) < new Date()) {
-					return (
-						<EventAccessNotice text="Дедлайн загрузки решения уже завершён." />
-					)
+				if (event.timeState.isSolutionDeadlinePassed) {
+					return <EventAccessNotice text="Время для загрузки решения завершилось" />
 				}
 
 				if (!event.timeState.canUploadSolution) {
-					return <AccessWarning text="Загрузка решения сейчас недоступна." />
+					return <EventAccessNotice text="Загрузка решения сейчас недоступна." />
 				}
 
 				const solutionStatusText = saveSolutionMutation.isPending

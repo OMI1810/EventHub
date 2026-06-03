@@ -6,6 +6,8 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
 } from "@nestjs/common";
 import {
   EventFormat,
@@ -27,7 +29,6 @@ import {
   UpdateEventCaseMaterialDto,
   UpdateEventCasesDto,
   UpdateEventMaterialsDto,
-  UpdateEventResultsDto,
   UpdateEventSettingsDto,
 } from "./dto/update-event-blocks.dto";
 import { UpdateEventGeneralDto } from "./dto/update-event-general.dto";
@@ -78,14 +79,46 @@ const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
 };
 
 @Injectable()
-export class EventsService {
+export class EventsService implements OnModuleInit, OnModuleDestroy {
   private readonly inviteScope = "event";
   private readonly inviteTtlSeconds = 600;
+  private finishExpiredEventsInterval?: NodeJS.Timeout;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly inviteCoreService: InviteCoreService,
   ) {}
+
+  onModuleInit() {
+    void this.finishExpiredEvents().catch(() => undefined);
+    this.finishExpiredEventsInterval = setInterval(() => {
+      void this.finishExpiredEvents().catch(() => undefined);
+    }, 60_000);
+  }
+
+  onModuleDestroy() {
+    if (this.finishExpiredEventsInterval) {
+      clearInterval(this.finishExpiredEventsInterval);
+    }
+  }
+
+  async finishExpiredEvents(now = new Date()) {
+    const result = await this.prisma.event.updateMany({
+      where: {
+        status: {
+          not: EventStatus.FINISHED,
+        },
+        dataEnd: {
+          lte: now,
+        },
+      },
+      data: {
+        status: EventStatus.FINISHED,
+      },
+    });
+
+    return result.count;
+  }
 
   async getMyEvents(userId: string) {
     const events = await this.prisma.event.findMany({
@@ -372,7 +405,6 @@ export class EventsService {
           role: member.role,
           user: member.user,
         })),
-        latestSolution: team.solutions[0] ?? null,
         solutions: undefined,
         user: undefined,
       })),
@@ -919,95 +951,6 @@ export class EventsService {
       data: {
         status: StatusJoinRequest.REJECTED,
       },
-    });
-
-    return this.getMyEventDetails(userId, eventId);
-  }
-
-  async updateMyEventResults(
-    userId: string,
-    eventId: string,
-    dto: UpdateEventResultsDto,
-  ) {
-    await this.ensureEditableEventAccess(userId, eventId);
-
-    const resultsWithPlace = dto.results.filter(
-      (result) => typeof result.place === "number" && result.place > 0,
-    );
-    const places = resultsWithPlace.map((result) => result.place as number);
-
-    if (new Set(places).size !== places.length) {
-      throw new BadRequestException("Места не должны повторяться");
-    }
-
-    const caseIds = dto.results
-      .map((result) => result.caseId)
-      .filter((id): id is string => Boolean(id));
-    const teamIds = dto.results
-      .map((result) => result.teamId)
-      .filter((id): id is string => Boolean(id));
-    const participantIds = dto.results
-      .map((result) => result.userId)
-      .filter((id): id is string => Boolean(id));
-
-    await this.ensureCasesBelongToEvent(eventId, caseIds);
-
-    if (teamIds.length) {
-      const foundTeams = await this.prisma.team.count({
-        where: {
-          eventId,
-          idTeam: {
-            in: teamIds,
-          },
-        },
-      });
-
-      if (foundTeams !== new Set(teamIds).size) {
-        throw new BadRequestException("Команда не принадлежит мероприятию");
-      }
-    }
-
-    if (participantIds.length) {
-      const foundParticipants = await this.prisma.userEvent.count({
-        where: {
-          eventId,
-          userId: {
-            in: participantIds,
-          },
-        },
-      });
-
-      if (foundParticipants !== new Set(participantIds).size) {
-        throw new BadRequestException("Участник не принадлежит мероприятию");
-      }
-    }
-
-    await this.prisma.$transaction(async (prisma) => {
-      for (const result of dto.results) {
-        await prisma.result.deleteMany({
-          where: {
-            eventId,
-            caseId: result.caseId ?? null,
-            teamId: result.teamId ?? null,
-            userId: result.userId ?? null,
-          },
-        });
-
-        if (!result.place) {
-          continue;
-        }
-
-        await prisma.result.create({
-          data: {
-            eventId,
-            caseId: result.caseId ?? null,
-            teamId: result.teamId ?? null,
-            userId: result.userId ?? null,
-            place: result.place,
-            title: `${result.place} место`,
-          },
-        });
-      }
     });
 
     return this.getMyEventDetails(userId, eventId);

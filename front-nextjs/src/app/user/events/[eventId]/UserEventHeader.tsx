@@ -131,15 +131,6 @@ export function UserEventHeader({ event }: Props) {
 				onOpenOrganization={() => setIsOrganizationModalOpen(true)}
 				actions={
 					event.isParticipating ? (
-						<button
-							type="button"
-							onClick={() => setIsLeaveModalOpen(true)}
-							disabled={isLeavePending}
-							className="rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
-						>
-							{isLeavePending ? 'Выходим...' : 'Покинуть мероприятие'}
-						</button>
-					) : (
 						<div className="grid justify-items-start gap-2">
 							<button
 								type="button"
@@ -157,22 +148,26 @@ export function UserEventHeader({ event }: Props) {
 							>
 								{isLeavePending ? 'Выходим...' : 'Покинуть мероприятие'}
 							</button>
-						) : event.canParticipate ? (
-							<button
-								type="button"
-								onClick={() => mutateParticipate()}
-								disabled={isParticipatingPending}
-								className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-							>
-								{isParticipatingPending ? 'Регистрация...' : 'Участвовать'}
-							</button>
-							{!event.canParticipate && blockedReason ? (
+							{cannotLeaveSelectedCaseTeam ? (
 								<p className="max-w-sm text-xs leading-5 text-zinc-500">
-									{blockedReason}
+									Команда уже выбрала кейс, поэтому покинуть мероприятие нельзя.
 								</p>
 							) : null}
 						</div>
-					)
+					) : event.canParticipate ? (
+						<button
+							type="button"
+							onClick={() => mutateParticipate()}
+							disabled={isParticipatingPending}
+							className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+						>
+							{isParticipatingPending ? 'Регистрация...' : 'Участвовать'}
+						</button>
+					) : blockedReason ? (
+						<p className="max-w-sm text-xs leading-5 text-zinc-500">
+							{blockedReason}
+						</p>
+					) : null
 				}
 			/>
 

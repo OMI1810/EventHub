@@ -2,11 +2,8 @@ import { EventFormat } from './event-create.types'
 
 export type PublicEventStatus =
 	| 'FINISHED'
-	| 'OPEN'
 	| 'PUBLISHED'
 	| 'PRIVATE'
-	| 'OPEN_REGISTRATION'
-	| 'CLOSED_REGISTRATION'
 
 export interface IPublicEventFeedItem {
 	idEvent: string

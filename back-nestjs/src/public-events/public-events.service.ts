@@ -47,9 +47,7 @@ export class PublicEventsService {
 		const event = await this.prisma.event.findFirst({
 			where: {
 				idEvent: eventId,
-				status: {
-					not: EventStatus.PRIVATE
-				}
+				status: EventStatus.PUBLISHED
 			},
 			select: {
 				idEvent: true,

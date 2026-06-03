@@ -9,6 +9,7 @@ type EventParticipationSnapshot = Pick<
 	| 'participantLimit'
 	| 'registeredUsersCount'
 	| 'isParticipating'
+	| 'timeState'
 >
 
 export function getParticipationBlockedReason(
@@ -24,10 +25,6 @@ export function getParticipationBlockedReason(
 
 	if (event.status === 'FINISHED') {
 		return 'Мероприятие уже завершено.'
-	}
-
-	if (event.status === 'CLOSED_REGISTRATION') {
-		return 'Регистрация на это мероприятие закрыта.'
 	}
 
 	const now = new Date()
@@ -46,10 +43,14 @@ export function getParticipationBlockedReason(
 		)}.`
 	}
 
-	if (!hasBrokenRegistrationWindow && registrationEnd && now > registrationEnd) {
+	if (!hasBrokenRegistrationWindow && registrationEnd && now >= registrationEnd) {
 		return `Регистрация уже завершена. Окончание: ${registrationEnd.toLocaleString(
 			'ru-RU'
 		)}.`
+	}
+
+	if (!event.timeState.isRegistrationOpen) {
+		return 'Регистрация на это мероприятие сейчас недоступна.'
 	}
 
 	const participantLimit = event.participantLimit

@@ -15,7 +15,6 @@ import { CreateEventDto } from "./dto/create-event.dto";
 import {
   UpdateEventCasesDto,
   UpdateEventMaterialsDto,
-  UpdateEventResultsDto,
   UpdateEventSettingsDto,
 } from "./dto/update-event-blocks.dto";
 import { UpdateEventGeneralDto } from "./dto/update-event-general.dto";
