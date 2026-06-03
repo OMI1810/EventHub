@@ -19,7 +19,7 @@ export class UserEventsService {
 		const events = await this.prisma.event.findMany({
 			where: {
 				status: {
-					not: EventStatus.PRIVATE
+					notIn: [EventStatus.PRIVATE, EventStatus.FINISHED]
 				}
 			},
 			select: {
@@ -143,9 +143,20 @@ export class UserEventsService {
 		const event = await this.prisma.event.findFirst({
 			where: {
 				idEvent: eventId,
-				status: {
-					not: EventStatus.PRIVATE
-				}
+				OR: [
+					{
+						status: {
+							not: EventStatus.PRIVATE
+						}
+					},
+					{
+						participant: {
+							some: {
+								userId
+							}
+						}
+					}
+				]
 			},
 			select: {
 				idEvent: true,

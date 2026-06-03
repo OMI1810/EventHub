@@ -33,6 +33,18 @@ export function UserSidebar() {
 					Главная
 				</Link>
 
+				<Link
+					href={USER_PAGES.REQUESTS}
+					className={twMerge(
+						'block rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors',
+						pathname === USER_PAGES.REQUESTS
+							? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+							: 'border-zinc-700 text-zinc-100 hover:bg-zinc-800'
+					)}
+				>
+					Мои заявки
+				</Link>
+
 				<div>
 					<div className="mb-3 flex items-center justify-between">
 						<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">

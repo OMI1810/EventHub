@@ -154,3 +154,30 @@ export class UpdateEventCasesDto {
   @Type(() => UpdateEventCaseItemDto)
   cases: UpdateEventCaseItemDto[];
 }
+
+export class UpdateEventResultItemDto {
+  @IsOptional()
+  @IsString()
+  caseId?: string;
+
+  @IsOptional()
+  @IsString()
+  teamId?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  place?: number | null;
+}
+
+export class UpdateEventResultsDto {
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => UpdateEventResultItemDto)
+  results: UpdateEventResultItemDto[];
+}

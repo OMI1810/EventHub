@@ -53,6 +53,7 @@ export interface ManagedEventTeam {
   description?: string | null;
   format: string;
   caseId?: string | null;
+  latestSolution?: ManagedEventSolution | null;
   membersCount: number;
   caption: {
     idUser: string;
@@ -110,10 +111,35 @@ export interface ManagedEventParticipant {
 
 export interface ManagedEventResult {
   idResult: string;
+  title: string;
   place: number;
+  description?: string | null;
+  score?: number | null;
   caseId?: string | null;
   teamId?: string | null;
   userId?: string | null;
+}
+
+export interface ManagedEventSolution {
+  idSolution: string;
+  urlSolution: string;
+  urlPresentation: string;
+  description?: string | null;
+  updateAt: string;
+}
+
+export interface ManagedEventJoinRequest {
+  idJoinEvent: string;
+  status: "PENDING" | "ACCEPT" | "REJECTED" | "CANCELED";
+  user: {
+    idUser: string;
+    email: string;
+    phone?: string | null;
+    contact?: string | null;
+    name?: string | null;
+    surname?: string | null;
+    patronymic?: string | null;
+  };
 }
 
 export interface ManagedEventDetails extends ManagedEventSummary {
@@ -131,6 +157,7 @@ export interface ManagedEventDetails extends ManagedEventSummary {
   cases: ManagedEventCase[];
   materials: ManagedEventMaterial[];
   results: ManagedEventResult[];
+  joinRequest: ManagedEventJoinRequest[];
 }
 
 export interface UpdateManagedEventGeneralData {

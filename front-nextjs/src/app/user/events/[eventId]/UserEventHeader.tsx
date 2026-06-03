@@ -1,6 +1,8 @@
 'use client'
 
 import { UserLeaveEventModal } from '@/app/user/components/UserLeaveEventModal'
+import { getParticipationBlockedReason } from '@/app/user/utils/userEventParticipation'
+import { EventHeaderBase } from '@/components/events/EventHeaderBase'
 import userEventService from '@/services/user-event.service'
 import { IUserEventDetails } from '@/types/user-event.types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -75,6 +77,7 @@ export function UserEventHeader({ event }: Props) {
 	const cannotLeaveSelectedCaseTeam = Boolean(
 		event.hasTeams && event.teamContext?.selectedCaseId
 	)
+	const blockedReason = getParticipationBlockedReason(event)
 
 	const { mutate: mutateParticipate, isPending: isParticipatingPending } = useMutation({
 		mutationKey: ['user-events', 'participate', event.idEvent],
@@ -117,37 +120,27 @@ export function UserEventHeader({ event }: Props) {
 
 	return (
 		<>
-			<section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-white shadow-xl">
-				<div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-					<div className="min-w-0">
+			<EventHeaderBase
+				organizationName={event.organization.name}
+				title={event.title}
+				description={event.description}
+				type={event.type}
+				format={event.format}
+				dataStart={event.dataStart}
+				dataEnd={event.dataEnd}
+				onOpenOrganization={() => setIsOrganizationModalOpen(true)}
+				actions={
+					event.isParticipating ? (
 						<button
 							type="button"
-							onClick={() => setIsOrganizationModalOpen(true)}
-							className="text-left text-xs uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-300"
+							onClick={() => setIsLeaveModalOpen(true)}
+							disabled={isLeavePending}
+							className="rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
 						>
-							{event.organization.name}
+							{isLeavePending ? 'Выходим...' : 'Покинуть мероприятие'}
 						</button>
-
-						<h1 className="mt-3 text-3xl font-bold">{event.title}</h1>
-						<p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-400">
-							{event.description || 'Описание мероприятия отсутствует.'}
-						</p>
-
-						<div className="mt-5 flex flex-wrap gap-2 text-xs text-zinc-400">
-							<span className="rounded-full border border-zinc-800 px-3 py-1">
-								{event.type}
-							</span>
-							<span className="rounded-full border border-zinc-800 px-3 py-1">
-								{event.format}
-							</span>
-							<span className="rounded-full border border-zinc-800 px-3 py-1">
-								{formatDateRange(event.dataStart, event.dataEnd)}
-							</span>
-						</div>
-					</div>
-
-					<div className="flex shrink-0">
-						{event.isParticipating ? (
+					) : (
+						<div className="grid justify-items-start gap-2">
 							<button
 								type="button"
 								onClick={() => {
@@ -173,14 +166,15 @@ export function UserEventHeader({ event }: Props) {
 							>
 								{isParticipatingPending ? 'Регистрация...' : 'Участвовать'}
 							</button>
-						) : (
-							<div className="max-w-64 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-sm leading-5 text-zinc-300">
-								{getParticipationUnavailableText(event)}
-							</div>
-						)}
-					</div>
-				</div>
-			</section>
+							{!event.canParticipate && blockedReason ? (
+								<p className="max-w-sm text-xs leading-5 text-zinc-500">
+									{blockedReason}
+								</p>
+							) : null}
+						</div>
+					)
+				}
+			/>
 
 			{isOrganizationModalOpen ? (
 				<UserOrganizationContactsModal

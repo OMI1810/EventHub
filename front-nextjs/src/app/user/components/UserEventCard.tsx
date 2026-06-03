@@ -4,9 +4,10 @@ import { USER_PAGES } from '@/config/pages/user.config'
 import userEventService from '@/services/user-event.service'
 import { IUserEventFeedItem } from '@/types/user-event.types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import { getParticipationBlockedReason } from '../utils/userEventParticipation'
 import { UserLeaveEventModal } from './UserLeaveEventModal'
 
 interface Props {
@@ -52,8 +53,10 @@ function getParticipationUnavailableText(event: IUserEventFeedItem) {
 }
 
 export function UserEventCard({ event }: Props) {
+	const router = useRouter()
 	const queryClient = useQueryClient()
 	const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false)
+	const blockedReason = getParticipationBlockedReason(event)
 
 	const { mutate: mutateParticipate, isPending: isParticipatingPending } = useMutation({
 		mutationKey: ['user-events', 'participate', event.idEvent],
@@ -89,18 +92,26 @@ export function UserEventCard({ event }: Props) {
 
 	return (
 		<>
-			<article className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5">
+			<article
+				role="link"
+				tabIndex={0}
+				onClick={() => router.push(USER_PAGES.event(event.idEvent))}
+				onKeyDown={currentEvent => {
+					if (currentEvent.key === 'Enter' || currentEvent.key === ' ') {
+						currentEvent.preventDefault()
+						router.push(USER_PAGES.event(event.idEvent))
+					}
+				}}
+				className="group cursor-pointer rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5 transition-colors hover:border-zinc-700 hover:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+			>
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div>
 						<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 							{event.organization.name}
 						</p>
-						<Link
-							href={USER_PAGES.event(event.idEvent)}
-							className="mt-3 inline-block text-2xl font-bold transition-colors hover:text-emerald-300"
-						>
+						<h3 className="mt-3 text-2xl font-bold transition-colors group-hover:text-emerald-300">
 							{event.title}
-						</Link>
+						</h3>
 					</div>
 
 					{event.isParticipating ? (
@@ -127,34 +138,37 @@ export function UserEventCard({ event }: Props) {
 				</div>
 
 				<div className="mt-6 flex flex-wrap items-center gap-3">
-					<Link
-						href={USER_PAGES.event(event.idEvent)}
-						className="rounded-xl border border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800"
-					>
-						Открыть
-					</Link>
-
 					{event.isParticipating ? (
 						<button
 							type="button"
-							onClick={() => setIsLeaveModalOpen(true)}
+							onClick={currentEvent => {
+								currentEvent.stopPropagation()
+								setIsLeaveModalOpen(true)
+							}}
 							disabled={isLeavingPending}
 							className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
 						>
 							{isLeavingPending ? 'Выходим...' : 'Покинуть мероприятие'}
 						</button>
-					) : event.canParticipate ? (
-						<button
-							type="button"
-							onClick={() => mutateParticipate()}
-							disabled={isParticipatingPending}
-							className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-						>
-							{isParticipatingPending ? 'Регистрация...' : 'Участвовать'}
-						</button>
 					) : (
-						<div className="rounded-xl border border-zinc-800 bg-zinc-950/70 px-4 py-2.5 text-sm text-zinc-300">
-							{getParticipationUnavailableText(event)}
+						<div className="grid justify-items-start gap-2">
+							<button
+								type="button"
+								onClick={currentEvent => {
+									currentEvent.stopPropagation()
+									mutateParticipate()
+								}}
+								disabled={!event.canParticipate || isParticipatingPending}
+								className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+							>
+								{isParticipatingPending ? 'Регистрация...' : 'Участвовать'}
+							</button>
+
+							{!event.canParticipate && blockedReason ? (
+								<p className="max-w-md text-xs leading-5 text-zinc-500">
+									{blockedReason}
+								</p>
+							) : null}
 						</div>
 					)}
 				</div>
