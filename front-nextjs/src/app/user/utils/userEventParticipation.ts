@@ -27,7 +27,6 @@ export function getParticipationBlockedReason(
 		return 'Мероприятие уже завершено.'
 	}
 
-	const now = new Date()
 	const registrationStart = event.dataStartRegistration
 		? new Date(event.dataStartRegistration)
 		: null
@@ -37,13 +36,21 @@ export function getParticipationBlockedReason(
 	const hasBrokenRegistrationWindow =
 		registrationStart && registrationEnd && registrationStart > registrationEnd
 
-	if (!hasBrokenRegistrationWindow && registrationStart && now < registrationStart) {
+	if (
+		!hasBrokenRegistrationWindow &&
+		registrationStart &&
+		!event.timeState.isRegistrationStarted
+	) {
 		return `Регистрация ещё не началась. Старт: ${registrationStart.toLocaleString(
 			'ru-RU'
 		)}.`
 	}
 
-	if (!hasBrokenRegistrationWindow && registrationEnd && now >= registrationEnd) {
+	if (
+		!hasBrokenRegistrationWindow &&
+		registrationEnd &&
+		event.timeState.isRegistrationFinished
+	) {
 		return `Регистрация уже завершена. Окончание: ${registrationEnd.toLocaleString(
 			'ru-RU'
 		)}.`

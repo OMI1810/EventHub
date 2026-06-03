@@ -13,7 +13,9 @@ interface Props {
 export function UserEventPage({ eventId }: Props) {
 	const { data, isLoading } = useQuery({
 		queryKey: ['user-events', 'details', eventId],
-		queryFn: () => userEventService.getEventDetails(eventId)
+		queryFn: () => userEventService.getEventDetails(eventId),
+		refetchInterval: 30_000,
+		refetchOnWindowFocus: true
 	})
 
 	if (isLoading) {
