@@ -114,6 +114,62 @@ export class OrganizationService {
 		return admins.map(({ user }) => user)
 	}
 
+	async getMyOrganizationEvents(ownerId: string) {
+		const organization = await this.getOrganizationByOwnerId(ownerId)
+
+		if (!organization) {
+			throw new ForbiddenException(
+				'Панель организации доступна только владельцу организации'
+			)
+		}
+
+		const events = await this.prisma.event.findMany({
+			where: {
+				organizationId: organization.idOrganization
+			},
+			select: {
+				idEvent: true,
+				title: true,
+				description: true,
+				type: true,
+				format: true,
+				status: true,
+				dataStart: true,
+				dataEnd: true,
+				hasTeams: true,
+				hasCases: true,
+				hasLoadedSolution: true,
+				hasMaterials: true,
+				hasResualt: true,
+				_count: {
+					select: {
+						participant: true,
+						teams: true
+					}
+				}
+			},
+			orderBy: [{ dataStart: 'desc' }, { title: 'asc' }]
+		})
+
+		return events.map(event => ({
+			idEvent: event.idEvent,
+			title: event.title,
+			description: event.description,
+			type: event.type,
+			format: event.format,
+			status: event.status,
+			dataStart: event.dataStart,
+			dataEnd: event.dataEnd,
+			hasTeams: event.hasTeams,
+			hasCases: event.hasCases,
+			hasLoadedSolution: event.hasLoadedSolution,
+			hasMaterials: event.hasMaterials,
+			hasResualt: event.hasResualt,
+			participantsCount: event._count.participant,
+			teamsCount: event._count.teams
+		}))
+	}
+
 	async removeAdminFromMyOrganization(ownerId: string, adminId: string) {
 		const organization = await this.getOrganizationByOwnerId(ownerId)
 

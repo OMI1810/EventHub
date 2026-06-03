@@ -32,6 +32,12 @@ export class OrganizationController {
 	}
 
 	@Auth()
+	@Get('me/events')
+	async getMyOrganizationEvents(@CurrentUser('idUser') ownerId: string) {
+		return this.organizationService.getMyOrganizationEvents(ownerId)
+	}
+
+	@Auth()
 	@Get('me/join-requests')
 	async getMyOrganizationJoinRequests(@CurrentUser('idUser') ownerId: string) {
 		return this.organizationService.getMyOrganizationJoinRequests(ownerId)

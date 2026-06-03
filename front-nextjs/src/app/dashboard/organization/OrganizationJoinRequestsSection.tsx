@@ -94,14 +94,13 @@ export function OrganizationJoinRequestsSection() {
 			<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 				Заявки
 			</p>
-			<h2 className="mt-3 text-2xl font-bold">Заявки на вступление администраторов</h2>
+			<h2 className="mt-3 text-2xl font-bold">
+				Заявки на вступление администраторов
+			</h2>
 
 			{isLoading ? (
 				<div className="mt-6">
-					<MiniLoader
-						width={80}
-						height={80}
-					/>
+					<MiniLoader width={80} height={80} />
 				</div>
 			) : joinRequests.length === 0 ? (
 				<p className="mt-6 text-sm text-zinc-400">
