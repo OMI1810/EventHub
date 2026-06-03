@@ -216,6 +216,9 @@ export function UserEventTabs({ event }: Props) {
 			(Boolean(event.teamContext?.hasTeam) && Boolean(event.teamContext?.isCaptain))) &&
 		(!event.hasCases || Boolean(event.selectedCase)) &&
 		event.timeState.canUploadSolution
+	const caseSelectionIsOpen = event.cases.some(
+		eventCase => eventCase.timeState.isCaseSelectionOpen
+	)
 
 	const statusSteps = useMemo<StatusStep[]>(() => {
 		const steps: StatusStep[] = []
@@ -261,7 +264,18 @@ export function UserEventTabs({ event }: Props) {
 
 		if (event.hasCases) {
 			const caseSelectionAvailable =
-				event.isParticipating && (!event.hasTeams || Boolean(event.teamContext?.hasTeam))
+				event.isParticipating &&
+				(!event.hasTeams || Boolean(event.teamContext?.hasTeam)) &&
+				caseSelectionIsOpen
+			const caseStepDetail = event.selectedCase
+				? event.selectedCase.title
+				: caseSelectionAvailable
+					? 'Кейс ещё не выбран'
+					: !caseSelectionIsOpen
+						? 'Сейчас кейсы нельзя выбрать'
+						: event.hasTeams
+							? 'Нужна команда, чтобы выбрать кейс'
+							: 'Станет доступно после участия в мероприятии'
 
 			steps.push({
 				key: 'case',
@@ -271,13 +285,7 @@ export function UserEventTabs({ event }: Props) {
 					: caseSelectionAvailable
 						? 'available'
 						: 'locked',
-				detail: event.selectedCase
-					? event.selectedCase.title
-					: caseSelectionAvailable
-						? 'Кейс ещё не выбран'
-						: event.hasTeams
-							? 'Нужна команда, чтобы выбрать кейс'
-							: 'Станет доступно после участия в мероприятии',
+				detail: caseStepDetail,
 				targetTab: 'cases'
 			})
 		}
@@ -330,10 +338,12 @@ export function UserEventTabs({ event }: Props) {
 		event.hasResualt,
 		event.hasTeams,
 		event.isParticipating,
+		event.cases,
 		event.results,
 		event.selectedCase,
 		event.solution,
 		event.teamContext,
+		caseSelectionIsOpen,
 		participateMutation.isPending,
 		solutionIsAvailable
 	])
