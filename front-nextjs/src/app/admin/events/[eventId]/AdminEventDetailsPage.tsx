@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import { InviteSectionCard } from "@/app/invites/components/InviteSectionCard";
 import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { MiniLoader } from "@/components/ui/MiniLoader";
 import { ADMIN_PAGES } from "@/config/pages/admin.config";
@@ -9,16 +10,18 @@ import {
   EventInviteResponse,
   ManagedEventCase,
   ManagedEventDetails,
+  ManagedEventJoinRequest,
   ManagedEventMaterial,
+  ManagedEventSolution,
   ManagedEventTeam,
   UpdateManagedEventCaseData,
   UpdateManagedEventGeneralData,
+  UpdateManagedEventResultItemData,
 } from "@/types/event-management.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
-import QRCode from "qrcode";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { AdminEventCsvExportModal } from "./AdminEventCsvExportModal";
@@ -120,6 +123,67 @@ function caseToPayload(
   };
 }
 
+function getTargetKey(target: { teamId?: string; userId?: string }) {
+  return target.teamId ? `team:${target.teamId}` : `user:${target.userId}`;
+}
+
+function getResultPlace(
+  event: ManagedEventDetails,
+  target: { caseId?: string | null; teamId?: string; userId?: string },
+) {
+  const result = event.results.find((eventResult) => {
+    const isSameCase = (eventResult.caseId ?? null) === (target.caseId ?? null);
+    const isSameTeam = target.teamId
+      ? eventResult.teamId === target.teamId
+      : true;
+    const isSameUser = target.userId
+      ? eventResult.userId === target.userId
+      : true;
+
+    return isSameCase && isSameTeam && isSameUser;
+  });
+
+  return result?.place?.toString() ?? "";
+}
+
+function getDuplicatePlaces(places: Record<string, string>) {
+  const seenPlaces = new Set<number>();
+  const duplicatePlaces = new Set<number>();
+
+  Object.values(places).forEach((value) => {
+    const place = Number(value);
+    if (!Number.isInteger(place) || place < 1) return;
+
+    if (seenPlaces.has(place)) {
+      duplicatePlaces.add(place);
+      return;
+    }
+
+    seenPlaces.add(place);
+  });
+
+  return duplicatePlaces;
+}
+
+function normalizeSearch(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function buildResultPayload(
+  places: Record<string, string>,
+  targets: Array<{ caseId?: string | null; teamId?: string; userId?: string }>,
+): UpdateManagedEventResultItemData[] {
+  return targets.map((target) => {
+    const value = places[getTargetKey(target)] ?? "";
+    const place = Number(value);
+
+    return {
+      ...target,
+      place: Number.isInteger(place) && place > 0 ? place : null,
+    };
+  });
+}
+
 function Modal({ title, children, onClose, footer, wide }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -177,10 +241,76 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+function SolutionStatus({
+  solution,
+  onOpen,
+}: {
+  solution?: ManagedEventSolution | null;
+  onOpen: (solution: ManagedEventSolution) => void;
+}) {
+  if (!solution) {
+    return <p className="mt-2 text-sm text-zinc-500">Решение не загружено</p>;
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3">
+      <span className="text-sm text-emerald-300">
+        Решение загружено: {formatDate(solution.updateAt)}
+      </span>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen(solution);
+        }}
+        className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-100 hover:bg-zinc-900"
+      >
+        Подробнее
+      </button>
+    </div>
+  );
+}
+
+function SolutionDetailsModal({
+  solution,
+  onClose,
+}: {
+  solution: ManagedEventSolution;
+  onClose: () => void;
+}) {
+  return (
+    <Modal title="Загруженное решение" onClose={onClose}>
+      <div className="space-y-4">
+        <InfoRow label="Дата загрузки" value={formatDate(solution.updateAt)} />
+        <InfoRow
+          label="Описание"
+          value={solution.description || "Описание не указано"}
+        />
+        <div className="grid gap-3 md:grid-cols-2">
+          <a
+            href={solution.urlSolution}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-primary hover:border-primary/60"
+          >
+            Открыть решение
+          </a>
+          <a
+            href={solution.urlPresentation}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-primary hover:border-primary/60"
+          >
+            Открыть презентацию
+          </a>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function EventInviteSection({ eventId }: { eventId: string }) {
   const [invite, setInvite] = useState<EventInviteResponse | null>(null);
-  const [qrCode, setQrCode] = useState("");
-  const [isQrOpen, setIsQrOpen] = useState(false);
 
   const createInviteMutation = useMutation({
     mutationFn: () => eventService.createMyEventInvite(eventId),
@@ -191,53 +321,122 @@ function EventInviteSection({ eventId }: { eventId: string }) {
     onError: () => toast.error("Не удалось создать код приглашения"),
   });
 
-  useEffect(() => {
-    if (!invite?.code) return;
+  return (
+    <InviteSectionCard
+      label="Приглашение"
+      title="Код приглашения в приватное мероприятие"
+      description="Сгенерируйте код для пользователей, которых хотите допустить к приватному мероприятию. После ввода или сканирования кода пользователь отправит заявку на вступление."
+      invite={invite}
+      expiresHint={
+        invite
+          ? `Действует до ${formatDate(invite.expiresAt)}. Нажмите, чтобы скопировать.`
+          : undefined
+      }
+      emptyStateText="Активного кода пока нет. Сгенерируйте его, чтобы показать пользователям."
+      generateLabel="Сгенерировать код"
+      isPending={createInviteMutation.isPending}
+      qrLabel="Приглашение"
+      qrTitle="QR-код приглашения в приватное мероприятие"
+      regenerateLabel="Перегенерация кода"
+      regenerateTitle="Создать новый код приглашения?"
+      regenerateDescription={
+        invite
+          ? `Сейчас уже есть активный код приглашения. Он действует до ${formatDate(invite.expiresAt)}. Если создать новый код, старый сразу перестанет работать.`
+          : undefined
+      }
+      regenerateConfirmLabel="Да, создать новый код"
+      copySuccessMessage="Код приглашения скопирован"
+      copyErrorMessage="Не удалось скопировать код приглашения"
+      onGenerate={() => createInviteMutation.mutate()}
+    />
+  );
+}
 
-    QRCode.toDataURL(invite.code, { width: 256, margin: 2 })
-      .then(setQrCode)
-      .catch(() => setQrCode(""));
-  }, [invite]);
+function EventJoinRequestRow({
+  eventId,
+  request,
+}: {
+  eventId: string;
+  request: ManagedEventJoinRequest;
+}) {
+  const queryClient = useQueryClient();
+  const userName = formatPersonName(request.user);
+
+  const approveMutation = useMutation({
+    mutationFn: () =>
+      eventService.approveMyEventJoinRequest(eventId, request.idJoinEvent),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-event", eventId] });
+      toast.success("Заявка принята");
+    },
+    onError: () => toast.error("Не удалось принять заявку"),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: () =>
+      eventService.rejectMyEventJoinRequest(eventId, request.idJoinEvent),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-event", eventId] });
+      toast.success("Заявка отклонена");
+    },
+    onError: () => toast.error("Не удалось отклонить заявку"),
+  });
+
+  const isPending = approveMutation.isPending || rejectMutation.isPending;
 
   return (
-    <DetailPanel title="Система приглашения">
-      <div className="space-y-4">
-        <button
-          type="button"
-          onClick={() => createInviteMutation.mutate()}
-          disabled={createInviteMutation.isPending}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-        >
-          {createInviteMutation.isPending ? "Создание..." : "Создать код"}
-        </button>
-
-        {invite ? (
-          <div className="space-y-3 rounded-md border border-zinc-800 bg-zinc-900/60 p-4">
-            <InfoRow label="Код" value={invite.code} />
-            <InfoRow
-              label="Действует до"
-              value={formatDate(invite.expiresAt)}
-            />
-            {qrCode ? (
-              <button
-                type="button"
-                onClick={() => setIsQrOpen(true)}
-                className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
-              >
-                Показать QR
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+    <div className="flex flex-col gap-4 rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 md:flex-row md:items-center md:justify-between">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-zinc-100">
+          {userName}
+        </p>
+        <div className="mt-1 space-y-1 text-xs text-zinc-500">
+          <p>{request.user.email}</p>
+          {request.user.phone ? <p>{request.user.phone}</p> : null}
+          {request.user.contact ? <p>{request.user.contact}</p> : null}
+        </div>
       </div>
 
-      {isQrOpen && qrCode ? (
-        <Modal title="QR-код приглашения" onClose={() => setIsQrOpen(false)}>
-          <div className="flex justify-center">
-            <img src={qrCode} alt="QR-код приглашения" className="rounded-md" />
-          </div>
-        </Modal>
-      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => approveMutation.mutate()}
+          disabled={isPending}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        >
+          Принять
+        </button>
+        <button
+          type="button"
+          onClick={() => rejectMutation.mutate()}
+          disabled={isPending}
+          className="rounded-md border border-red-900/70 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-950/30 disabled:opacity-60"
+        >
+          Отклонить
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EventJoinRequestsSection({ event }: { event: ManagedEventDetails }) {
+  return (
+    <DetailPanel title="Заявки в приватное мероприятие">
+      {event.joinRequest.length ? (
+        <div className="space-y-3">
+          {event.joinRequest.map((request) => (
+            <EventJoinRequestRow
+              key={request.idJoinEvent}
+              eventId={event.idEvent}
+              request={request}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-zinc-500">
+          Ожидающих заявок на вступление пока нет.
+        </p>
+      )}
     </DetailPanel>
   );
 }
@@ -692,17 +891,181 @@ function EditEventModal({
   );
 }
 
+interface ResultPlaceTarget {
+  key: string;
+  label: string;
+  description?: string;
+  latestSolution?: ManagedEventSolution | null;
+  caseId?: string | null;
+  teamId?: string;
+  userId?: string;
+}
+
+function ResultPlacesEditor({
+  event,
+  targets,
+  title,
+  searchPlaceholder,
+  emptyText,
+  onOpenSolution,
+}: {
+  event: ManagedEventDetails;
+  targets: ResultPlaceTarget[];
+  title: string;
+  searchPlaceholder: string;
+  emptyText: string;
+  onOpenSolution?: (solution: ManagedEventSolution) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [places, setPlaces] = useState<Record<string, string>>({});
+  const duplicatePlaces = getDuplicatePlaces(places);
+  const normalizedSearch = normalizeSearch(search);
+  const filteredTargets = targets.filter((target) => {
+    if (!normalizedSearch) return true;
+
+    return normalizeSearch(
+      `${target.label} ${target.description ?? ""}`,
+    ).includes(normalizedSearch);
+  });
+
+  useEffect(() => {
+    setPlaces(
+      Object.fromEntries(
+        targets.map((target) => [
+          target.key,
+          getResultPlace(event, {
+            caseId: target.caseId,
+            teamId: target.teamId,
+            userId: target.userId,
+          }),
+        ]),
+      ),
+    );
+  }, [event, targets]);
+
+  const saveResultsMutation = useMutation({
+    mutationFn: () =>
+      eventService.updateMyEventResults(event.idEvent, {
+        results: buildResultPayload(places, targets),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-event", event.idEvent],
+      });
+      toast.success("Места сохранены");
+    },
+    onError: () => toast.error("Не удалось сохранить места"),
+  });
+
+  if (!event.hasResualt) return null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <p className="text-sm font-medium text-zinc-100">{title}</p>
+        <button
+          type="button"
+          onClick={() => saveResultsMutation.mutate()}
+          disabled={saveResultsMutation.isPending || duplicatePlaces.size > 0}
+          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+        >
+          {saveResultsMutation.isPending ? "Сохранение..." : "Сохранить места"}
+        </button>
+      </div>
+
+      <input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder={searchPlaceholder}
+        className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-primary"
+      />
+
+      {duplicatePlaces.size > 0 ? (
+        <p className="text-sm text-red-300">
+          Места не должны повторяться: {[...duplicatePlaces].join(", ")}
+        </p>
+      ) : null}
+
+      <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
+        {filteredTargets.length ? (
+          filteredTargets.map((target) => {
+            const value = places[target.key] ?? "";
+            const numericValue = Number(value);
+            const hasDuplicate =
+              Number.isInteger(numericValue) &&
+              duplicatePlaces.has(numericValue);
+
+            return (
+              <div
+                key={target.key}
+                className="grid gap-3 rounded-md border border-zinc-800 bg-zinc-900/50 p-3 md:grid-cols-[1fr_120px]"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-zinc-100">
+                    {target.label}
+                  </p>
+                  {target.description ? (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {target.description}
+                    </p>
+                  ) : null}
+                  {event.hasLoadedSolution && onOpenSolution ? (
+                    <SolutionStatus
+                      solution={target.latestSolution}
+                      onOpen={onOpenSolution}
+                    />
+                  ) : null}
+                </div>
+                <label className="space-y-1">
+                  <span className="text-xs text-zinc-500">Место</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={value}
+                    onChange={(event) =>
+                      setPlaces((currentPlaces) => ({
+                        ...currentPlaces,
+                        [target.key]: event.target.value,
+                      }))
+                    }
+                    className={`w-full rounded-md border bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-primary ${
+                      hasDuplicate ? "border-red-500" : "border-zinc-700"
+                    }`}
+                  />
+                </label>
+              </div>
+            );
+          })
+        ) : (
+          <p className="text-sm text-zinc-500">{emptyText}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TeamModal({
   team,
+  event,
+  onOpenSolution,
   onClose,
 }: {
   team: ManagedEventTeam;
+  event: ManagedEventDetails;
+  onOpenSolution: (solution: ManagedEventSolution) => void;
   onClose: () => void;
 }) {
   return (
     <Modal title={team.name} onClose={onClose}>
       <div className="space-y-4">
         <InfoRow label="Капитан" value={formatPersonName(team.caption)} />
+        {event.hasLoadedSolution ? (
+          <SolutionStatus
+            solution={team.latestSolution}
+            onOpen={onOpenSolution}
+          />
+        ) : null}
         <div>
           <p className="mb-3 text-sm text-zinc-500">Участники</p>
           <div className="space-y-2">
@@ -730,11 +1093,13 @@ function CaseDetailsModal({
   event,
   eventCase,
   tagOptions,
+  onOpenSolution,
   onClose,
 }: {
   event: ManagedEventDetails;
   eventCase: ManagedEventCase;
   tagOptions: EventTagOption[];
+  onOpenSolution: (solution: ManagedEventSolution) => void;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -752,6 +1117,28 @@ function CaseDetailsModal({
   const assignedTeams = event.teams.filter(
     (team) => team.caseId === eventCase.idCase,
   );
+  const assignedParticipants = event.participant.filter(
+    (participant) => participant.caseId === eventCase.idCase,
+  );
+  const caseResultTargets: ResultPlaceTarget[] = event.hasTeams
+    ? assignedTeams.map((team) => ({
+        key: getTargetKey({ teamId: team.idTeam }),
+        label: team.name,
+        description: team.members
+          .map((member) => formatPersonName(member.user))
+          .join(", "),
+        latestSolution: team.latestSolution,
+        caseId: eventCase.idCase,
+        teamId: team.idTeam,
+      }))
+    : assignedParticipants.map((participant) => ({
+        key: getTargetKey({ userId: participant.user.idUser }),
+        label: formatPersonName(participant.user),
+        description: `Дата присоединения: ${formatDate(participant.createAt)}`,
+        latestSolution: participant.latestSolution,
+        caseId: eventCase.idCase,
+        userId: participant.user.idUser,
+      }));
 
   const saveCaseMutation = useMutation({
     mutationFn: () =>
@@ -841,7 +1228,7 @@ function CaseDetailsModal({
           </label>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-2">
-              <span className="text-sm text-zinc-400">Постановщик</span>
+              <span className="text-sm text-zinc-400">Кейсодержатель</span>
               <input
                 value={form.holder}
                 onChange={(event) =>
@@ -924,7 +1311,7 @@ function CaseDetailsModal({
           />
           <div className="grid gap-4 md:grid-cols-2">
             <InfoRow
-              label="Постановщик"
+              label="Кейсодержатель"
               value={eventCase.holder || "Не указано"}
             />
             <InfoRow
@@ -963,29 +1350,80 @@ function CaseDetailsModal({
           </div>
           <div>
             <p className="mb-3 text-sm text-zinc-500">Кейс выбрали</p>
-            {assignedTeams.length ? (
-              <div className="space-y-3">
-                {assignedTeams.map((team) => (
-                  <div
-                    key={team.idTeam}
-                    className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3"
-                  >
-                    <p className="text-sm font-medium text-zinc-100">
-                      {team.name}
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-500">
-                      {team.members
-                        .map((member) => formatPersonName(member.user))
-                        .join(", ")}
-                    </p>
+            {event.hasResualt ? (
+              <ResultPlacesEditor
+                event={event}
+                targets={caseResultTargets}
+                title="Места по кейсу"
+                searchPlaceholder={
+                  event.hasTeams ? "Поиск команды" : "Поиск участника"
+                }
+                emptyText={
+                  event.hasTeams
+                    ? "Пока нет команд, выбравших этот кейс."
+                    : "Пока нет участников, выбравших этот кейс."
+                }
+                onOpenSolution={onOpenSolution}
+              />
+            ) : null}
+            {!event.hasResualt &&
+              (event.hasTeams ? (
+                assignedTeams.length ? (
+                  <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
+                    {assignedTeams.map((team) => (
+                      <div
+                        key={team.idTeam}
+                        className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3"
+                      >
+                        <p className="text-sm font-medium text-zinc-100">
+                          {team.name}
+                        </p>
+                        <p className="mt-2 text-xs text-zinc-500">
+                          {team.members
+                            .map((member) => formatPersonName(member.user))
+                            .join(", ")}
+                        </p>
+                        {event.hasLoadedSolution ? (
+                          <SolutionStatus
+                            solution={team.latestSolution}
+                            onOpen={onOpenSolution}
+                          />
+                        ) : null}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-zinc-500">
-                Пока нет команд или участников, выбравших этот кейс.
-              </p>
-            )}
+                ) : (
+                  <p className="text-sm text-zinc-500">
+                    Пока нет команд, выбравших этот кейс.
+                  </p>
+                )
+              ) : assignedParticipants.length ? (
+                <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
+                  {assignedParticipants.map((participant) => (
+                    <div
+                      key={participant.user.idUser}
+                      className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3"
+                    >
+                      <p className="text-sm font-medium text-zinc-100">
+                        {formatPersonName(participant.user)}
+                      </p>
+                      <p className="mt-2 text-xs text-zinc-500">
+                        Дата присоединения: {formatDate(participant.createAt)}
+                      </p>
+                      {event.hasLoadedSolution ? (
+                        <SolutionStatus
+                          solution={participant.latestSolution}
+                          onOpen={onOpenSolution}
+                        />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500">
+                  Пока нет участников, выбравших этот кейс.
+                </p>
+              ))}
           </div>
         </div>
       )}
@@ -1181,6 +1619,8 @@ export function AdminEventDetailsPage() {
   const [selectedCase, setSelectedCase] = useState<ManagedEventCase | null>(
     null,
   );
+  const [selectedSolution, setSelectedSolution] =
+    useState<ManagedEventSolution | null>(null);
   const [isAddCaseOpen, setIsAddCaseOpen] = useState(false);
   const [isCsvOpen, setIsCsvOpen] = useState(false);
 
@@ -1223,6 +1663,31 @@ export function AdminEventDetailsPage() {
       team.members.forEach((member) => userIds.add(member.user.idUser));
     });
     return userIds.size;
+  }, [event]);
+  const eventResultTargets = useMemo<ResultPlaceTarget[]>(() => {
+    if (!event || event.hasCases || !event.hasResualt) return [];
+
+    if (event.hasTeams) {
+      return event.teams.map((team) => ({
+        key: getTargetKey({ teamId: team.idTeam }),
+        label: team.name,
+        description: team.members
+          .map((member) => formatPersonName(member.user))
+          .join(", "),
+        latestSolution: team.latestSolution,
+        caseId: null,
+        teamId: team.idTeam,
+      }));
+    }
+
+    return event.participant.map((participant) => ({
+      key: getTargetKey({ userId: participant.user.idUser }),
+      label: formatPersonName(participant.user),
+      description: `Дата присоединения: ${formatDate(participant.createAt)}`,
+      latestSolution: participant.latestSolution,
+      caseId: null,
+      userId: participant.user.idUser,
+    }));
   }, [event]);
 
   if (isLoading) {
@@ -1308,7 +1773,7 @@ export function AdminEventDetailsPage() {
         <DetailPanel title="Статус">
           <p className="text-2xl font-semibold text-zinc-100">{event.status}</p>
         </DetailPanel>
-        <DetailPanel title="Участники">
+        <DetailPanel title="Зарегистрировано">
           <p className="text-2xl font-semibold text-zinc-100">{totalMembers}</p>
         </DetailPanel>
       </div>
@@ -1341,10 +1806,20 @@ export function AdminEventDetailsPage() {
           >
             <div className="max-h-80 space-y-3 overflow-y-auto pr-2">
               {event.teams.map((team) => (
-                <button
+                <div
                   key={team.idTeam}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedTeam(team)}
+                  onKeyDown={(keyboardEvent) => {
+                    if (
+                      keyboardEvent.key === "Enter" ||
+                      keyboardEvent.key === " "
+                    ) {
+                      keyboardEvent.preventDefault();
+                      setSelectedTeam(team);
+                    }
+                  }}
                   className="block w-full rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-left hover:border-primary/60 hover:bg-zinc-900"
                 >
                   <p className="font-medium text-zinc-100">{team.name}</p>
@@ -1354,13 +1829,21 @@ export function AdminEventDetailsPage() {
                   <p className="mt-1 text-sm text-zinc-500">
                     Капитан: {formatPersonName(team.caption)}
                   </p>
-                </button>
+                  {event.hasLoadedSolution ? (
+                    <SolutionStatus
+                      solution={team.latestSolution}
+                      onOpen={setSelectedSolution}
+                    />
+                  ) : null}
+                </div>
               ))}
             </div>
           </DetailPanel>
         ) : null}
 
-        {!event.hasTeams ? (
+        {!event.hasTeams &&
+        !event.hasResualt &&
+        (event.hasCases || event.hasLoadedSolution) ? (
           <DetailPanel title="Участники">
             <div className="max-h-80 space-y-3 overflow-y-auto pr-2">
               {event.participant.length ? (
@@ -1373,9 +1856,15 @@ export function AdminEventDetailsPage() {
                       {formatPersonName(participant.user)}
                     </p>
                     <p className="mt-1 text-sm text-zinc-500">
-                      Дата присоедения пользователя:{" "}
+                      Дата присоединения пользователя:{" "}
                       {formatDate(participant.createAt)}
                     </p>
+                    {event.hasLoadedSolution ? (
+                      <SolutionStatus
+                        solution={participant.latestSolution}
+                        onOpen={setSelectedSolution}
+                      />
+                    ) : null}
                   </div>
                 ))
               ) : (
@@ -1432,6 +1921,25 @@ export function AdminEventDetailsPage() {
         </>
       </div>
 
+      {event.hasResualt && !event.hasCases ? (
+        <DetailPanel title="Результаты">
+          <ResultPlacesEditor
+            event={event}
+            targets={eventResultTargets}
+            title={event.hasTeams ? "Места команд" : "Места участников"}
+            searchPlaceholder={
+              event.hasTeams ? "Поиск команды" : "Поиск участника"
+            }
+            emptyText={
+              event.hasTeams
+                ? "Команды пока не добавлены."
+                : "Участники пока не добавлены."
+            }
+            onOpenSolution={setSelectedSolution}
+          />
+        </DetailPanel>
+      ) : null}
+
       {event.hasMaterials ? (
         <DetailPanel title="Материалы">
           <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
@@ -1457,7 +1965,12 @@ export function AdminEventDetailsPage() {
         </DetailPanel>
       ) : null}
 
-      <EventInviteSection eventId={event.idEvent} />
+      {event.status === "PRIVATE" ? (
+        <>
+          <EventInviteSection eventId={event.idEvent} />
+          <EventJoinRequestsSection event={event} />
+        </>
+      ) : null}
 
       <div className="flex justify-end">
         <button
@@ -1473,14 +1986,26 @@ export function AdminEventDetailsPage() {
         <EditEventModal event={event} onClose={() => setIsEditOpen(false)} />
       ) : null}
       {selectedTeam ? (
-        <TeamModal team={selectedTeam} onClose={() => setSelectedTeam(null)} />
+        <TeamModal
+          team={selectedTeam}
+          event={event}
+          onOpenSolution={setSelectedSolution}
+          onClose={() => setSelectedTeam(null)}
+        />
       ) : null}
       {selectedCase ? (
         <CaseDetailsModal
           event={event}
           eventCase={selectedCase}
           tagOptions={options?.tags ?? []}
+          onOpenSolution={setSelectedSolution}
           onClose={() => setSelectedCase(null)}
+        />
+      ) : null}
+      {selectedSolution ? (
+        <SolutionDetailsModal
+          solution={selectedSolution}
+          onClose={() => setSelectedSolution(null)}
         />
       ) : null}
       {isAddCaseOpen ? (

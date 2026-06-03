@@ -5,7 +5,14 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { EventFormat, EventStatus, Prisma, Role, TagType } from "@prisma/client";
+import {
+  EventFormat,
+  EventStatus,
+  Prisma,
+  Role,
+  StatusJoinRequest,
+  TagType,
+} from "@prisma/client";
 import {
   CreateEventDto,
   CreateEventStatus,
@@ -19,6 +26,7 @@ import {
   UpdateEventCaseMaterialDto,
   UpdateEventCasesDto,
   UpdateEventMaterialsDto,
+  UpdateEventResultsDto,
   UpdateEventSettingsDto,
 } from "./dto/update-event-blocks.dto";
 import { UpdateEventGeneralDto } from "./dto/update-event-general.dto";
@@ -163,6 +171,19 @@ export class EventsService {
             description: true,
             format: true,
             caseId: true,
+            solutions: {
+              orderBy: {
+                updateAt: "desc",
+              },
+              take: 1,
+              select: {
+                idSolution: true,
+                urlSolution: true,
+                urlPresentation: true,
+                description: true,
+                updateAt: true,
+              },
+            },
             caption: {
               select: {
                 idUser: true,
@@ -193,12 +214,29 @@ export class EventsService {
         participant: {
           select: {
             createAt: true,
+            caseId: true,
             user: {
               select: {
                 idUser: true,
                 name: true,
                 surname: true,
                 patronymic: true,
+                solutions: {
+                  where: {
+                    eventId,
+                  },
+                  orderBy: {
+                    updateAt: "desc",
+                  },
+                  take: 1,
+                  select: {
+                    idSolution: true,
+                    urlSolution: true,
+                    urlPresentation: true,
+                    description: true,
+                    updateAt: true,
+                  },
+                },
               },
             },
           },
@@ -253,6 +291,41 @@ export class EventsService {
             title: "asc",
           },
         },
+        results: {
+          select: {
+            idResult: true,
+            title: true,
+            place: true,
+            description: true,
+            score: true,
+            caseId: true,
+            teamId: true,
+            userId: true,
+          },
+          orderBy: {
+            place: "asc",
+          },
+        },
+        joinRequest: {
+          where: {
+            status: "PENDING",
+          },
+          select: {
+            idJoinEvent: true,
+            status: true,
+            user: {
+              select: {
+                idUser: true,
+                email: true,
+                phone: true,
+                contact: true,
+                name: true,
+                surname: true,
+                patronymic: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -267,12 +340,22 @@ export class EventsService {
         : event.participant.length,
       teams: event.teams.map((team) => ({
         ...team,
+        latestSolution: team.solutions[0] ?? null,
         membersCount: team.user.length,
         members: team.user.map((member) => ({
           role: member.role,
           user: member.user,
         })),
+        solutions: undefined,
         user: undefined,
+      })),
+      participant: event.participant.map((participant) => ({
+        ...participant,
+        latestSolution: participant.user.solutions[0] ?? null,
+        user: {
+          ...participant.user,
+          solutions: undefined,
+        },
       })),
       cases: event.cases.map((eventCase) => ({
         ...eventCase,
@@ -594,7 +677,195 @@ export class EventsService {
       );
     }
 
+    if (event.status !== EventStatus.PRIVATE) {
+      throw new BadRequestException(
+        "Код приглашения нужен только для приватного мероприятия",
+      );
+    }
+
     return this.eventInviteService.createEventInvite(eventId, userId);
+  }
+
+  async approveMyEventJoinRequest(
+    userId: string,
+    eventId: string,
+    requestId: string,
+  ) {
+    await this.ensureEventAccess(userId, eventId);
+
+    const request = await this.prisma.eventJoinRequest.findFirst({
+      where: {
+        idJoinEvent: requestId,
+        eventId,
+      },
+      select: {
+        idJoinEvent: true,
+        userId: true,
+        status: true,
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException("Заявка не найдена");
+    }
+
+    if (request.status !== StatusJoinRequest.PENDING) {
+      throw new BadRequestException("Заявка уже обработана");
+    }
+
+    await this.prisma.$transaction(async (prisma) => {
+      await prisma.eventJoinRequest.update({
+        where: {
+          idJoinEvent: requestId,
+        },
+        data: {
+          status: StatusJoinRequest.ACCEPT,
+        },
+      });
+
+      await prisma.userEvent.upsert({
+        where: {
+          eventId_userId: {
+            eventId,
+            userId: request.userId,
+          },
+        },
+        update: {},
+        create: {
+          eventId,
+          userId: request.userId,
+        },
+      });
+    });
+
+    return this.getMyEventDetails(userId, eventId);
+  }
+
+  async rejectMyEventJoinRequest(
+    userId: string,
+    eventId: string,
+    requestId: string,
+  ) {
+    await this.ensureEventAccess(userId, eventId);
+
+    const request = await this.prisma.eventJoinRequest.findFirst({
+      where: {
+        idJoinEvent: requestId,
+        eventId,
+      },
+      select: {
+        idJoinEvent: true,
+        status: true,
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException("Заявка не найдена");
+    }
+
+    if (request.status !== StatusJoinRequest.PENDING) {
+      throw new BadRequestException("Заявка уже обработана");
+    }
+
+    await this.prisma.eventJoinRequest.update({
+      where: {
+        idJoinEvent: requestId,
+      },
+      data: {
+        status: StatusJoinRequest.REJECTED,
+      },
+    });
+
+    return this.getMyEventDetails(userId, eventId);
+  }
+
+  async updateMyEventResults(
+    userId: string,
+    eventId: string,
+    dto: UpdateEventResultsDto,
+  ) {
+    await this.ensureEditableEventAccess(userId, eventId);
+
+    const resultsWithPlace = dto.results.filter(
+      (result) => typeof result.place === "number" && result.place > 0,
+    );
+    const places = resultsWithPlace.map((result) => result.place as number);
+
+    if (new Set(places).size !== places.length) {
+      throw new BadRequestException("Места не должны повторяться");
+    }
+
+    const caseIds = dto.results
+      .map((result) => result.caseId)
+      .filter((id): id is string => Boolean(id));
+    const teamIds = dto.results
+      .map((result) => result.teamId)
+      .filter((id): id is string => Boolean(id));
+    const participantIds = dto.results
+      .map((result) => result.userId)
+      .filter((id): id is string => Boolean(id));
+
+    await this.ensureCasesBelongToEvent(eventId, caseIds);
+
+    if (teamIds.length) {
+      const foundTeams = await this.prisma.team.count({
+        where: {
+          eventId,
+          idTeam: {
+            in: teamIds,
+          },
+        },
+      });
+
+      if (foundTeams !== new Set(teamIds).size) {
+        throw new BadRequestException("Команда не принадлежит мероприятию");
+      }
+    }
+
+    if (participantIds.length) {
+      const foundParticipants = await this.prisma.userEvent.count({
+        where: {
+          eventId,
+          userId: {
+            in: participantIds,
+          },
+        },
+      });
+
+      if (foundParticipants !== new Set(participantIds).size) {
+        throw new BadRequestException("Участник не принадлежит мероприятию");
+      }
+    }
+
+    await this.prisma.$transaction(async (prisma) => {
+      for (const result of dto.results) {
+        await prisma.result.deleteMany({
+          where: {
+            eventId,
+            caseId: result.caseId ?? null,
+            teamId: result.teamId ?? null,
+            userId: result.userId ?? null,
+          },
+        });
+
+        if (!result.place) {
+          continue;
+        }
+
+        await prisma.result.create({
+          data: {
+            eventId,
+            caseId: result.caseId ?? null,
+            teamId: result.teamId ?? null,
+            userId: result.userId ?? null,
+            place: result.place,
+            title: `${result.place} место`,
+          },
+        });
+      }
+    });
+
+    return this.getMyEventDetails(userId, eventId);
   }
 
   async getCreateOptions(userId: string) {

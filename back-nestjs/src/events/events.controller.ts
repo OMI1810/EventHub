@@ -15,6 +15,7 @@ import { CreateEventDto } from "./dto/create-event.dto";
 import {
   UpdateEventCasesDto,
   UpdateEventMaterialsDto,
+  UpdateEventResultsDto,
   UpdateEventSettingsDto,
 } from "./dto/update-event-blocks.dto";
 import { UpdateEventGeneralDto } from "./dto/update-event-general.dto";
@@ -53,6 +54,28 @@ export class EventsController {
     @Param("eventId") eventId: string,
   ) {
     return this.eventsService.createMyEventInvite(userId, eventId);
+  }
+
+  @Auth()
+  @HttpCode(200)
+  @Post("my/:eventId/join-requests/:requestId/approve")
+  async approveMyEventJoinRequest(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Param("requestId") requestId: string,
+  ) {
+    return this.eventsService.approveMyEventJoinRequest(userId, eventId, requestId);
+  }
+
+  @Auth()
+  @HttpCode(200)
+  @Post("my/:eventId/join-requests/:requestId/reject")
+  async rejectMyEventJoinRequest(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Param("requestId") requestId: string,
+  ) {
+    return this.eventsService.rejectMyEventJoinRequest(userId, eventId, requestId);
   }
 
   @Auth()
@@ -101,6 +124,18 @@ export class EventsController {
     @Body() dto: UpdateEventCasesDto,
   ) {
     return this.eventsService.updateMyEventCases(userId, eventId, dto);
+  }
+
+  @Auth()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @HttpCode(200)
+  @Patch("my/:eventId/results")
+  async updateMyEventResults(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Body() dto: UpdateEventResultsDto,
+  ) {
+    return this.eventsService.updateMyEventResults(userId, eventId, dto);
   }
 
   @Auth()

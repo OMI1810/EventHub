@@ -11,6 +11,7 @@ import {
   UpdateManagedEventCasesData,
   UpdateManagedEventGeneralData,
   UpdateManagedEventMaterialsData,
+  UpdateManagedEventResultsData,
   UpdateManagedEventSettingsData,
 } from "@/types/event-management.types";
 
@@ -74,6 +75,16 @@ class EventService {
     );
   }
 
+  async updateMyEventResults(
+    eventId: string,
+    data: UpdateManagedEventResultsData,
+  ) {
+    return instance.patch<ManagedEventDetails>(
+      `${this.baseUrl}/my/${eventId}/results`,
+      data,
+    );
+  }
+
   async finishMyEvent(eventId: string) {
     return instance.patch<ManagedEventDetails>(
       `${this.baseUrl}/my/${eventId}/finish`,
@@ -83,6 +94,18 @@ class EventService {
   async createMyEventInvite(eventId: string) {
     return instance.post<EventInviteResponse>(
       `${this.baseUrl}/my/${eventId}/invite`,
+    );
+  }
+
+  async approveMyEventJoinRequest(eventId: string, requestId: string) {
+    return instance.post<ManagedEventDetails>(
+      `${this.baseUrl}/my/${eventId}/join-requests/${requestId}/approve`,
+    );
+  }
+
+  async rejectMyEventJoinRequest(eventId: string, requestId: string) {
+    return instance.post<ManagedEventDetails>(
+      `${this.baseUrl}/my/${eventId}/join-requests/${requestId}/reject`,
     );
   }
 }
