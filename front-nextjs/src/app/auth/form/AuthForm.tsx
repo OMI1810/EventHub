@@ -12,6 +12,7 @@ import { useAuthForm } from "./useAuthForm";
 
 interface Props {
   isLogin: boolean;
+  authMode?: "default" | "turniket";
 }
 
 const roleOptions: Array<{ label: string; value: TRole }> = [
@@ -20,9 +21,11 @@ const roleOptions: Array<{ label: string; value: TRole }> = [
   { label: "Создатель организации", value: "ORGANIZATOR" },
 ];
 
+
 export function AuthForm({ isLogin }: Props) {
   const [isPersonalDataModalOpen, setIsPersonalDataModalOpen] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState("");
+
   const {
     handleSubmit,
     isLoading,
@@ -34,11 +37,12 @@ export function AuthForm({ isLogin }: Props) {
     verifyTwoFactor,
     resendTwoFactor,
     watch,
-  } = useAuthForm(isLogin);
+  } = useAuthForm(isLogin, authMode);
 
   const phoneValue = watch("phone") ?? "";
   const cityValue = watch("city") ?? "";
   const isRegularUser = selectedRole === "USER";
+  const isTurniketMode = authMode === "turniket";
 
   if (isLogin && twoFactorState) {
     return (
@@ -98,16 +102,19 @@ export function AuthForm({ isLogin }: Props) {
   }
 
   return (
+
     <form
       onSubmit={handleSubmit(onSubmit)}
       className="mx-auto w-full max-w-2xl"
     >
       <div className="mb-4">
         <label className="text-gray-600">
-          Email
+          {isTurniketMode ? "Логин" : "Email"}
           <input
-            type="email"
-            placeholder="Введите почту"
+            type={isTurniketMode ? "text" : "email"}
+            placeholder={
+              isTurniketMode ? "Введите логин турникета" : "Введите почту"
+            }
             {...register("email", { required: true })}
             className={styles["input-field"]}
           />
@@ -126,7 +133,8 @@ export function AuthForm({ isLogin }: Props) {
         </label>
       </div>
 
-      {!isLogin ? (
+
+      {!isLogin && !isTurniketMode ? (
         <>
           <div className="mb-4">
             <label className="text-gray-600">
@@ -242,8 +250,7 @@ export function AuthForm({ isLogin }: Props) {
                       onSelect={(address) =>
                         setValue(
                           "city",
-                          address.address.split(",")[0]?.trim() ||
-                            address.address,
+                          address.address.split(",")[0]?.trim() || address.address,
                           {
                             shouldDirty: true,
                             shouldValidate: true,
@@ -263,6 +270,7 @@ export function AuthForm({ isLogin }: Props) {
               {...register("personalDataConsent", { required: true })}
               className="mt-1 h-4 w-4 shrink-0 accent-primary"
             />
+
             <span>
               Я согласен на{" "}
               <button
@@ -351,11 +359,19 @@ export function AuthForm({ isLogin }: Props) {
           )}
           disabled={isLoading}
         >
-          {isLoading ? <MiniLoader /> : isLogin ? "Авторизация" : "Регистрация"}
+          {isLoading ? (
+            <MiniLoader />
+          ) : isTurniketMode ? (
+            "Войти как турникет"
+          ) : isLogin ? (
+            "Авторизация"
+          ) : (
+            "Регистрация"
+          )}
         </button>
       </div>
 
-      <AuthToggle isLogin={isLogin} />
+      {!isTurniketMode ? <AuthToggle isLogin={isLogin} /> : null}
     </form>
   );
 }

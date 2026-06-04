@@ -87,6 +87,16 @@ const EVENT_ADMIN_PERMISSION_LABELS: Array<{
     label: "Приватные приглашения",
     description: "Может приглашать участников и обрабатывать заявки",
   },
+  {
+    key: "canViewTurniketStats",
+    label: "Статистика турникетов",
+    description: "Видит журнал проходов и общую статистику турникетов",
+  },
+  {
+    key: "canManageTurnikets",
+    label: "Управлять турникетами",
+    description: "Создаёт, включает, выключает и удаляет турникеты",
+  },
 ];
 
 export const EMPTY_EVENT_ADMIN_PERMISSIONS =
@@ -111,6 +121,8 @@ const EVENT_ADMIN_PERMISSION_DEPENDENCIES: Partial<
   canFinishEvent: ["canView"],
   canExportCsv: ["canView"],
   canManagePrivateInvites: ["canView"],
+  canViewTurniketStats: ["canView"],
+  canManageTurnikets: ["canView"],
 };
 
 interface ModalProps {

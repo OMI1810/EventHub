@@ -7,6 +7,16 @@ import {
 import { AxiosResponse } from 'axios'
 import authTokenService from './auth-token.service'
 
+interface IAuthResponse {
+	user: IUser
+	accessToken: string
+}
+
+interface ITurniketLoginData {
+	login: string
+	password: string
+}
+
 class AuthService {
 	async main(
 		type: 'login',
@@ -52,6 +62,17 @@ class AuthService {
 				twoFactorToken
 			}
 		)
+	async loginTurniket(data: ITurniketLoginData) {
+		const response = await axiosClassic.post<IAuthResponse>(
+			'/auth/turniket/login',
+			data
+		)
+
+		if (response.data.accessToken) {
+			authTokenService.saveAccessToken(response.data.accessToken)
+		}
+
+		return response
 	}
 
 	async getNewTokens() {

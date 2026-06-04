@@ -1,4 +1,5 @@
 import { PrismaService } from '@/prisma.service'
+import { PassService } from '@/pass/pass.service'
 import {
 	BadRequestException,
 	ForbiddenException,
@@ -11,7 +12,10 @@ import { SaveUserEventSolutionDto } from './dto/save-user-event-solution.dto'
 
 @Injectable()
 export class UserEventsService {
-	constructor(private readonly prisma: PrismaService) {}
+	constructor(
+		private readonly prisma: PrismaService,
+		private readonly passService: PassService
+	) {}
 
 	async getFeed(userId: string) {
 		await this.requireRegularUser(userId)
@@ -40,6 +44,7 @@ export class UserEventsService {
 				hasMaterials: true,
 				hasLoadedSolution: true,
 				hasResualt: true,
+				hasEntryPass: true,
 				hasParticipantLimit: true,
 				participantLimit: true,
 				_count: {
@@ -98,6 +103,7 @@ export class UserEventsService {
 				hasMaterials: event.hasMaterials,
 				hasLoadedSolution: event.hasLoadedSolution,
 				hasResualt: event.hasResualt,
+				hasEntryPass: event.hasEntryPass,
 				hasParticipantLimit: event.hasParticipantLimit,
 				participantLimit: event.participantLimit,
 				registeredUsersCount: event._count.participant,
@@ -195,6 +201,7 @@ export class UserEventsService {
 				hasMaterials: true,
 				hasLoadedSolution: true,
 				hasResualt: true,
+				hasEntryPass: true,
 				hasParticipantLimit: true,
 				participantLimit: true,
 				participanInTeamLimit: true,
@@ -369,18 +376,24 @@ export class UserEventsService {
 		})
 
 		if (!event) {
-			throw new NotFoundException('РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ')
+			throw new NotFoundException('Мероприятие не найдено')
 		}
 
+		const resolvedEventId = event.idEvent
 		const timeState = getEventTimeState(event)
 		const currentParticipant = event.participant[0] ?? null
 		const isParticipating = Boolean(currentParticipant)
 		const teamContext =
 			isParticipating && event.hasTeams
-				? await this.findUserTeamContext(userId, eventId)
+				? await this.findUserTeamContext(userId, resolvedEventId)
 				: null
 		const currentSolution = isParticipating
-			? await this.findCurrentSolution(userId, eventId, event.hasTeams, teamContext?.teamId)
+			? await this.findCurrentSolution(
+					userId,
+					resolvedEventId,
+					event.hasTeams,
+					teamContext?.teamId
+			  )
 			: null
 
 		let resolvedSelectedCaseId = currentParticipant?.caseId ?? null
@@ -434,7 +447,7 @@ export class UserEventsService {
 			await this.prisma.userEvent.update({
 				where: {
 					eventId_userId: {
-						eventId,
+						eventId: resolvedEventId,
 						userId
 					}
 				},
@@ -465,6 +478,13 @@ export class UserEventsService {
 				...event.adminAccess.map(adminAccess => adminAccess.user)
 			].map(admin => [admin.idUser, admin])
 		)
+		const entryPass = event.hasEntryPass
+			? await this.passService.getEntryPassState(userId, resolvedEventId)
+			: {
+					enabled: false,
+					isAvailable: false,
+					reason: null
+			  }
 
 		return {
 			idEvent: event.idEvent,
@@ -493,6 +513,7 @@ export class UserEventsService {
 			hasMaterials: event.hasMaterials,
 			hasLoadedSolution: event.hasLoadedSolution,
 			hasResualt: event.hasResualt,
+			hasEntryPass: event.hasEntryPass,
 			hasParticipantLimit: event.hasParticipantLimit,
 			participantLimit: event.participantLimit,
 			participanInTeamLimit: event.participanInTeamLimit,
@@ -571,6 +592,7 @@ export class UserEventsService {
 					? resolvedSelectedCase.materials
 					: [],
 			teamContext,
+			entryPass,
 			solution: currentSolution
 				? {
 						idSolution: currentSolution.idSolution,
@@ -620,7 +642,7 @@ export class UserEventsService {
 		})
 
 		if (!event) {
-			throw new NotFoundException('РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ')
+			throw new NotFoundException('Мероприятие не найдено')
 		}
 
 		const existingRelation = await this.prisma.userEvent.findUnique({
@@ -633,7 +655,7 @@ export class UserEventsService {
 		})
 
 		if (existingRelation) {
-			throw new BadRequestException('Р’С‹ СѓР¶Рµ СѓС‡Р°СЃС‚РІСѓРµС‚Рµ РІ СЌС‚РѕРј РјРµСЂРѕРїСЂРёСЏС‚РёРё')
+			throw new BadRequestException('Вы уже участвуете в этом мероприятии')
 		}
 
 		if (
@@ -648,7 +670,7 @@ export class UserEventsService {
 			})
 		) {
 			throw new BadRequestException(
-				'РЎРµР№С‡Р°СЃ СЂРµРіРёСЃС‚СЂР°С†РёСЏ РЅР° СЌС‚Рѕ РјРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµРґРѕСЃС‚СѓРїРЅР°'
+				'Сейчас регистрация на это мероприятие недоступна'
 			)
 		}
 
@@ -665,7 +687,7 @@ export class UserEventsService {
 				error.code === 'P2002'
 			) {
 				throw new BadRequestException(
-					'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊ СѓС‡Р°СЃС‚РёРµ. РџСЂРѕРІРµСЂСЊС‚Рµ СЃС…РµРјСѓ С‚Р°Р±Р»РёС†С‹ user_event Рё РµС‘ СѓРЅРёРєР°Р»СЊРЅС‹Рµ РёРЅРґРµРєСЃС‹.'
+					'Не удалось зарегистрировать участие. Проверьте схему таблицы user_event и её уникальные индексы.'
 				)
 			}
 
@@ -1150,6 +1172,20 @@ export class UserEventsService {
 		return this.getEventDetails(userId, eventId)
 	}
 
+	async createPassToken(userId: string, eventId: string) {
+		await this.requireRegularUser(userId)
+		await this.assertUserCanAccessEvent(userId, eventId)
+
+		return this.passService.issuePassToken(userId, eventId)
+	}
+
+	async revokePassToken(userId: string, eventId: string, token: string) {
+		await this.requireRegularUser(userId)
+		await this.assertUserCanAccessEvent(userId, eventId)
+
+		return this.passService.revokePassToken(userId, token)
+	}
+
 	private async requireRegularUser(userId: string) {
 		const user = await this.prisma.user.findUnique({
 			where: {
@@ -1163,12 +1199,12 @@ export class UserEventsService {
 		})
 
 		if (!user) {
-			throw new NotFoundException('РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅРµ РЅР°Р№РґРµРЅ')
+			throw new NotFoundException('Пользователь не найден')
 		}
 
 		if (user.role !== Role.USER) {
 			throw new ForbiddenException(
-				'Р­С‚РѕС‚ СЂР°Р·РґРµР» РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ РѕР±С‹С‡РЅС‹Рј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏРј'
+				'Этот раздел доступен только обычным пользователям'
 			)
 		}
 
@@ -1292,7 +1328,8 @@ export class UserEventsService {
 			select: {
 				idTeam: true,
 				captionId: true,
-				caseId: true
+				caseId: true,
+				format: true
 			}
 		})
 
@@ -1300,7 +1337,35 @@ export class UserEventsService {
 			hasTeam: Boolean(team),
 			teamId: team?.idTeam ?? null,
 			isCaptain: team?.captionId === userId,
-			selectedCaseId: team?.caseId ?? null
+			selectedCaseId: team?.caseId ?? null,
+			format: team?.format ?? null
+		}
+	}
+
+	private async assertUserCanAccessEvent(userId: string, eventId: string) {
+		const event = await this.prisma.event.findFirst({
+			where: {
+				idEvent: eventId,
+				OR: [
+					{
+						status: EventStatus.PUBLISHED
+					},
+					{
+						participant: {
+							some: {
+								userId
+							}
+						}
+					}
+				]
+			},
+			select: {
+				idEvent: true
+			}
+		})
+
+		if (!event) {
+			throw new NotFoundException('Мероприятие не найдено')
 		}
 	}
 

@@ -56,6 +56,14 @@ export class EventAdminPermissionsDto {
   @IsOptional()
   @IsBoolean()
   canManagePrivateInvites?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  canViewTurniketStats?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  canManageTurnikets?: boolean;
 }
 
 export class UpsertEventAdminAccessDto extends EventAdminPermissionsDto {

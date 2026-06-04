@@ -127,6 +127,7 @@ const presets: Record<EventCreateType, EventFeaturePreset> = {
     hasLoadedSolution: true,
     hasMaterials: false,
     hasResualt: true,
+    hasEntryPass: false,
   },
   MASTER_CLASS: {
     hasCases: false,
@@ -135,6 +136,7 @@ const presets: Record<EventCreateType, EventFeaturePreset> = {
     hasLoadedSolution: false,
     hasMaterials: true,
     hasResualt: false,
+    hasEntryPass: false,
   },
   CONTEST: {
     hasCases: false,
@@ -143,6 +145,7 @@ const presets: Record<EventCreateType, EventFeaturePreset> = {
     hasLoadedSolution: true,
     hasMaterials: true,
     hasResualt: true,
+    hasEntryPass: false,
   },
 };
 
@@ -191,6 +194,7 @@ const createCustomEventTypeModal = (): CustomEventTypeModalForm => ({
     hasLoadedSolution: false,
     hasMaterials: false,
     hasResualt: false,
+    hasEntryPass: false,
   },
 });
 
@@ -523,6 +527,7 @@ export default function CreateEventPage() {
       hasLoadedSolution: features.hasLoadedSolution,
       hasMaterials: features.hasMaterials,
       hasResualt: features.hasResualt,
+      hasEntryPass: features.hasEntryPass,
       title: baseForm.title,
       description: baseForm.description || undefined,
       slug: baseForm.slug,
@@ -966,6 +971,14 @@ export default function CreateEventPage() {
             </Panel>
           )}
 
+          {features.hasEntryPass && (
+            <Panel title="QR-пропуск">
+              <p className="text-sm text-zinc-300">
+                Для мероприятия будет доступен одноразовый QR-пропуск на вход.
+              </p>
+            </Panel>
+          )}
+
           <div className="flex justify-between gap-3">
             <button
               type="button"
@@ -1315,6 +1328,11 @@ function CustomEventTypeModal({
               checked={form.features.hasResualt}
               label="Вкладка итоги"
               onChange={(checked) => updateFeature("hasResualt", checked)}
+            />
+            <FeatureCheckbox
+              checked={form.features.hasEntryPass}
+              label="QR-пропуск"
+              onChange={(checked) => updateFeature("hasEntryPass", checked)}
             />
           </div>
         </div>

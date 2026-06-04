@@ -29,6 +29,11 @@ export function UserShell({ children }: Props) {
 			return
 		}
 
+		if (user.role === 'TURNIKET') {
+			router.replace('/turniket')
+			return
+		}
+
 		if (user.role !== 'USER') {
 			router.replace(USER_PAGES.HOME)
 		}
