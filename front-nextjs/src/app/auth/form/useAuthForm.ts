@@ -61,7 +61,9 @@ export function useAuthForm(isLogin: boolean) {
         password: data.password,
       });
     } else {
-      mutateRegister(data);
+      const { personalDataConsent: _personalDataConsent, ...payload } = data;
+
+      mutateRegister(payload);
     }
   };
 

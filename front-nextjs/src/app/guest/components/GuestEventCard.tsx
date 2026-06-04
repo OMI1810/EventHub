@@ -23,16 +23,17 @@ function formatEventDates(start: string, end: string) {
 
 export function GuestEventCard({ event }: Props) {
 	const router = useRouter()
+	const eventHref = GUEST_PAGES.event(event.slug || event.idEvent)
 
 	return (
 		<article
 			role="link"
 			tabIndex={0}
-			onClick={() => router.push(GUEST_PAGES.event(event.idEvent))}
+			onClick={() => router.push(eventHref)}
 			onKeyDown={currentEvent => {
 				if (currentEvent.key === 'Enter' || currentEvent.key === ' ') {
 					currentEvent.preventDefault()
-					router.push(GUEST_PAGES.event(event.idEvent))
+					router.push(eventHref)
 				}
 			}}
 			className="group cursor-pointer rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5 transition-colors hover:border-zinc-700 hover:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"

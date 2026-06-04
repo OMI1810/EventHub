@@ -131,7 +131,7 @@ model Event {
 
   title       String
   description String?
-  slug        String  @unique
+  slug        String
   type        String
 
   address   String
@@ -172,6 +172,7 @@ model Event {
   joinRequest    EventJoinRequest[]
   adminAccess    EventAdminAccess[]
 
+  @@unique([slug])
   @@map("events")
 }
 

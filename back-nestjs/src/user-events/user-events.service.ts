@@ -142,18 +142,24 @@ export class UserEventsService {
 
 		const event = await this.prisma.event.findFirst({
 			where: {
-				idEvent: eventId,
-				OR: [
+				AND: [
 					{
-						status: EventStatus.PUBLISHED
+						OR: [{ idEvent: eventId }, { slug: eventId }]
 					},
 					{
-						participant: {
-							some: {
-								userId
+						OR: [
+							{
+								status: EventStatus.PUBLISHED
+							},
+							{
+								participant: {
+									some: {
+										userId
+									}
+								}
 							}
-						}
-					}
+						]
+					},
 				]
 			},
 			select: {

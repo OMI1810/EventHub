@@ -41,6 +41,7 @@ export class UserRequestsService {
 							event: {
 								select: {
 									idEvent: true,
+									slug: true,
 									title: true,
 									type: true,
 									format: true,
@@ -67,6 +68,7 @@ export class UserRequestsService {
 					event: {
 						select: {
 							idEvent: true,
+							slug: true,
 							title: true,
 							type: true,
 							format: true,
@@ -90,6 +92,7 @@ export class UserRequestsService {
 				status: request.status,
 				event: {
 					idEvent: request.event.idEvent,
+					slug: request.event.slug,
 					title: request.event.title,
 					type: request.event.type,
 					format: request.event.format,
@@ -108,6 +111,7 @@ export class UserRequestsService {
 				},
 				event: {
 					idEvent: request.team.event.idEvent,
+					slug: request.team.event.slug,
 					title: request.team.event.title,
 					type: request.team.event.type,
 					format: request.team.event.format,

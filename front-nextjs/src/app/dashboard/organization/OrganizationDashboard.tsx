@@ -84,7 +84,22 @@ export function OrganizationDashboard() {
 				<OrganizationAccessError
 					title="Подтвердите почту"
 					description="Организацию можно создать после подтверждения email. Проверьте почту и перейдите по ссылке из письма."
-					action={<ResendVerificationEmailButton />}
+					action={
+						<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+							<ResendVerificationEmailButton />
+							<button
+								type="button"
+								onClick={() => mutateLogout()}
+								disabled={isLogoutLoading}
+								className={twMerge(
+									'rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60',
+									isLogoutLoading && 'cursor-not-allowed opacity-60'
+								)}
+							>
+								{isLogoutLoading ? 'Загрузка...' : 'Выйти'}
+							</button>
+						</div>
+					}
 				/>
 			)
 		}

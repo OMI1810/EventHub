@@ -40,6 +40,14 @@ function toIsoDateTime(value: string) {
   return value ? new Date(value).toISOString() : undefined;
 }
 
+function toSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 interface EventTypeOption {
   value: EventCreateType | "OTHER";
   label: string;
@@ -203,6 +211,7 @@ export default function CreateEventPage() {
     useState<EventFeaturePreset | null>(null);
   const [step, setStep] = useState<"type" | "base" | "settings">("type");
   const [baseForm, setBaseForm] = useState<BaseEventForm>(initialBaseForm);
+  const [isSlugTouched, setIsSlugTouched] = useState(false);
   const [selectedTags, setSelectedTags] = useState<EventTagDraft[]>([]);
   const [tagSearch, setTagSearch] = useState("");
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
@@ -273,7 +282,24 @@ export default function CreateEventPage() {
   });
 
   const updateBaseForm = (field: keyof BaseEventForm, value: string) => {
-    setBaseForm((current) => ({ ...current, [field]: value }));
+    setBaseForm((current) => {
+      if (field === "title" && !isSlugTouched) {
+        return {
+          ...current,
+          title: value,
+          slug: toSlug(value),
+        };
+      }
+
+      if (field === "slug") {
+        return {
+          ...current,
+          slug: toSlug(value),
+        };
+      }
+
+      return { ...current, [field]: value };
+    });
   };
 
   const updateOrganization = (organizationId: string) => {
@@ -591,7 +617,10 @@ export default function CreateEventPage() {
             <TextField
               label="Slug"
               value={baseForm.slug}
-              onChange={(value) => updateBaseForm("slug", value)}
+              onChange={(value) => {
+                setIsSlugTouched(true);
+                updateBaseForm("slug", value);
+              }}
               required
             />
             <div className="md:col-span-2">

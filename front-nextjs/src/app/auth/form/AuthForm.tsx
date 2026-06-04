@@ -2,6 +2,7 @@
 
 import { MiniLoader } from "@/components/ui/MiniLoader";
 import { PhoneInput } from "@/components/ui/PhoneInput";
+import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { TRole } from "@/types/user.types";
 import { twMerge } from "tailwind-merge";
 import styles from "./AuthForm.module.scss";
@@ -30,6 +31,7 @@ export function AuthForm({ isLogin }: Props) {
   } = useAuthForm(isLogin);
 
   const phoneValue = watch("phone") ?? "";
+  const cityValue = watch("city") ?? "";
   const isRegularUser = selectedRole === "USER";
 
   return (
@@ -160,20 +162,48 @@ export function AuthForm({ isLogin }: Props) {
                   </div>
 
                   <div className="mb-4">
-                    <label className="text-gray-600">
-                      Город
-                      <input
-                        type="text"
-                        placeholder="Введите город"
-                        {...register("city", { required: true })}
-                        className={styles["input-field"]}
-                      />
-                    </label>
+                    <AddressAutocomplete
+                      label="Город"
+                      value={cityValue}
+                      required
+                      placeholder="Введите город"
+                      emptyText="Города не найдены"
+                      labelClassName="relative block text-gray-600"
+                      inputClassName={styles["input-field"]}
+                      onManualChange={(value) =>
+                        setValue("city", value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      onSelect={(address) =>
+                        setValue(
+                          "city",
+                          address.address.split(",")[0]?.trim() ||
+                            address.address,
+                          {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          },
+                        )
+                      }
+                    />
                   </div>
                 </>
               ) : null}
             </>
           ) : null}
+
+          <label className="mb-5 flex items-start gap-3 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              {...register("personalDataConsent", { required: true })}
+              className="mt-1 h-4 w-4 shrink-0 accent-primary"
+            />
+            <span>
+              Я согласен на обработку персональных данных
+            </span>
+          </label>
         </>
       )}
 

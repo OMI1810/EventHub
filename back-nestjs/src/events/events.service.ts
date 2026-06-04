@@ -622,6 +622,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       dateDeadLine: currentEvent.dateDeadLine,
       cases: currentEvent.cases,
     });
+    const slug = await this.prepareEventSlug(dto.slug, eventId);
 
     return this.prisma.event.update({
       where: {
@@ -630,7 +631,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       data: {
         title: dto.title.trim(),
         description: this.optionalString(dto.description),
-        slug: dto.slug.trim(),
+        slug,
         dataStartRegistration:
           dto.status === CreateEventStatus.PUBLIC
             ? new Date(dto.dataStartRegistration!)
@@ -1457,13 +1458,14 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       dateDeadLine: dto.dateDeadLine,
       caseSettings: dto.caseSettings,
     });
+    const slug = await this.prepareEventSlug(dto.slug);
 
     return this.prisma.$transaction(async (prisma) => {
       const event = await prisma.event.create({
         data: {
           title: dto.title.trim(),
           description: this.optionalString(dto.description),
-          slug: dto.slug.trim(),
+          slug,
           type: dto.type,
           address:
             dto.format === EventFormat.ONLINE ? "Онлайн" : dto.address.trim(),
@@ -2354,6 +2356,29 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     }
 
     return date;
+  }
+
+  private async prepareEventSlug(value: string, currentEventId?: string) {
+    const slug = this.toSlug(value);
+
+    if (!slug) {
+      throw new BadRequestException("Slug мероприятия обязателен");
+    }
+
+    const existingEvent = await this.prisma.event.findUnique({
+      where: {
+        slug,
+      },
+      select: {
+        idEvent: true,
+      },
+    });
+
+    if (existingEvent && existingEvent.idEvent !== currentEventId) {
+      throw new BadRequestException("Slug мероприятия уже занят");
+    }
+
+    return slug;
   }
 
   private validateEventDateRange(start: string, end: string) {

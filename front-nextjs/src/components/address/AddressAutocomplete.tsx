@@ -12,6 +12,10 @@ interface AddressAutocompleteProps {
   label: string;
   value: string;
   required?: boolean;
+  placeholder?: string;
+  emptyText?: string;
+  labelClassName?: string;
+  inputClassName?: string;
   onManualChange: (address: string) => void;
   onSelect: (address: GeocodedAddress) => void;
 }
@@ -20,6 +24,10 @@ export function AddressAutocomplete({
   label,
   value,
   required,
+  placeholder = "Начните вводить адрес",
+  emptyText = "Адреса не найдены",
+  labelClassName = "relative grid gap-2 text-sm text-zinc-300",
+  inputClassName = "rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-primary",
   onManualChange,
   onSelect,
 }: AddressAutocompleteProps) {
@@ -70,7 +78,7 @@ export function AddressAutocomplete({
   };
 
   return (
-    <label ref={wrapperRef} className="relative grid gap-2 text-sm text-zinc-300">
+    <label ref={wrapperRef} className={labelClassName}>
       {label}
       <input
         type="text"
@@ -78,15 +86,15 @@ export function AddressAutocomplete({
         value={query}
         onFocus={() => setIsOpen(true)}
         onChange={(event) => handleChange(event.target.value)}
-        placeholder="Начните вводить адрес"
-        className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-primary"
+        placeholder={placeholder}
+        className={inputClassName}
       />
-      {isFetching && (
+      {isFetching ? (
         <span className="absolute right-3 top-9 text-xs text-zinc-500">
           ...
         </span>
-      )}
-      {isOpen && query.trim().length >= 3 && (
+      ) : null}
+      {isOpen && query.trim().length >= 3 ? (
         <div className="absolute left-0 right-0 top-full z-40 mt-2 max-h-56 overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950 p-2 shadow-xl">
           {suggestions?.data.length ? (
             <div className="grid gap-1">
@@ -98,19 +106,17 @@ export function AddressAutocomplete({
                     event.preventDefault();
                     void handleSelect(suggestion);
                   }}
-                  className="rounded-md px-3 py-2 text-left text-sm hover:bg-zinc-800"
+                  className="rounded-md px-3 py-2 text-left text-sm text-zinc-100 hover:bg-zinc-800"
                 >
                   {suggestion.text}
                 </button>
               ))}
             </div>
           ) : (
-            <p className="px-3 py-2 text-sm text-zinc-500">
-              Адреса не найдены
-            </p>
+            <p className="px-3 py-2 text-sm text-zinc-500">{emptyText}</p>
           )}
         </div>
-      )}
+      ) : null}
     </label>
   );
 }
