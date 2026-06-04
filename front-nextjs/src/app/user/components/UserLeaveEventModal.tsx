@@ -18,22 +18,11 @@ export function UserLeaveEventModal({
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
 			<div className="w-full max-w-lg rounded-3xl border border-zinc-800 bg-zinc-900 p-6 text-white shadow-2xl">
-				<div className="flex items-start justify-between gap-4">
-					<div>
-						<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-							Подтверждение действия
-						</p>
-						<h3 className="mt-3 text-2xl font-bold">{title}</h3>
-					</div>
-
-					<button
-						type="button"
-						onClick={onClose}
-						disabled={isPending}
-						className="rounded-xl border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-					>
-						Нет
-					</button>
+				<div>
+					<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+						Подтверждение действия
+					</p>
+					<h3 className="mt-3 text-2xl font-bold">{title}</h3>
 				</div>
 
 				<div className="mt-6 rounded-2xl border border-rose-900/60 bg-rose-950/30 px-5 py-5">

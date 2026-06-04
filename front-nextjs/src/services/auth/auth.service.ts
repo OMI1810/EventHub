@@ -1,6 +1,10 @@
 import { axiosClassic, instance } from '@/api/axios'
-import { IFormData } from '@/types/auth.types'
-import { IUser } from '@/types/user.types'
+import {
+	IAuthResponse,
+	IFormData,
+	TLoginResponse
+} from '@/types/auth.types'
+import { AxiosResponse } from 'axios'
 import authTokenService from './auth-token.service'
 
 interface IAuthResponse {
@@ -15,11 +19,32 @@ interface ITurniketLoginData {
 
 class AuthService {
 	async main(
+		type: 'login',
+		data: IFormData
+	): Promise<AxiosResponse<TLoginResponse>>
+	async main(
+		type: 'register',
+		data: IFormData
+	): Promise<AxiosResponse<IAuthResponse>>
+	async main(
 		type: 'login' | 'register',
 		data: IFormData
-	) {
-		const response = await axiosClassic.post<IAuthResponse>(
+	): Promise<AxiosResponse<TLoginResponse | IAuthResponse>> {
+		const response = await axiosClassic.post<TLoginResponse | IAuthResponse>(
 			`/auth/${type}`,
+			data
+		)
+
+		if ('accessToken' in response.data && response.data.accessToken) {
+			authTokenService.saveAccessToken(response.data.accessToken)
+		}
+
+		return response
+	}
+
+	async verifyTwoFactor(data: { twoFactorToken: string; code: string }) {
+		const response = await axiosClassic.post<IAuthResponse>(
+			'/auth/login/verify-2fa',
 			data
 		)
 
@@ -30,6 +55,13 @@ class AuthService {
 		return response
 	}
 
+	async resendTwoFactor(twoFactorToken: string) {
+		return axiosClassic.post<{ success: boolean; twoFactorToken: string }>(
+			'/auth/login/resend-2fa',
+			{
+				twoFactorToken
+			}
+		)
 	async loginTurniket(data: ITurniketLoginData) {
 		const response = await axiosClassic.post<IAuthResponse>(
 			'/auth/turniket/login',

@@ -19,8 +19,8 @@ export function UserSidebar() {
 	const items = data?.data ?? []
 
 	return (
-		<aside className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl">
-			<div className="space-y-5">
+		<aside className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl lg:flex lg:h-screen lg:min-h-0 lg:flex-col lg:rounded-none lg:border-y-0 lg:border-l-0">
+			<div className="flex min-h-0 flex-1 flex-col gap-5">
 				<Link
 					href={USER_PAGES.HOME}
 					className={twMerge(
@@ -45,7 +45,7 @@ export function UserSidebar() {
 					Мои заявки
 				</Link>
 
-				<div>
+				<div className="flex min-h-0 flex-1 flex-col">
 					<div className="mb-3 flex items-center justify-between">
 						<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 							Мои мероприятия
@@ -58,7 +58,7 @@ export function UserSidebar() {
 						</Link>
 					</div>
 
-					<div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
+					<div className="min-h-0 space-y-2 overflow-y-auto pr-1 lg:flex-1">
 						{isLoading ? (
 							<div className="flex justify-center py-8">
 								<MiniLoader width={60} height={60} />

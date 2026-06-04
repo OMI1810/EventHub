@@ -1,4 +1,4 @@
-import { EventFormat } from './event-create.types'
+import { EventFormat, EventTagOption } from './event-create.types'
 
 export type UserEventStatus =
 	| 'FINISHED'
@@ -57,6 +57,7 @@ export interface IUserEventFeedItem {
 		idOrganization: string
 		name: string
 	}
+	tags?: EventTagOption[]
 }
 
 export interface IUserMyEventItem {
@@ -80,6 +81,7 @@ export interface IUserEventCase {
 	title: string
 	description?: string | null
 	holder?: string | null
+	tags?: EventTagOption[]
 	teamLimit?: number | null
 	isOpen: boolean
 	dateForStartSelected: string
@@ -131,6 +133,16 @@ export interface IUserEventSolution {
 	updatedAt: string
 }
 
+export interface IUserEventAdminContact {
+	idUser: string
+	name?: string | null
+	surname?: string | null
+	patronymic?: string | null
+	email: string
+	phone?: string | null
+	contact?: string | null
+}
+
 export interface IUserEventDetails extends IUserEventFeedItem {
 	address: string
 	cordinatX?: number | null
@@ -147,6 +159,7 @@ export interface IUserEventDetails extends IUserEventFeedItem {
 	entryPass: IUserEventEntryPassState
 	solution: IUserEventSolution | null
 	results: IUserEventResult[]
+	admins?: IUserEventAdminContact[]
 }
 
 export interface ISaveUserEventSolutionFormData {

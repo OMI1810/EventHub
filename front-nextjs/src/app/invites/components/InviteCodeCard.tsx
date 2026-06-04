@@ -30,10 +30,10 @@ export function InviteCodeCard({
 	return (
 		<section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-				<div>
-					<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{label}</p>
-					<h2 className="mt-3 text-2xl font-bold">{title}</h2>
-					<p className="mt-3 text-sm text-zinc-400">{description}</p>
+				<div className="min-w-0">
+					<p className="break-words text-xs uppercase tracking-[0.2em] text-zinc-500">{label}</p>
+					<h2 className="mt-3 line-clamp-2 break-words text-2xl font-bold">{title}</h2>
+					<p className="mt-3 line-clamp-3 break-words text-sm text-zinc-400">{description}</p>
 				</div>
 
 				<button
@@ -52,23 +52,23 @@ export function InviteCodeCard({
 						<button
 							type="button"
 							onClick={onCopy}
-							className="w-full rounded-2xl border border-dashed border-emerald-600/60 bg-zinc-950/70 px-5 py-5 text-left transition-colors hover:bg-zinc-800/70"
+							className="min-w-0 rounded-2xl border border-dashed border-emerald-600/60 bg-zinc-950/70 px-5 py-5 text-left transition-colors hover:bg-zinc-800/70"
 						>
 							<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 								Активный код
 							</p>
-							<p className="mt-3 font-mono text-2xl font-bold tracking-[0.25em] text-emerald-400">
+							<p className="mt-3 break-all font-mono text-2xl font-bold tracking-[0.25em] text-emerald-400">
 								{code}
 							</p>
 							{expiresHint ? (
-								<p className="mt-4 text-sm text-zinc-400">{expiresHint}</p>
+								<p className="mt-4 break-words text-sm text-zinc-400">{expiresHint}</p>
 							) : null}
 						</button>
 
 						<button
 							type="button"
 							onClick={onOpenQr}
-							className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-5 text-left transition-colors hover:bg-zinc-800/70"
+							className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-5 text-left transition-colors hover:bg-zinc-800/70"
 						>
 							<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 								QR Code
@@ -81,7 +81,7 @@ export function InviteCodeCard({
 					</div>
 				) : (
 					<div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-5">
-						<p className="text-sm text-zinc-400">{emptyStateText}</p>
+						<p className="break-words text-sm text-zinc-400">{emptyStateText}</p>
 					</div>
 				)}
 			</div>

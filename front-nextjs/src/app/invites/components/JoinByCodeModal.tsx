@@ -49,23 +49,14 @@ export function JoinByCodeModal({
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
 			<div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-zinc-800 bg-zinc-950 p-6 text-white shadow-2xl">
-				<div className="flex items-start justify-between gap-4">
-					<div>
-						<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{label}</p>
-						<h2 className="mt-3 text-2xl font-bold">{title}</h2>
-						{!isScannerOpen ? (
-							<p className="mt-3 text-sm text-zinc-400">{description}</p>
-						) : null}
-					</div>
-
-					<button
-						type="button"
-						onClick={onClose}
-						disabled={isPending}
-						className="rounded-xl border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-					>
-						Закрыть
-					</button>
+				<div>
+					<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+						{label}
+					</p>
+					<h2 className="mt-3 text-2xl font-bold">{title}</h2>
+					{!isScannerOpen ? (
+						<p className="mt-3 text-sm text-zinc-400">{description}</p>
+					) : null}
 				</div>
 
 				{isScannerOpen ? (
@@ -96,7 +87,9 @@ export function JoinByCodeModal({
 						</label>
 
 						<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-							<p className="text-sm text-zinc-400">{code ? filledHint : emptyHint}</p>
+							<p className="text-sm text-zinc-400">
+								{code ? filledHint : emptyHint}
+							</p>
 
 							<button
 								type="button"

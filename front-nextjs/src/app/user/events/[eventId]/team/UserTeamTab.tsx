@@ -42,7 +42,7 @@ function getMemberName(member: IUserTeamMember) {
 
 function AccessWarning({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/50 px-5 py-8 text-sm leading-6 text-zinc-400">
+    <div className="min-w-0 rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/50 px-5 py-8 text-sm leading-6 text-zinc-400">
       {text}
     </div>
   );
@@ -280,7 +280,7 @@ export function UserTeamTab({ eventId }: Props) {
 
     return (
       <>
-        <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
+        <div className="min-w-0 rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
           {hadTeamBefore ? (
             <div className="mb-5 rounded-2xl border border-amber-700/60 bg-amber-950/20 px-4 py-4 text-sm leading-6 text-amber-100">
               Ваша предыдущая команда была расформирована. Сейчас вы можете
@@ -324,16 +324,16 @@ export function UserTeamTab({ eventId }: Props) {
   return (
     <>
       <section className="grid gap-6">
-        <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
+        <div className="min-w-0 rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                 Команда
               </p>
-              <h3 className="mt-3 text-2xl font-bold text-white">
+              <h3 className="mt-3 line-clamp-2 break-all text-2xl font-bold text-white">
                 {team.name}
               </h3>
-              <p className="mt-3 text-sm leading-6 text-zinc-400">
+              <p className="mt-3 line-clamp-4 break-words text-sm leading-6 text-zinc-400">
                 {team.description || "Описание команды пока не добавлено."}
               </p>
             </div>
@@ -378,7 +378,7 @@ export function UserTeamTab({ eventId }: Props) {
           ) : null}
         </div>
 
-        <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
+        <div className="min-w-0 rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
           <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
             Участники
           </p>
@@ -388,12 +388,12 @@ export function UserTeamTab({ eventId }: Props) {
                 key={member.idUser}
                 type="button"
                 onClick={() => setSelectedMember(member)}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-4 text-left transition-colors hover:bg-zinc-800"
+                className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-4 text-left transition-colors hover:bg-zinc-800"
               >
-                <p className="text-sm font-semibold text-zinc-100">
+                <p className="line-clamp-2 break-all text-sm font-semibold text-zinc-100">
                   {getMemberName(member) || member.email}
                 </p>
-                <p className="mt-2 text-sm text-zinc-400">{member.email}</p>
+                <p className="mt-2 truncate text-sm text-zinc-400">{member.email}</p>
               </button>
             ))}
           </div>
@@ -436,7 +436,7 @@ export function UserTeamTab({ eventId }: Props) {
         ) : null}
 
         {team.isCaptain && data.canManageTeams ? (
-          <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
+          <div className="min-w-0 rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6">
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
               Заявки в команду
             </p>
@@ -445,12 +445,12 @@ export function UserTeamTab({ eventId }: Props) {
                 team.joinRequests.map((request) => (
                   <div
                     key={request.idJoinTeam}
-                    className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-4"
+                    className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-4"
                   >
-                    <p className="text-sm font-semibold text-zinc-100">
+                    <p className="line-clamp-2 break-all text-sm font-semibold text-zinc-100">
                       {getMemberName(request.user) || request.user.email}
                     </p>
-                    <p className="mt-2 text-sm text-zinc-400">
+                    <p className="mt-2 truncate text-sm text-zinc-400">
                       {request.user.email}
                     </p>
                     <div className="mt-4 flex flex-col gap-3 sm:flex-row">
