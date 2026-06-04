@@ -200,6 +200,10 @@ export class CreateEventDto {
   @IsBoolean()
   hasResualt?: boolean;
 
+  @IsOptional()
+  @IsBoolean()
+  hasEntryPass?: boolean;
+
   @ValidateIf(
     (dto: CreateEventDto) =>
       dto.type !== CreateEventType.HACKATHON || dto.hasParticipantLimit,

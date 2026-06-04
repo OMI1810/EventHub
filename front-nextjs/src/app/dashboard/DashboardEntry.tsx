@@ -24,6 +24,11 @@ export function DashboardEntry() {
 			return
 		}
 
+		if (user.role === 'TURNIKET') {
+			router.replace('/turniket')
+			return
+		}
+
 		router.replace(DASHBOARD_PAGES.PROFILE)
 	}, [isLoading, router, user.role])
 

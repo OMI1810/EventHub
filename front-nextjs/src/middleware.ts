@@ -13,7 +13,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
   if (
     pathname.startsWith(DASHBOARD_PAGES.HOME) ||
-    pathname.startsWith("/admin")
+    pathname.startsWith("/admin") ||
+    pathname.startsWith('/turniket')
   ) {
     return protectDashboardPages(request);
   }
@@ -22,5 +23,5 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/auth/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/auth/:path*", '/turniket/:path*'],
 };

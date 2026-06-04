@@ -1,5 +1,6 @@
 import { OrganizationInviteService } from '@/organization/organization-invite.service'
 import { PrismaService } from '@/prisma.service'
+import { UserService } from '@/user/user.service'
 import {
 	BadRequestException,
 	ForbiddenException,
@@ -7,6 +8,7 @@ import {
 	NotFoundException
 } from '@nestjs/common'
 import { Role, StatusJoinRequest } from '@prisma/client'
+import { CreateTurniketAccountDto } from './dto/create-turniket-account.dto'
 import { CreateAdminOrganizationRequestDto } from './dto/create-admin-organization-request.dto'
 import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto'
 
@@ -14,7 +16,8 @@ import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto'
 export class AdminService {
 	constructor(
 		private readonly prisma: PrismaService,
-		private readonly organizationInviteService: OrganizationInviteService
+		private readonly organizationInviteService: OrganizationInviteService,
+		private readonly userService: UserService
 	) {}
 
 	async getProfile(userId: string) {
@@ -408,6 +411,27 @@ export class AdminService {
 		})
 
 		return { success: true }
+	}
+
+	async createTurniketAccount(
+		userId: string,
+		dto: CreateTurniketAccountDto
+	) {
+		await this.requireAdmin(userId)
+
+		const turniket = await this.userService.create({
+			email: dto.email,
+			password: dto.password,
+			name: dto.name,
+			role: Role.TURNIKET
+		})
+
+		return {
+			idUser: turniket.idUser,
+			email: turniket.email,
+			name: turniket.name,
+			role: turniket.role
+		}
 	}
 
 	private async requireAdmin(userId: string) {

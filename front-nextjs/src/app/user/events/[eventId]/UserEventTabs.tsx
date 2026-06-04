@@ -11,6 +11,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
+import { UserEventPassTab } from './pass/UserEventPassTab'
 import { UserTeamTab } from './team/UserTeamTab'
 
 interface Props {
@@ -23,6 +24,7 @@ type TabKey =
 	| 'materials'
 	| 'solution'
 	| 'results'
+	| 'pass'
 	| 'status'
 
 interface TabItem {
@@ -106,6 +108,7 @@ export function UserEventTabs({ event }: Props) {
 			nextTabs.push({ key: 'solution', label: 'Загрузить решение' })
 		}
 		if (event.hasResualt && event.timeState.isEventFinished) nextTabs.push({ key: 'results', label: 'Итоги' })
+		if (event.entryPass.enabled) nextTabs.push({ key: 'pass', label: 'Пропуск' })
 		nextTabs.push({ key: 'status', label: 'Статус' })
 
 		return nextTabs
@@ -115,6 +118,7 @@ export function UserEventTabs({ event }: Props) {
 		event.hasMaterials,
 		event.hasResualt,
 		event.hasTeams,
+		event.entryPass.enabled,
 		event.isParticipating,
 		event.timeState.canViewEventMaterials,
 		event.timeState.isEventFinished,
@@ -665,6 +669,9 @@ export function UserEventTabs({ event }: Props) {
 				) : (
 					<EventAccessNotice text="Администратор ещё не выставил итоги мероприятия." />
 				)
+
+			case 'pass':
+				return <UserEventPassTab event={event} />
 
 			case 'status':
 				return (

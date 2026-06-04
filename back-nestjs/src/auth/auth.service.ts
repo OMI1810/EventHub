@@ -94,6 +94,9 @@ export class AuthService {
       throw new UnauthorizedException("Invalid refresh token");
     }
     const user = await this.userService.getById(result.id);
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
     return this.buildResponseObject(user);
   }
 

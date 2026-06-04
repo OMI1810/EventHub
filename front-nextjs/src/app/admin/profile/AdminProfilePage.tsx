@@ -19,6 +19,7 @@ import { AdminOrganizationDetailsModal } from './AdminOrganizationDetailsModal'
 import { AdminOrganizationsSection } from './AdminOrganizationsSection'
 import { AdminPendingRequestsSection } from './AdminPendingRequestsSection'
 import { AdminProfileEditForm } from './AdminProfileEditForm'
+import { AdminTurniketSection } from './AdminTurniketSection'
 
 export function AdminProfilePage() {
 	const router = useRouter()
@@ -97,7 +98,9 @@ export function AdminProfilePage() {
 	if (!adminProfile) {
 		return (
 			<div className="mx-auto max-w-3xl rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-white shadow-xl">
-				<h1 className="text-2xl font-bold">Профиль администратора недоступен</h1>
+				<h1 className="text-2xl font-bold">
+					Профиль администратора недоступен
+				</h1>
 				<p className="mt-4 text-sm text-zinc-400">
 					Не удалось загрузить данные администратора.
 				</p>
@@ -132,6 +135,8 @@ export function AdminProfilePage() {
 				onSelect={setSelectedOrganization}
 				onAdd={() => setIsJoinModalOpen(true)}
 			/>
+
+			<AdminTurniketSection />
 
 			<AdminPendingRequestsSection
 				requests={requests}

@@ -49,6 +49,7 @@ interface EventFeaturePreset {
   hasLoadedSolution: boolean;
   hasMaterials: boolean;
   hasResualt: boolean;
+  hasEntryPass: boolean;
 }
 
 interface EventInvitePayload extends BaseInvitePayload {
@@ -170,6 +171,7 @@ const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
     hasLoadedSolution: true,
     hasMaterials: false,
     hasResualt: true,
+    hasEntryPass: false,
   },
   [CreateEventType.MASTER_CLASS]: {
     hasCases: false,
@@ -178,6 +180,7 @@ const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
     hasLoadedSolution: false,
     hasMaterials: true,
     hasResualt: false,
+    hasEntryPass: false,
   },
   [CreateEventType.CONTEST]: {
     hasCases: false,
@@ -186,6 +189,7 @@ const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
     hasLoadedSolution: true,
     hasMaterials: true,
     hasResualt: true,
+    hasEntryPass: false,
   },
 };
 
@@ -249,6 +253,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         hasMaterials: true,
         hasLoadedSolution: true,
         hasResualt: true,
+        hasEntryPass: true,
         organization: {
           select: {
             idOrganization: true,
@@ -314,6 +319,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         hasLoadedSolution: true,
         hasMaterials: true,
         hasResualt: true,
+        hasEntryPass: true,
         participantLimit: true,
         participanInTeamLimit: true,
         organization: {
@@ -673,6 +679,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         hasLoadedSolution: true,
         hasMaterials: true,
         hasResualt: true,
+        hasEntryPass: true,
         participantLimit: true,
         participanInTeamLimit: true,
         dateDeadLine: true,
@@ -701,6 +708,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     const hasCases = dto.hasCases ?? currentEvent.hasCases;
     const hasLoadedSolution =
       dto.hasLoadedSolution ?? currentEvent.hasLoadedSolution;
+    const hasEntryPass = dto.hasEntryPass ?? currentEvent.hasEntryPass;
     const participantLimit =
       dto.participantLimit ?? currentEvent.participantLimit ?? undefined;
     const teamMemberLimit =
@@ -744,6 +752,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         hasLoadedSolution,
         hasMaterials: dto.hasMaterials ?? currentEvent.hasMaterials,
         hasResualt: dto.hasResualt ?? currentEvent.hasResualt,
+        hasEntryPass,
         participantLimit: hasParticipantLimit ? participantLimit : null,
         participanInTeamLimit: hasTeams ? teamMemberLimit : null,
         dateDeadLine: hasLoadedSolution ? dateDeadLine : null,
@@ -1493,6 +1502,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
           hasLoadedSolution: features.hasLoadedSolution,
           hasMaterials: features.hasMaterials,
           hasResualt: features.hasResualt,
+          hasEntryPass: features.hasEntryPass,
           participantLimit: features.hasParticipantLimit
             ? dto.participantLimit
             : null,
@@ -1983,6 +1993,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       hasLoadedSolution: dto.hasLoadedSolution ?? false,
       hasMaterials: dto.hasMaterials ?? false,
       hasResualt: dto.hasResualt ?? false,
+      hasEntryPass: dto.hasEntryPass ?? false,
     };
   }
 

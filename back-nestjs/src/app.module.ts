@@ -6,6 +6,7 @@ import { EventsModule } from "./events/events.module";
 import { GeocodingModule } from "./geocoding/geocoding.module";
 import { OrganizationModule } from './organization/organization.module'
 import { PublicEventsModule } from './public-events/public-events.module'
+import { TurniketModule } from './turniket/turniket.module'
 import { UserEventsModule } from './user-events/user-events.module'
 import { UserRequestsModule } from './user-requests/user-requests.module'
 import { UserTeamsModule } from './user-teams/user-teams.module'
@@ -22,6 +23,7 @@ import { UserModule } from "./user/user.module";
     GeocodingModule,
     OrganizationModule,
     PublicEventsModule,
+    TurniketModule,
     UserEventsModule,
     UserRequestsModule,
     UserTeamsModule,

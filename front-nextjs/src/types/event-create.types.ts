@@ -13,6 +13,7 @@ export interface EventFeaturePreset {
   hasLoadedSolution: boolean;
   hasMaterials: boolean;
   hasResualt: boolean;
+  hasEntryPass: boolean;
 }
 
 export interface OrganizationOption {
@@ -79,6 +80,7 @@ export interface EventCreateDraft {
   hasLoadedSolution?: boolean;
   hasMaterials?: boolean;
   hasResualt?: boolean;
+  hasEntryPass?: boolean;
   participantLimit?: number;
   teamMemberLimit?: number;
   caseSettings?: {

@@ -30,6 +30,7 @@ export interface ManagedEventSummary {
   hasMaterials: boolean;
   hasLoadedSolution: boolean;
   hasResualt: boolean;
+  hasEntryPass: boolean;
   organization: ManagedEventOrganization;
   registeredUsersCount: number;
 }
@@ -240,6 +241,7 @@ export interface UpdateManagedEventSettingsData {
   hasLoadedSolution?: boolean;
   hasMaterials?: boolean;
   hasResualt?: boolean;
+  hasEntryPass?: boolean;
   participantLimit?: number;
   teamMemberLimit?: number;
   dateDeadLine?: string;
