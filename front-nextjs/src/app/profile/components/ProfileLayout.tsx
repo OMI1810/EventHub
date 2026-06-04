@@ -16,14 +16,14 @@ export function ProfileLayout({
 	isLogoutLoading = false
 }: Props) {
 	return (
-		<div className="mx-auto grid max-w-5xl gap-6 text-white">
+		<div className="mx-auto grid w-full max-w-5xl min-w-0 gap-4 px-0 text-white sm:gap-6">
 			<div className="flex justify-end">
 				<button
 					type="button"
 					onClick={onLogout}
 					disabled={isLogoutLoading}
 					className={twMerge(
-						'rounded-xl border border-zinc-700 px-5 py-2.5 text-sm font-semibold text-zinc-100 transition-colors hover:bg-zinc-800',
+						'max-w-full rounded-xl border border-zinc-700 px-5 py-2.5 text-sm font-semibold text-zinc-100 transition-colors hover:bg-zinc-800',
 						isLogoutLoading && 'cursor-not-allowed opacity-60'
 					)}
 				>

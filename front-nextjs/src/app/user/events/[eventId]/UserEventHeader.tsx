@@ -3,6 +3,7 @@
 import { UserLeaveEventModal } from '@/app/user/components/UserLeaveEventModal'
 import { getParticipationBlockedReason } from '@/app/user/utils/userEventParticipation'
 import { EventHeaderBase } from '@/components/events/EventHeaderBase'
+import { USER_PAGES } from '@/config/pages/user.config'
 import userEventService from '@/services/user-event.service'
 import { IUserEventDetails } from '@/types/user-event.types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -129,6 +130,7 @@ export function UserEventHeader({ event }: Props) {
 				dataStart={event.dataStart}
 				dataEnd={event.dataEnd}
 				onOpenOrganization={() => setIsOrganizationModalOpen(true)}
+				detailsHref={USER_PAGES.eventAbout(event.slug || event.idEvent)}
 				actions={
 					event.isParticipating ? (
 						<div className="grid justify-items-start gap-2">

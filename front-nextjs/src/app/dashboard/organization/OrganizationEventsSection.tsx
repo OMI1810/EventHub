@@ -2,9 +2,12 @@
 
 import { EventAdminAccessModal } from "@/app/admin/events/[eventId]/EventAdminAccessModal";
 import { MiniLoader } from "@/components/ui/MiniLoader";
+import { useOrganization } from "@/hooks/useOrganization";
+import { useOrganizationAdmins } from "@/hooks/useOrganizationAdmins";
 import { useOrganizationEvents } from "@/hooks/useOrganizationEvents";
 import { IOrganizationEventSummary } from "@/types/organization.types";
 import { useState } from "react";
+import { OrganizationCsvExportModal } from "./OrganizationCsvExportModal";
 
 function formatDateRange(start: string, end: string) {
   const formatter = new Intl.DateTimeFormat("ru-RU", {
@@ -40,15 +43,29 @@ function FeatureBadge({ active, label }: { active: boolean; label: string }) {
 
 export function OrganizationEventsSection() {
   const { events, isLoading } = useOrganizationEvents();
+  const { organization } = useOrganization();
+  const { admins } = useOrganizationAdmins();
   const [adminEvent, setAdminEvent] =
     useState<IOrganizationEventSummary | null>(null);
+  const [isCsvOpen, setIsCsvOpen] = useState(false);
 
   return (
     <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
       <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
         Мероприятия организации
       </p>
-      <h1 className="mt-3 text-3xl font-bold">Список мероприятий</h1>
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-3xl font-bold">Список мероприятий</h1>
+        {organization ? (
+          <button
+            type="button"
+            onClick={() => setIsCsvOpen(true)}
+            className="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-100 transition-colors hover:bg-zinc-800"
+          >
+            Экспорт CSV
+          </button>
+        ) : null}
+      </div>
       <p className="mt-4 max-w-3xl text-sm text-zinc-300">
         Здесь отображаются все мероприятия, созданные от имени этой организации.
       </p>
@@ -93,7 +110,8 @@ export function OrganizationEventsSection() {
               </div>
 
               <p className="mt-4 text-sm text-zinc-400">
-                {event.description || "Описание мероприятия пока не добавлено."}
+                {event.description ||
+                  "Описание мероприятия пока не добавлено."}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -148,6 +166,14 @@ export function OrganizationEventsSection() {
           eventId={adminEvent.idEvent}
           eventStatus={adminEvent.status}
           onClose={() => setAdminEvent(null)}
+        />
+      ) : null}
+      {isCsvOpen && organization ? (
+        <OrganizationCsvExportModal
+          organization={organization}
+          admins={admins}
+          events={events}
+          onClose={() => setIsCsvOpen(false)}
         />
       ) : null}
     </section>

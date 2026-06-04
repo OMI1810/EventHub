@@ -36,3 +36,16 @@ export interface IFormData extends Pick<IUser, "email"> {
   organizationCordinatY?: number;
   personalDataConsent?: boolean;
 }
+
+export interface IAuthResponse {
+  user: IUser;
+  accessToken: string;
+}
+
+export interface ITwoFactorRequiredResponse {
+  requiresTwoFactor: true;
+  twoFactorToken: string;
+  email: string;
+}
+
+export type TLoginResponse = IAuthResponse | ITwoFactorRequiredResponse;

@@ -39,30 +39,30 @@ export function ProfileInfoCard({
 	editForm
 }: Props) {
 	return (
-		<section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
+		<section className="w-full min-w-0 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 p-3 shadow-xl sm:rounded-3xl sm:p-8">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-				<div>
-					<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+				<div className="min-w-0">
+					<p className="break-words text-[10px] uppercase tracking-[0.16em] text-zinc-500 sm:text-xs sm:tracking-[0.2em]">
 						{title}
 					</p>
-					<h1 className="mt-3 text-3xl font-bold">
+					<h1 className="mt-3 break-words text-3xl font-bold">
 						{profile.name || profile.email}
 					</h1>
-					<p className="mt-3 text-sm text-zinc-400">{subtitle}</p>
+					<p className="mt-3 break-words text-sm text-zinc-400">{subtitle}</p>
 				</div>
 
-				<div className="flex gap-3">
+				<div className="grid w-full min-w-0 gap-3 sm:flex sm:w-auto">
 					<button
 						type="button"
 						onClick={onToggleEdit}
-						className="rounded-xl border border-zinc-700 px-5 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800"
+						className="min-w-0 max-w-full break-words rounded-xl border border-zinc-700 px-3 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 sm:w-auto sm:px-5"
 					>
 						{isEditMode ? 'Скрыть форму' : 'Редактировать'}
 					</button>
 					<button
 						type="button"
 						onClick={onDelete}
-						className="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-500"
+						className="min-w-0 max-w-full break-words rounded-xl bg-rose-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-500 sm:w-auto sm:px-5"
 					>
 						Удалить
 					</button>
@@ -83,16 +83,16 @@ export function ProfileInfoCard({
 
 			{editForm}
 
-			<div className="mt-6 grid gap-4 md:grid-cols-2">
+			<div className="mt-6 grid min-w-0 gap-4 md:grid-cols-2">
 				{profileFields.map(field => (
 					<div
 						key={field.key}
-						className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-4"
+						className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-4 sm:px-5"
 					>
-						<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+						<p className="break-words text-[10px] uppercase tracking-[0.16em] text-zinc-500 sm:text-xs sm:tracking-[0.2em]">
 							{field.label}
 						</p>
-						<p className="mt-3 text-sm text-zinc-200">
+						<p className="mt-3 break-words text-sm text-zinc-200">
 							{profile[field.key] || 'Не указано'}
 						</p>
 					</div>

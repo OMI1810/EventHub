@@ -39,7 +39,7 @@ export function EventTabsBase<TKey extends string>({
 				))}
 			</div>
 
-			<div className="mt-6">{children}</div>
+			<div className="mt-6 min-w-0">{children}</div>
 		</section>
 	)
 }
