@@ -43,9 +43,11 @@ export function UserShell({ children }: Props) {
 	}
 
 	return (
-		<div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 text-white lg:grid-cols-[280px_minmax(0,1fr)]">
+		<div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 text-white lg:fixed lg:inset-0 lg:mx-0 lg:max-w-none lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-0 lg:overflow-hidden lg:bg-zinc-950 lg:p-0">
 			<UserSidebar />
-			<div className="min-w-0">{children}</div>
+			<div className="min-w-0 lg:h-screen lg:overflow-y-auto lg:px-8 lg:py-8">
+				{children}
+			</div>
 		</div>
 	)
 }

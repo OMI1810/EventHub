@@ -58,6 +58,11 @@ export function UserEventCard({ event }: Props) {
 	const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false)
 	const blockedReason = getParticipationBlockedReason(event)
 	const eventHref = USER_PAGES.event(event.slug || event.idEvent)
+	const visibleTags = event.tags?.slice(0, 3) ?? []
+	const hiddenTagsCount = Math.max(
+		(event.tags?.length ?? 0) - visibleTags.length,
+		0
+	)
 
 	const { mutate: mutateParticipate, isPending: isParticipatingPending } = useMutation({
 		mutationKey: ['user-events', 'participate', event.idEvent],
@@ -103,30 +108,46 @@ export function UserEventCard({ event }: Props) {
 						router.push(eventHref)
 					}
 				}}
-				className="group cursor-pointer rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5 transition-colors hover:border-zinc-700 hover:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+				className="group flex min-h-[320px] cursor-pointer flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5 transition-colors hover:border-zinc-700 hover:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
 			>
-				<div className="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+				<div className="flex min-w-0 items-start justify-between gap-3">
+					<div className="min-w-0 flex-1">
+						<p className="truncate text-xs uppercase tracking-[0.2em] text-zinc-500">
 							{event.organization.name}
 						</p>
-						<h3 className="mt-3 text-2xl font-bold transition-colors group-hover:text-emerald-300">
+						<h3 className="mt-3 line-clamp-2 break-all text-2xl font-bold transition-colors group-hover:text-emerald-300">
 							{event.title}
 						</h3>
 					</div>
 
 					{event.isParticipating ? (
-						<span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+						<span className="shrink-0 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
 							Вы уже участвуете
 						</span>
 					) : null}
 				</div>
 
-				<p className="mt-4 text-sm leading-6 text-zinc-400">
+				<p className="mt-4 line-clamp-3 min-h-[72px] break-words text-sm leading-6 text-zinc-400">
 					{event.description || 'Описание мероприятия отсутствует.'}
 				</p>
 
-				<div className="mt-5 flex flex-wrap gap-2 text-xs text-zinc-400">
+				<div className="mt-4 flex min-h-[32px] flex-wrap gap-2 overflow-hidden text-xs text-emerald-200">
+					{visibleTags.map(tag => (
+						<span
+							key={tag.idTag || tag.name}
+							className="max-w-[140px] truncate rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1"
+						>
+							{tag.name}
+						</span>
+					))}
+					{hiddenTagsCount > 0 ? (
+						<span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1">
+							+{hiddenTagsCount}
+						</span>
+					) : null}
+				</div>
+
+				<div className="mt-4 flex flex-wrap gap-2 overflow-hidden text-xs text-zinc-400">
 					<span className="rounded-full border border-zinc-800 px-3 py-1">
 						{event.type}
 					</span>
@@ -138,7 +159,7 @@ export function UserEventCard({ event }: Props) {
 					</span>
 				</div>
 
-				<div className="mt-6 flex flex-wrap items-center gap-3">
+				<div className="mt-auto flex flex-wrap items-center gap-3 pt-5">
 					{event.isParticipating ? (
 						<button
 							type="button"

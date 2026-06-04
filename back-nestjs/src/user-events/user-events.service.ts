@@ -53,6 +53,17 @@ export class UserEventsService {
 						name: true
 					}
 				},
+				tag: {
+					select: {
+						tag: {
+							select: {
+								idTag: true,
+								name: true,
+								type: true
+							}
+						}
+					}
+				},
 				participant: {
 					where: {
 						userId
@@ -91,6 +102,7 @@ export class UserEventsService {
 				participantLimit: event.participantLimit,
 				registeredUsersCount: event._count.participant,
 				organization: event.organization,
+				tags: event.tag.map(eventTag => eventTag.tag),
 				isParticipating,
 				canParticipate: isParticipating
 					? false
@@ -191,6 +203,38 @@ export class UserEventsService {
 						participant: true
 					}
 				},
+				user: {
+					select: {
+						idUser: true,
+						name: true,
+						surname: true,
+						patronymic: true,
+						email: true,
+						phone: true,
+						contact: true
+					}
+				},
+				adminAccess: {
+					where: {
+						canView: true
+					},
+					select: {
+						user: {
+							select: {
+								idUser: true,
+								name: true,
+								surname: true,
+								patronymic: true,
+								email: true,
+								phone: true,
+								contact: true
+							}
+						}
+					},
+					orderBy: {
+						createdAt: 'asc'
+					}
+				},
 				organization: {
 					select: {
 						idOrganization: true,
@@ -225,6 +269,17 @@ export class UserEventsService {
 								dateForStartSelected: true,
 								dateForEndSelected: true,
 								dateStopCode: true,
+								tag: {
+									select: {
+										tag: {
+											select: {
+												idTag: true,
+												name: true,
+												type: true
+											}
+										}
+									}
+								},
 								materials: {
 									select: {
 										idMaterial: true,
@@ -251,6 +306,17 @@ export class UserEventsService {
 						dateForStartSelected: true,
 						dateForEndSelected: true,
 						dateStopCode: true,
+						tag: {
+							select: {
+								tag: {
+									select: {
+										idTag: true,
+										name: true,
+										type: true
+									}
+								}
+							}
+						},
 						_count: {
 							select: {
 								teams: true,
@@ -340,6 +406,17 @@ export class UserEventsService {
 					dateForStartSelected: true,
 					dateForEndSelected: true,
 					dateStopCode: true,
+					tag: {
+						select: {
+							tag: {
+								select: {
+									idTag: true,
+									name: true,
+									type: true
+								}
+							}
+						}
+					},
 					materials: {
 						select: {
 							idMaterial: true,
@@ -382,6 +459,12 @@ export class UserEventsService {
 			!timeState.isEventFinished &&
 			!isSolutionDeadlinePassed &&
 			(!event.hasCases || Boolean(resolvedSelectedCase))
+		const eventAdminsById = new Map(
+			[
+				event.user,
+				...event.adminAccess.map(adminAccess => adminAccess.user)
+			].map(admin => [admin.idUser, admin])
+		)
 
 		return {
 			idEvent: event.idEvent,
@@ -436,6 +519,15 @@ export class UserEventsService {
 				email: event.organization.owner.email,
 				contact: event.organization.owner.contact
 			},
+			admins: [...eventAdminsById.values()].map(admin => ({
+				idUser: admin.idUser,
+				name: admin.name,
+				surname: admin.surname,
+				patronymic: admin.patronymic,
+				email: admin.email,
+				phone: admin.phone,
+				contact: admin.contact
+			})),
 			cases: event.cases.map(eventCase => {
 				const caseTimeState = getCaseTimeState(eventCase)
 
@@ -449,6 +541,7 @@ export class UserEventsService {
 					dateForStartSelected: eventCase.dateForStartSelected,
 					dateForEndSelected: eventCase.dateForEndSelected,
 					dateStopCode: eventCase.dateStopCode,
+					tags: eventCase.tag.map(caseTag => caseTag.tag),
 					timeState: {
 						...caseTimeState,
 						canViewCaseMaterials: timeState.isEventStarted
@@ -469,7 +562,8 @@ export class UserEventsService {
 						isOpen: resolvedSelectedCase.isOpen,
 						dateForStartSelected: resolvedSelectedCase.dateForStartSelected,
 						dateForEndSelected: resolvedSelectedCase.dateForEndSelected,
-						dateStopCode: resolvedSelectedCase.dateStopCode
+						dateStopCode: resolvedSelectedCase.dateStopCode,
+						tags: resolvedSelectedCase.tag.map(caseTag => caseTag.tag)
 				  }
 				: null,
 			selectedCaseMaterials:

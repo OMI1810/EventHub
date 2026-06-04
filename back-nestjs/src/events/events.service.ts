@@ -500,6 +500,23 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
             place: "asc",
           },
         },
+        solutions: {
+          select: {
+            idSolution: true,
+            urlSolution: true,
+            urlPresentation: true,
+            description: true,
+            createdAt: true,
+            updateAt: true,
+            eventId: true,
+            caseId: true,
+            teamId: true,
+            userId: true,
+          },
+          orderBy: {
+            updateAt: "desc",
+          },
+        },
         joinRequest: {
           where: {
             status: "PENDING",

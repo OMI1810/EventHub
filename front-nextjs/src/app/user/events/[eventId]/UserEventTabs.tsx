@@ -409,7 +409,7 @@ export function UserEventTabs({ event }: Props) {
 		switch (activeTab) {
 			case 'cases':
 				return (
-					<div className="grid gap-4 xl:grid-cols-2">
+					<div className="grid min-w-0 gap-4 xl:grid-cols-2">
 						{event.cases.length ? (
 							event.cases.map(eventCase => {
 								const isSelected = event.selectedCaseId === eventCase.idCase
@@ -420,6 +420,7 @@ export function UserEventTabs({ event }: Props) {
 										holder={eventCase.holder}
 										title={eventCase.title}
 										description={eventCase.description}
+										tags={eventCase.tags}
 										teamLimit={eventCase.teamLimit}
 										occupiedPlaces={eventCase.occupiedPlaces}
 										dateForStartSelected={eventCase.dateForStartSelected}
@@ -549,9 +550,9 @@ export function UserEventTabs({ event }: Props) {
 						: 'Сохранено'
 
 				return (
-					<div className="grid gap-4">
-						<div className={`rounded-2xl border px-5 py-4 ${solutionStatusClass}`}>
-							<p className="text-sm font-medium">{solutionStatusText}</p>
+					<div className="grid min-w-0 gap-4">
+						<div className={`min-w-0 rounded-2xl border px-5 py-4 ${solutionStatusClass}`}>
+							<p className="break-words text-sm font-medium">{solutionStatusText}</p>
 							{event.solution?.updatedAt ? (
 								<p className="mt-2 text-xs text-zinc-400">
 									Последнее обновление: {formatDateTime(event.solution.updatedAt)}
@@ -560,18 +561,18 @@ export function UserEventTabs({ event }: Props) {
 						</div>
 
 						{event.selectedCase ? (
-							<div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
+							<div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
 								<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 									Выбранный кейс
 								</p>
-								<h3 className="mt-3 text-lg font-semibold text-zinc-100">
+								<h3 className="mt-3 line-clamp-2 break-all text-lg font-semibold text-zinc-100">
 									{event.selectedCase.title}
 								</h3>
 							</div>
 						) : null}
 
 						{event.timeState.solutionDeadline ? (
-							<div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
+							<div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
 								<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 									Дедлайн сдачи
 								</p>
@@ -581,7 +582,7 @@ export function UserEventTabs({ event }: Props) {
 							</div>
 						) : null}
 
-						<div className="grid gap-4 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5">
+						<div className="grid min-w-0 gap-4 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5">
 							<label className="grid gap-2">
 								<span className="text-sm font-medium text-zinc-200">
 									Ссылка на решение
@@ -668,8 +669,8 @@ export function UserEventTabs({ event }: Props) {
 
 			case 'status':
 				return (
-					<div className="grid gap-4">
-						<div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
+					<div className="grid min-w-0 gap-4">
+						<div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
 							<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 								Прогресс
 							</p>
@@ -678,7 +679,7 @@ export function UserEventTabs({ event }: Props) {
 							</p>
 						</div>
 
-						<div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5">
+						<div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5">
 							<div className="flex gap-4">
 								<div className="relative flex w-8 shrink-0 justify-center">
 									<div className="absolute bottom-3 top-3 left-1/2 w-px -translate-x-1/2 bg-zinc-800" />
@@ -696,7 +697,7 @@ export function UserEventTabs({ event }: Props) {
 									</div>
 								</div>
 
-								<div className="grid flex-1 gap-3">
+								<div className="grid min-w-0 flex-1 gap-3">
 									{statusSteps.map(step => (
 										<button
 											key={step.key}
@@ -718,8 +719,8 @@ export function UserEventTabs({ event }: Props) {
 											className="group flex min-h-[92px] w-full items-start justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-5 py-4 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-80"
 										>
 											<div className="min-w-0">
-												<p className="text-sm font-semibold text-zinc-100">{step.title}</p>
-												<p className="mt-2 text-sm text-zinc-400">{step.detail}</p>
+												<p className="break-words text-sm font-semibold text-zinc-100">{step.title}</p>
+												<p className="mt-2 line-clamp-2 break-words text-sm text-zinc-400">{step.detail}</p>
 											</div>
 											<span
 												className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${getStepBadgeClass(step.state)}`}

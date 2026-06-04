@@ -119,14 +119,6 @@ export interface ManagedEventResult {
   userId?: string | null;
 }
 
-export interface ManagedEventSolution {
-  idSolution: string;
-  urlSolution: string;
-  urlPresentation: string;
-  description?: string | null;
-  updateAt: string;
-}
-
 export interface ManagedEventJoinRequest {
   idJoinEvent: string;
   status: "PENDING" | "ACCEPT" | "REJECTED" | "CANCELED";
@@ -208,6 +200,7 @@ export interface ManagedEventDetails extends ManagedEventSummary {
   participant: ManagedEventParticipant[];
   cases: ManagedEventCase[];
   materials: ManagedEventMaterial[];
+  solutions: ManagedEventSolution[];
   results: ManagedEventResult[];
   joinRequest: ManagedEventJoinRequest[];
   permissions: ManagedEventPermissionSnapshot;

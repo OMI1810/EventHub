@@ -22,7 +22,7 @@ export default function RootLayout({
 		<html lang="en">
 			<body className={JetBrainsFont.className}>
 				<Providers>
-					<main className="flex min-h-screen flex-col items-center justify-between p-8">
+					<main className="flex min-h-screen w-full flex-col items-center justify-between p-1 sm:p-8">
 						{children}
 					</main>
 				</Providers>

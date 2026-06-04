@@ -30,8 +30,8 @@ export class AuthService {
 
   private readonly TOKEN_EXPIRATION_ACCESS = "1h";
   private readonly TOKEN_EXPIRATION_REFRESH = "7d";
-  private readonly TOKEN_EXPIRATION_TWO_FACTOR = "10m";
-  private readonly TWO_FACTOR_CODE_TTL_MS = 10 * 1000;
+  private readonly TOKEN_EXPIRATION_TWO_FACTOR = "5m";
+  private readonly TWO_FACTOR_CODE_TTL_MS = 5 * 60 * 1000;
 
   async login(dto: AuthDto) {
     const user = await this.validateUser(dto);
