@@ -90,6 +90,8 @@ model User {
   eventAdminAccess        EventAdminAccess[]
   eventEntries            EventEntryLog[] @relation("EventEntryParticipant")
   scannedEntries          EventEntryLog[] @relation("EventEntryTurniket")
+  eventTurnikets          EventTurniket[] @relation("EventTurniketUser")
+  createdEventTurnikets   EventTurniket[] @relation("EventTurniketCreator")
 
   @@map("users")
 }
@@ -183,10 +185,35 @@ model Event {
   participant    UserEvent[]
   joinRequest    EventJoinRequest[]
   adminAccess    EventAdminAccess[]
-  entryLogs   EventEntryLog[]
+  entryLogs      EventEntryLog[]
+  turnikets      EventTurniket[]
 
   @@unique([slug])
   @@map("events")
+}
+
+model EventTurniket {
+  idTurniket String @id @default(cuid()) @map("id_turniket")
+
+  eventId String @map("event_id")
+  event   Event  @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
+
+  userId String @unique @map("user_id")
+  user   User   @relation("EventTurniketUser", fields: [userId], references: [idUser], onDelete: Cascade)
+
+  label String
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdByAdminId String @map("created_by_admin_id")
+  createdByAdmin   User   @relation("EventTurniketCreator", fields: [createdByAdminId], references: [idUser], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([eventId, label])
+  @@unique([eventId, userId])
+  @@map("event_turnikets")
 }
 
 model EventAdminAccess {
@@ -211,6 +238,8 @@ model EventAdminAccess {
   canFinishEvent          Boolean @default(false) @map("can_finish_event")
   canExportCsv            Boolean @default(false) @map("can_export_csv")
   canManagePrivateInvites Boolean @default(false) @map("can_manage_private_invites")
+  canViewTurniketStats    Boolean @default(false) @map("can_view_turniket_stats")
+  canManageTurnikets      Boolean @default(false) @map("can_manage_turnikets")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -433,8 +462,8 @@ model EventEntryLog {
   event                   Event?                  @relation(fields: [eventId], references: [idEvent], onDelete: SetNull)
   userId                  String?                 @map("user_id")
   user                    User?                   @relation("EventEntryParticipant", fields: [userId], references: [idUser], onDelete: SetNull)
-  turniketUserId          String                  @map("turniket_user_id")
-  turniketUser            User                    @relation("EventEntryTurniket", fields: [turniketUserId], references: [idUser], onDelete: Cascade)
+  turniketUserId          String?                 @map("turniket_user_id")
+  turniketUser            User?                   @relation("EventEntryTurniket", fields: [turniketUserId], references: [idUser], onDelete: SetNull)
   teamId                  String?                 @map("team_id")
   team                    Team?                   @relation(fields: [teamId], references: [idTeam], onDelete: SetNull)
   caseId                  String?                 @map("case_id")

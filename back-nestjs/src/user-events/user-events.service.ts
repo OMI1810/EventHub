@@ -313,15 +313,21 @@ export class UserEventsService {
 			throw new NotFoundException('Мероприятие не найдено')
 		}
 
+		const resolvedEventId = event.idEvent
 		const timeState = getEventTimeState(event)
 		const currentParticipant = event.participant[0] ?? null
 		const isParticipating = Boolean(currentParticipant)
 		const teamContext =
 			isParticipating && event.hasTeams
-				? await this.findUserTeamContext(userId, eventId)
+				? await this.findUserTeamContext(userId, resolvedEventId)
 				: null
 		const currentSolution = isParticipating
-			? await this.findCurrentSolution(userId, eventId, event.hasTeams, teamContext?.teamId)
+			? await this.findCurrentSolution(
+					userId,
+					resolvedEventId,
+					event.hasTeams,
+					teamContext?.teamId
+			  )
 			: null
 
 		let resolvedSelectedCaseId = currentParticipant?.caseId ?? null
@@ -364,7 +370,7 @@ export class UserEventsService {
 			await this.prisma.userEvent.update({
 				where: {
 					eventId_userId: {
-						eventId,
+						eventId: resolvedEventId,
 						userId
 					}
 				},
@@ -390,7 +396,7 @@ export class UserEventsService {
 			!isSolutionDeadlinePassed &&
 			(!event.hasCases || Boolean(resolvedSelectedCase))
 		const entryPass = event.hasEntryPass
-			? await this.passService.getEntryPassState(userId, eventId)
+			? await this.passService.getEntryPassState(userId, resolvedEventId)
 			: {
 					enabled: false,
 					isAvailable: false,

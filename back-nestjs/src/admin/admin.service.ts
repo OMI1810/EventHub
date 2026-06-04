@@ -99,6 +99,21 @@ export class AdminService {
 			  ).map(item => item.idTeam)
 			: []
 
+		const turniketUserIds = eventIds.length
+			? (
+					await this.prisma.eventTurniket.findMany({
+						where: {
+							eventId: {
+								in: eventIds
+							}
+						},
+						select: {
+							userId: true
+						}
+					})
+			  ).map(item => item.userId)
+			: []
+
 		await this.prisma.$transaction(async prisma => {
 			if (teamIds.length) {
 				await prisma.teamJoinRequest.deleteMany({
@@ -173,6 +188,16 @@ export class AdminService {
 			}
 
 			if (eventIds.length) {
+				if (turniketUserIds.length) {
+					await prisma.user.deleteMany({
+						where: {
+							idUser: {
+								in: turniketUserIds
+							}
+						}
+					})
+				}
+
 				await prisma.event.deleteMany({
 					where: {
 						idEvent: {

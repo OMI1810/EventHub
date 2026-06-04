@@ -16,6 +16,7 @@ interface Props {
 function formatCountdown(totalSeconds: number) {
 	const minutes = Math.floor(totalSeconds / 60)
 	const seconds = totalSeconds % 60
+
 	return `${minutes.toString().padStart(2, '0')}:${seconds
 		.toString()
 		.padStart(2, '0')}`
@@ -51,9 +52,9 @@ export function UserEventPassTab({ event }: Props) {
 		onSuccess: async response => {
 			const { token, qrPayload, expiresAt: nextExpiresAt } = response.data
 			const nextQrDataUrl = await QRCode.toDataURL(qrPayload, {
-				errorCorrectionLevel: 'M',
+				errorCorrectionLevel: 'L',
 				margin: 1,
-				width: 320,
+				width: 420,
 				color: {
 					dark: '#111111',
 					light: '#ffffff'
@@ -111,6 +112,7 @@ export function UserEventPassTab({ event }: Props) {
 
 		tick()
 		const intervalId = window.setInterval(tick, 1000)
+
 		return () => window.clearInterval(intervalId)
 	}, [clearPassState, expiresAt])
 
@@ -172,7 +174,9 @@ export function UserEventPassTab({ event }: Props) {
 						disabled={createTokenMutation.isPending || Boolean(activeToken)}
 						className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-zinc-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
 					>
-						{createTokenMutation.isPending ? 'Готовим пропуск...' : 'Показать QR-пропуск'}
+						{createTokenMutation.isPending
+							? 'Готовим пропуск...'
+							: 'Показать QR-пропуск'}
 					</button>
 
 					{activeToken ? (
@@ -189,8 +193,8 @@ export function UserEventPassTab({ event }: Props) {
 			</div>
 
 			{activeToken && qrDataUrl ? (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-					<div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-6 text-white shadow-2xl">
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 sm:p-4">
+					<div className="w-full max-w-2xl rounded-3xl border border-zinc-800 bg-zinc-950 p-4 text-white shadow-2xl sm:p-6">
 						<div className="flex items-start justify-between gap-4">
 							<div>
 								<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
@@ -199,7 +203,12 @@ export function UserEventPassTab({ event }: Props) {
 								<h4 className="mt-2 text-lg font-semibold">
 									Покажите QR-код на входе
 								</h4>
+								<p className="mt-2 text-sm text-zinc-400">
+									Откройте код на весь экран и поднесите его ближе к камере
+									турникета.
+								</p>
 							</div>
+
 							<button
 								type="button"
 								onClick={closeActivePass}
@@ -209,11 +218,11 @@ export function UserEventPassTab({ event }: Props) {
 							</button>
 						</div>
 
-						<div className="mt-6 rounded-3xl bg-white p-4">
+						<div className="mt-6 rounded-3xl bg-white p-3 sm:p-5">
 							<img
 								src={qrDataUrl}
 								alt="QR-пропуск"
-								className="mx-auto h-auto w-full max-w-[320px]"
+								className="mx-auto aspect-square h-auto w-full max-w-[460px]"
 							/>
 						</div>
 

@@ -249,6 +249,41 @@ export class PassService implements OnModuleDestroy {
 			}
 		}
 
+		const eventTurniket = await this.prisma.eventTurniket.findFirst({
+			where: {
+				eventId: payload.eventId,
+				userId: turniketUser.idUser,
+				isActive: true
+			},
+			select: {
+				label: true
+			}
+		})
+
+		if (!eventTurniket) {
+			await this.logEntryAttempt({
+				eventId: payload.eventId,
+				userId: payload.sub,
+				turniketUserId: turniketUser.idUser,
+				teamId: null,
+				caseId: null,
+				decision: EventEntryDecisionCode.DENY_NOT_ELIGIBLE,
+				tokenJti: payload.jti,
+				turniketLabelSnapshot: this.getTurniketLabel(turniketUser),
+				userDisplayNameSnapshot: null,
+				eventTitleSnapshot: null,
+				wasFirstSuccessfulEntry: false,
+				failureReason: 'Turniket is not assigned to this event',
+				scannerDeviceId: turniketDeviceId ?? null
+			})
+
+			return {
+				code: EventEntryDecisionCode.DENY_NOT_ELIGIBLE,
+				allow: false,
+				message: 'Turniket is not assigned to this event'
+			}
+		}
+
 		const ttlSeconds = payload.exp - Math.floor(Date.now() / 1000)
 		if (ttlSeconds <= 0) {
 			await this.logEntryAttempt({
@@ -284,7 +319,7 @@ export class PassService implements OnModuleDestroy {
 				caseId: eligibility.caseId,
 				decision: EventEntryDecisionCode.DENY_NOT_ELIGIBLE,
 				tokenJti: payload.jti,
-				turniketLabelSnapshot: this.getTurniketLabel(turniketUser),
+				turniketLabelSnapshot: eventTurniket.label,
 				userDisplayNameSnapshot: eligibility.userDisplayName,
 				eventTitleSnapshot: eligibility.eventTitle,
 				wasFirstSuccessfulEntry: false,
@@ -323,7 +358,7 @@ export class PassService implements OnModuleDestroy {
 				caseId: eligibility.caseId,
 				decision: EventEntryDecisionCode.DENY_REPLAY,
 				tokenJti: payload.jti,
-				turniketLabelSnapshot: this.getTurniketLabel(turniketUser),
+				turniketLabelSnapshot: eventTurniket.label,
 				userDisplayNameSnapshot: eligibility.userDisplayName,
 				eventTitleSnapshot: eligibility.eventTitle,
 				wasFirstSuccessfulEntry: false,
@@ -354,7 +389,7 @@ export class PassService implements OnModuleDestroy {
 			caseId: eligibility.caseId,
 			decision: EventEntryDecisionCode.ALLOW,
 			tokenJti: payload.jti,
-			turniketLabelSnapshot: this.getTurniketLabel(turniketUser),
+			turniketLabelSnapshot: eventTurniket.label,
 			userDisplayNameSnapshot: eligibility.userDisplayName,
 			eventTitleSnapshot: eligibility.eventTitle,
 			wasFirstSuccessfulEntry: previousSuccessfulEntries === 0,

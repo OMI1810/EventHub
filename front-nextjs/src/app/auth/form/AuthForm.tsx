@@ -1,8 +1,8 @@
 "use client";
 
+import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { MiniLoader } from "@/components/ui/MiniLoader";
 import { PhoneInput } from "@/components/ui/PhoneInput";
-import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { TRole } from "@/types/user.types";
 import { twMerge } from "tailwind-merge";
 import styles from "./AuthForm.module.scss";
@@ -11,6 +11,7 @@ import { useAuthForm } from "./useAuthForm";
 
 interface Props {
   isLogin: boolean;
+  authMode?: "default" | "turniket";
 }
 
 const roleOptions: Array<{ label: string; value: TRole }> = [
@@ -19,7 +20,7 @@ const roleOptions: Array<{ label: string; value: TRole }> = [
   { label: "Создатель организации", value: "ORGANIZATOR" },
 ];
 
-export function AuthForm({ isLogin }: Props) {
+export function AuthForm({ isLogin, authMode = "default" }: Props) {
   const {
     handleSubmit,
     isLoading,
@@ -28,23 +29,23 @@ export function AuthForm({ isLogin }: Props) {
     selectedRole,
     setValue,
     watch,
-  } = useAuthForm(isLogin);
+  } = useAuthForm(isLogin, authMode);
 
   const phoneValue = watch("phone") ?? "";
   const cityValue = watch("city") ?? "";
   const isRegularUser = selectedRole === "USER";
+  const isTurniketMode = authMode === "turniket";
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="w-full max-w-2xl mx-auto"
-    >
+    <form onSubmit={handleSubmit(onSubmit)} className="mx-auto w-full max-w-2xl">
       <div className="mb-4">
         <label className="text-gray-600">
-          Email
+          {isTurniketMode ? "Логин" : "Email"}
           <input
-            type="email"
-            placeholder="Введите почту"
+            type={isTurniketMode ? "text" : "email"}
+            placeholder={
+              isTurniketMode ? "Введите логин турникета" : "Введите почту"
+            }
             {...register("email", { required: true })}
             className={styles["input-field"]}
           />
@@ -63,7 +64,7 @@ export function AuthForm({ isLogin }: Props) {
         </label>
       </div>
 
-      {!isLogin && (
+      {!isLogin && !isTurniketMode ? (
         <>
           <div className="mb-4">
             <label className="text-gray-600">
@@ -179,8 +180,7 @@ export function AuthForm({ isLogin }: Props) {
                       onSelect={(address) =>
                         setValue(
                           "city",
-                          address.address.split(",")[0]?.trim() ||
-                            address.address,
+                          address.address.split(",")[0]?.trim() || address.address,
                           {
                             shouldDirty: true,
                             shouldValidate: true,
@@ -200,12 +200,10 @@ export function AuthForm({ isLogin }: Props) {
               {...register("personalDataConsent", { required: true })}
               className="mt-1 h-4 w-4 shrink-0 accent-primary"
             />
-            <span>
-              Я согласен на обработку персональных данных
-            </span>
+            <span>Я согласен на обработку персональных данных</span>
           </label>
         </>
-      )}
+      ) : null}
 
       <div className="mb-3">
         <button
@@ -213,15 +211,23 @@ export function AuthForm({ isLogin }: Props) {
           className={twMerge(
             styles["btn-primary"],
             isLogin ? "bg-primary" : "bg-secondary",
-            isLoading && "opacity-75 cursor-not-allowed",
+            isLoading && "cursor-not-allowed opacity-75",
           )}
           disabled={isLoading}
         >
-          {isLoading ? <MiniLoader /> : isLogin ? "Авторизация" : "Регистрация"}
+          {isLoading ? (
+            <MiniLoader />
+          ) : isTurniketMode ? (
+            "Войти как турникет"
+          ) : isLogin ? (
+            "Авторизация"
+          ) : (
+            "Регистрация"
+          )}
         </button>
       </div>
 
-      <AuthToggle isLogin={isLogin} />
+      {!isTurniketMode ? <AuthToggle isLogin={isLogin} /> : null}
     </form>
   );
 }

@@ -8,6 +8,11 @@ interface IAuthResponse {
 	accessToken: string
 }
 
+interface ITurniketLoginData {
+	login: string
+	password: string
+}
+
 class AuthService {
 	async main(
 		type: 'login' | 'register',
@@ -15,6 +20,19 @@ class AuthService {
 	) {
 		const response = await axiosClassic.post<IAuthResponse>(
 			`/auth/${type}`,
+			data
+		)
+
+		if (response.data.accessToken) {
+			authTokenService.saveAccessToken(response.data.accessToken)
+		}
+
+		return response
+	}
+
+	async loginTurniket(data: ITurniketLoginData) {
+		const response = await axiosClassic.post<IAuthResponse>(
+			'/auth/turniket/login',
 			data
 		)
 

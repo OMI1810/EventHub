@@ -19,7 +19,6 @@ import { AdminOrganizationDetailsModal } from './AdminOrganizationDetailsModal'
 import { AdminOrganizationsSection } from './AdminOrganizationsSection'
 import { AdminPendingRequestsSection } from './AdminPendingRequestsSection'
 import { AdminProfileEditForm } from './AdminProfileEditForm'
-import { AdminTurniketSection } from './AdminTurniketSection'
 
 export function AdminProfilePage() {
 	const router = useRouter()
@@ -135,8 +134,6 @@ export function AdminProfilePage() {
 				onSelect={setSelectedOrganization}
 				onAdd={() => setIsJoinModalOpen(true)}
 			/>
-
-			<AdminTurniketSection />
 
 			<AdminPendingRequestsSection
 				requests={requests}

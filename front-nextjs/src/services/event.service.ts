@@ -6,9 +6,12 @@ import {
 } from "@/types/event-create.types";
 import {
   EventInviteResponse,
+  CreateManagedEventTurniketData,
   ManagedEventAdminAccessOptions,
   ManagedEventDetails,
   ManagedEventSummary,
+  ManagedEventTurniketOverview,
+  UpdateManagedEventTurniketStatusData,
   UpsertManagedEventAdminAccessData,
   UpdateManagedEventCasesData,
   UpdateManagedEventGeneralData,
@@ -41,6 +44,41 @@ class EventService {
 
   async getMyEventDetails(eventId: string) {
     return instance.get<ManagedEventDetails>(`${this.baseUrl}/my/${eventId}`);
+  }
+
+  async getMyEventTurniketsOverview(eventId: string) {
+    return instance.get<ManagedEventTurniketOverview>(
+      `${this.baseUrl}/my/${eventId}/turnikets`,
+    );
+  }
+
+  async createMyEventTurniket(
+    eventId: string,
+    data: CreateManagedEventTurniketData,
+  ) {
+    return instance.post<{
+      success: boolean;
+      idTurniket: string;
+      overview: ManagedEventTurniketOverview;
+    }>(`${this.baseUrl}/my/${eventId}/turnikets`, data);
+  }
+
+  async deleteMyEventTurniket(eventId: string, turniketId: string) {
+    return instance.delete<{
+      success: boolean;
+      overview: ManagedEventTurniketOverview;
+    }>(`${this.baseUrl}/my/${eventId}/turnikets/${turniketId}`);
+  }
+
+  async updateMyEventTurniketStatus(
+    eventId: string,
+    turniketId: string,
+    data: UpdateManagedEventTurniketStatusData,
+  ) {
+    return instance.patch<{
+      success: boolean;
+      overview: ManagedEventTurniketOverview;
+    }>(`${this.baseUrl}/my/${eventId}/turnikets/${turniketId}`, data);
   }
 
   async getMyEventAdminAccessOptions(eventId: string) {

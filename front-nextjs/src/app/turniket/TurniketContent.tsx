@@ -3,27 +3,42 @@
 import { MiniLoader } from '@/components/ui/MiniLoader'
 import { DASHBOARD_PAGES } from '@/config/pages/dashboard.config'
 import { PUBLIC_PAGES } from '@/config/pages/public.config'
+import { useProfile } from '@/hooks/useProfile'
 import authService from '@/services/auth/auth.service'
 import turniketService from '@/services/turniket.service'
 import { parsePassQrPayload } from '@/utils/pass-qr'
-import { useProfile } from '@/hooks/useProfile'
 import { useMutation } from '@tanstack/react-query'
-import { Html5Qrcode } from 'html5-qrcode'
+import jsQR from 'jsqr'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { TurniketHeader } from './components/TurniketHeader'
+import { TurniketResultOverlay } from './components/TurniketResultOverlay'
+import { TurniketScannerViewport } from './components/TurniketScannerViewport'
+import { TurniketStatusPanel } from './components/TurniketStatusPanel'
 
 const RESULT_DISPLAY_MS = 4000
 
+type ScanSignal = {
+	type: 'allow' | 'deny'
+	title: string
+	description: string
+}
+
 export function TurniketContent() {
 	const router = useRouter()
-	const scannerElementId = useId().replace(/:/g, '-')
 	const { isLoading, user } = useProfile()
-	const scannerRef = useRef<Html5Qrcode | null>(null)
-	const isStoppingRef = useRef(false)
+
+	const videoRef = useRef<HTMLVideoElement | null>(null)
+	const streamRef = useRef<MediaStream | null>(null)
+	const rafRef = useRef<number | null>(null)
 	const resultTimerRef = useRef<number | null>(null)
+	const verifyQrPayloadRef = useRef<(raw: string) => Promise<void>>(async () => {})
+	const processingRef = useRef(false)
+	const scanLockedRef = useRef(false)
+
 	const [scannerError, setScannerError] = useState<string | null>(null)
 	const [isScannerStarting, setIsScannerStarting] = useState(true)
-	const [scanSignal, setScanSignal] = useState<'allow' | 'deny' | null>(null)
+	const [scanSignal, setScanSignal] = useState<ScanSignal | null>(null)
 	const [isScanLocked, setIsScanLocked] = useState(false)
 
 	useEffect(() => {
@@ -44,28 +59,55 @@ export function TurniketContent() {
 		router.replace(PUBLIC_PAGES.LOGIN)
 	}, [isLoading, router, user.role])
 
-	const showSignal = useCallback((signal: 'allow' | 'deny') => {
+	const setScannerLocked = useCallback((nextLocked: boolean) => {
+		scanLockedRef.current = nextLocked
+		setIsScanLocked(nextLocked)
+	}, [])
+
+	const clearResultUi = useCallback(() => {
 		if (resultTimerRef.current) {
 			window.clearTimeout(resultTimerRef.current)
+			resultTimerRef.current = null
 		}
 
-		setScanSignal(signal)
-		setIsScanLocked(true)
+		setScanSignal(null)
+		setScannerLocked(false)
+	}, [setScannerLocked])
 
-		resultTimerRef.current = window.setTimeout(() => {
-			setScanSignal(null)
-			setIsScanLocked(false)
-			resultTimerRef.current = null
-		}, RESULT_DISPLAY_MS)
-	}, [])
+	const showSignal = useCallback(
+		(type: 'allow' | 'deny', description?: string) => {
+			if (resultTimerRef.current) {
+				window.clearTimeout(resultTimerRef.current)
+				resultTimerRef.current = null
+			}
+
+			setScanSignal({
+				type,
+				title: type === 'allow' ? 'Пропустить' : 'Не пропускать',
+				description:
+					description ??
+					(type === 'allow'
+						? 'QR-код подтвержден. Участник может пройти.'
+						: 'QR-код отклонен. Проверьте причину и попробуйте снова.')
+			})
+			setScannerLocked(true)
+
+			resultTimerRef.current = window.setTimeout(() => {
+				setScanSignal(null)
+				setScannerLocked(false)
+				resultTimerRef.current = null
+			}, RESULT_DISPLAY_MS)
+		},
+		[setScannerLocked]
+	)
 
 	const verifyMutation = useMutation({
 		mutationFn: (token: string) => turniketService.verifyConsume(token),
 		onSuccess(response) {
-			showSignal(response.data.allow ? 'allow' : 'deny')
+			showSignal(response.data.allow ? 'allow' : 'deny', response.data.message)
 		},
 		onError() {
-			showSignal('deny')
+			showSignal('deny', 'Не удалось проверить пропуск. Повторите сканирование.')
 		}
 	})
 
@@ -76,54 +118,141 @@ export function TurniketContent() {
 		}
 	})
 
+	const stopMediaLoop = useCallback(() => {
+		if (rafRef.current) {
+			window.cancelAnimationFrame(rafRef.current)
+			rafRef.current = null
+		}
+
+		if (streamRef.current) {
+			streamRef.current.getTracks().forEach(track => track.stop())
+			streamRef.current = null
+		}
+	}, [])
+
+	const verifyQrPayload = useCallback(
+		async (raw: string) => {
+			setScannerLocked(true)
+
+			const token = parsePassQrPayload(raw)
+			if (!token) {
+				showSignal('deny', 'Считанный код не является пропуском EventHub.')
+				return
+			}
+
+			try {
+				await verifyMutation.mutateAsync(token)
+			} catch {}
+		},
+		[setScannerLocked, showSignal, verifyMutation]
+	)
+
+	useEffect(() => {
+		verifyQrPayloadRef.current = verifyQrPayload
+	}, [verifyQrPayload])
+
+	useEffect(() => {
+		document.body.classList.add('bg-black')
+
+		return () => {
+			document.body.classList.remove('bg-black')
+		}
+	}, [])
+
 	useEffect(() => {
 		if (isLoading || user.role !== 'TURNIKET') return
 
-		let isMounted = true
+		let mounted = true
 
 		const startScanner = async () => {
 			try {
-				const scanner = new Html5Qrcode(scannerElementId)
-				scannerRef.current = scanner
-
-				await scanner.start(
-					{ facingMode: 'environment' },
-					{
-						fps: 10,
-						qrbox: {
-							width: 240,
-							height: 240
-						}
+				const stream = await navigator.mediaDevices.getUserMedia({
+					video: {
+						facingMode: { ideal: 'environment' },
+						width: { ideal: 1920 },
+						height: { ideal: 1080 }
 					},
-					async rawValue => {
-						if (isStoppingRef.current || isScanLocked || verifyMutation.isPending) {
-							return
-						}
+					audio: false
+				})
 
-						const token = parsePassQrPayload(rawValue)
-						if (!token) {
-							showSignal('deny')
-							return
-						}
+				if (!mounted) return
 
-						setIsScanLocked(true)
-						try {
-							await verifyMutation.mutateAsync(token)
-						} finally {
-							if (!resultTimerRef.current) {
-								setIsScanLocked(false)
-							}
-						}
-					},
-					() => {}
-				)
+				streamRef.current = stream
+				setScannerError(null)
 
-				if (isMounted) {
-					setScannerError(null)
-					setIsScannerStarting(false)
+				if (videoRef.current) {
+					videoRef.current.srcObject = stream
+					await videoRef.current.play()
 				}
+
+				const canvas = document.createElement('canvas')
+				const context = canvas.getContext('2d', { willReadFrequently: true })
+
+				if (!context) {
+					setScannerError('Не удалось инициализировать сканер QR-кода.')
+					setIsScannerStarting(false)
+					return
+				}
+
+				const scanLoop = async () => {
+					if (!mounted || !videoRef.current) return
+
+					if (
+						!processingRef.current &&
+						!scanLockedRef.current &&
+						videoRef.current.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA
+					) {
+						processingRef.current = true
+
+						try {
+							const frameWidth = videoRef.current.videoWidth
+							const frameHeight = videoRef.current.videoHeight
+
+							if (frameWidth > 0 && frameHeight > 0) {
+								const maxScanWidth = 1280
+								const scale =
+									frameWidth > maxScanWidth ? maxScanWidth / frameWidth : 1
+								const targetWidth = Math.floor(frameWidth * scale)
+								const targetHeight = Math.floor(frameHeight * scale)
+
+								if (
+									canvas.width !== targetWidth ||
+									canvas.height !== targetHeight
+								) {
+									canvas.width = targetWidth
+									canvas.height = targetHeight
+								}
+
+								context.drawImage(videoRef.current, 0, 0, targetWidth, targetHeight)
+
+								const imageData = context.getImageData(
+									0,
+									0,
+									targetWidth,
+									targetHeight
+								)
+
+								const qr = jsQR(imageData.data, targetWidth, targetHeight, {
+									inversionAttempts: 'attemptBoth'
+								})
+
+								const value = qr?.data?.trim()
+								if (value) {
+									await verifyQrPayloadRef.current(value)
+								}
+							}
+						} finally {
+							processingRef.current = false
+						}
+					}
+
+					rafRef.current = window.requestAnimationFrame(scanLoop)
+				}
+
+				rafRef.current = window.requestAnimationFrame(scanLoop)
+				setIsScannerStarting(false)
 			} catch {
-				if (!isMounted) return
+				if (!mounted) return
 
 				setScannerError(
 					'Не удалось запустить камеру. Проверьте разрешение браузера и попробуйте снова.'
@@ -135,38 +264,11 @@ export function TurniketContent() {
 		void startScanner()
 
 		return () => {
-			isMounted = false
-
-			const stopScanner = async () => {
-				const scanner = scannerRef.current
-				if (!scanner || isStoppingRef.current) return
-
-				isStoppingRef.current = true
-
-				try {
-					await scanner.stop()
-				} catch {}
-
-				try {
-					await scanner.clear()
-				} catch {}
-			}
-
-			if (resultTimerRef.current) {
-				window.clearTimeout(resultTimerRef.current)
-				resultTimerRef.current = null
-			}
-
-			void stopScanner()
+			mounted = false
+			stopMediaLoop()
+			clearResultUi()
 		}
-	}, [
-		isLoading,
-		isScanLocked,
-		scannerElementId,
-		showSignal,
-		user.role,
-		verifyMutation
-	])
+	}, [clearResultUi, isLoading, stopMediaLoop, user.role])
 
 	if (isLoading || user.role !== 'TURNIKET') {
 		return (
@@ -177,56 +279,24 @@ export function TurniketContent() {
 	}
 
 	return (
-		<div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-4 px-4 py-6 text-white">
-			<div className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-5">
-				<div className="flex flex-wrap items-center justify-between gap-4">
-					<div>
-						<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-							Турникет
-						</p>
-						<h1 className="mt-2 text-2xl font-semibold">Сканирование пропуска</h1>
-					</div>
-
-					<button
-						type="button"
-						onClick={() => logoutMutation.mutate()}
-						disabled={logoutMutation.isPending}
-						className="rounded-xl border border-zinc-700 px-4 py-3 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-900 disabled:opacity-60"
-					>
-						{logoutMutation.isPending ? 'Выходим...' : 'Выйти'}
-					</button>
-				</div>
-			</div>
-
-			<div className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-5">
-				<div className="overflow-hidden rounded-3xl border border-zinc-800 bg-black">
-					<div id={scannerElementId} className="min-h-[420px]" />
-				</div>
-
-				{isScannerStarting ? (
-					<div className="mt-4 flex items-center gap-3 text-sm text-zinc-400">
-						<MiniLoader width={20} height={20} />
-						<span>Запускаем камеру...</span>
-					</div>
-				) : null}
-
-				{scannerError ? (
-					<p className="mt-4 text-sm text-rose-300">{scannerError}</p>
-				) : null}
-			</div>
-
+		<div className="flex min-h-dvh flex-col gap-2 sm:gap-4">
+			<TurniketHeader
+				isLoggingOut={logoutMutation.isPending}
+				onLogout={() => logoutMutation.mutate()}
+			/>
+			<TurniketScannerViewport videoRef={videoRef} />
+			<TurniketStatusPanel
+				isScannerStarting={isScannerStarting}
+				isScanLocked={isScanLocked}
+				scannerError={scannerError}
+			/>
 			{scanSignal ? (
-				<div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
-					<div
-						className={`flex h-36 w-36 items-center justify-center rounded-full border-4 border-white text-6xl font-bold ${
-							scanSignal === 'allow'
-								? 'bg-emerald-500 text-zinc-950'
-								: 'bg-rose-500 text-white'
-						}`}
-					>
-						{scanSignal === 'allow' ? 'OK' : 'X'}
-					</div>
-				</div>
+				<TurniketResultOverlay
+					description={scanSignal.description}
+					onClose={clearResultUi}
+					title={scanSignal.title}
+					type={scanSignal.type}
+				/>
 			) : null}
 		</div>
 	)

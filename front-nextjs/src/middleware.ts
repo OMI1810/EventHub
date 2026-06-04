@@ -7,6 +7,10 @@ import { protectLoginPages } from "./server-actions/middlewares/protect-login.mi
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
 
+  if (pathname.startsWith("/turniket/auth")) {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith(PUBLIC_PAGES.AUTH)) {
     return protectLoginPages(request);
   }
