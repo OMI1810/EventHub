@@ -8,10 +8,12 @@ import {
   Param,
   Patch,
   Post,
+  Delete,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
 import { CreateEventDto } from "./dto/create-event.dto";
+import { UpsertEventAdminAccessDto } from "./dto/event-admin-access.dto";
 import {
   UpdateEventCasesDto,
   UpdateEventMaterialsDto,
@@ -44,6 +46,42 @@ export class EventsController {
     @Param("eventId") eventId: string,
   ) {
     return this.eventsService.getMyEventDetails(userId, eventId);
+  }
+
+  @Auth()
+  @Get("my/:eventId/admin-access-options")
+  async getMyEventAdminAccessOptions(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+  ) {
+    return this.eventsService.getMyEventAdminAccessOptions(userId, eventId);
+  }
+
+  @Auth()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @HttpCode(200)
+  @Post("my/:eventId/admin-access")
+  async upsertMyEventAdminAccess(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Body() dto: UpsertEventAdminAccessDto,
+  ) {
+    return this.eventsService.upsertMyEventAdminAccess(userId, eventId, dto);
+  }
+
+  @Auth()
+  @HttpCode(200)
+  @Delete("my/:eventId/admin-access/:targetUserId")
+  async deleteMyEventAdminAccess(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Param("targetUserId") targetUserId: string,
+  ) {
+    return this.eventsService.deleteMyEventAdminAccess(
+      userId,
+      eventId,
+      targetUserId,
+    );
   }
 
   @Auth()

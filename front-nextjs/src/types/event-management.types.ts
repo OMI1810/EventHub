@@ -141,6 +141,55 @@ export interface ManagedEventJoinRequest {
   };
 }
 
+export interface ManagedEventAdminPermissions {
+  canView: boolean;
+  canEditGeneral: boolean;
+  canEditSettings: boolean;
+  canEditMaterials: boolean;
+  canEditCases: boolean;
+  canViewParticipants: boolean;
+  canViewTeams: boolean;
+  canViewSolutions: boolean;
+  canViewResults: boolean;
+  canEditResults: boolean;
+  canDeleteResults: boolean;
+  canFinishEvent: boolean;
+  canExportCsv: boolean;
+}
+
+export interface ManagedEventPermissionSnapshot
+  extends ManagedEventAdminPermissions {
+  hasFullAccess: boolean;
+}
+
+export interface ManagedEventAdminUser {
+  idUser: string;
+  email: string;
+  name?: string | null;
+  surname?: string | null;
+  patronymic?: string | null;
+}
+
+export interface ManagedEventAdminAccess extends ManagedEventAdminPermissions {
+  idAccess: string;
+  eventId: string;
+  userId: string;
+  user: ManagedEventAdminUser;
+}
+
+export interface ManagedEventAdminAccessOptions {
+  candidates: ManagedEventAdminUser[];
+  access: ManagedEventAdminAccess[];
+  presets: {
+    expert: ManagedEventAdminPermissions;
+  };
+}
+
+export interface UpsertManagedEventAdminAccessData
+  extends Partial<ManagedEventAdminPermissions> {
+  userId: string;
+}
+
 export interface ManagedEventDetails extends ManagedEventSummary {
   description?: string | null;
   slug: string;
@@ -157,6 +206,7 @@ export interface ManagedEventDetails extends ManagedEventSummary {
   materials: ManagedEventMaterial[];
   results: ManagedEventResult[];
   joinRequest: ManagedEventJoinRequest[];
+  permissions: ManagedEventPermissionSnapshot;
 }
 
 export interface UpdateManagedEventGeneralData {

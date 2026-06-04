@@ -6,8 +6,10 @@ import {
 } from "@/types/event-create.types";
 import {
   EventInviteResponse,
+  ManagedEventAdminAccessOptions,
   ManagedEventDetails,
   ManagedEventSummary,
+  UpsertManagedEventAdminAccessData,
   UpdateManagedEventCasesData,
   UpdateManagedEventGeneralData,
   UpdateManagedEventMaterialsData,
@@ -39,6 +41,28 @@ class EventService {
 
   async getMyEventDetails(eventId: string) {
     return instance.get<ManagedEventDetails>(`${this.baseUrl}/my/${eventId}`);
+  }
+
+  async getMyEventAdminAccessOptions(eventId: string) {
+    return instance.get<ManagedEventAdminAccessOptions>(
+      `${this.baseUrl}/my/${eventId}/admin-access-options`,
+    );
+  }
+
+  async upsertMyEventAdminAccess(
+    eventId: string,
+    data: UpsertManagedEventAdminAccessData,
+  ) {
+    return instance.post<ManagedEventAdminAccessOptions>(
+      `${this.baseUrl}/my/${eventId}/admin-access`,
+      data,
+    );
+  }
+
+  async deleteMyEventAdminAccess(eventId: string, userId: string) {
+    return instance.delete<ManagedEventAdminAccessOptions>(
+      `${this.baseUrl}/my/${eventId}/admin-access/${userId}`,
+    );
   }
 
   async updateMyEventGeneral(

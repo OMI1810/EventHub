@@ -78,6 +78,7 @@ model User {
   solutions               Solution[]
   results                 Result[]
   eventParticipant        UserEvent[]
+  eventAdminAccess        EventAdminAccess[]
 
   @@map("users")
 }
@@ -169,8 +170,38 @@ model Event {
   tag            EventTag[]
   participant UserEvent[]
   joinRequest EventJoinRequest[]
+  adminAccess EventAdminAccess[]
 
   @@map("events")
+}
+
+model EventAdminAccess {
+  idAccess String @id @default(cuid()) @map("id_access")
+
+  eventId String @map("event_id")
+  event   Event  @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
+  userId  String @map("user_id")
+  user    User   @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+
+  canView             Boolean @default(true) @map("can_view")
+  canEditGeneral      Boolean @default(false) @map("can_edit_general")
+  canEditSettings     Boolean @default(false) @map("can_edit_settings")
+  canEditMaterials    Boolean @default(false) @map("can_edit_materials")
+  canEditCases        Boolean @default(false) @map("can_edit_cases")
+  canViewParticipants Boolean @default(false) @map("can_view_participants")
+  canViewTeams        Boolean @default(false) @map("can_view_teams")
+  canViewSolutions    Boolean @default(false) @map("can_view_solutions")
+  canViewResults      Boolean @default(false) @map("can_view_results")
+  canEditResults      Boolean @default(false) @map("can_edit_results")
+  canDeleteResults    Boolean @default(false) @map("can_delete_results")
+  canFinishEvent      Boolean @default(false) @map("can_finish_event")
+  canExportCsv        Boolean @default(false) @map("can_export_csv")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([eventId, userId])
+  @@map("event_admin_access")
 }
 
 model UserEvent {
