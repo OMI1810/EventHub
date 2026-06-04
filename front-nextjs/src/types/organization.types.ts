@@ -63,6 +63,14 @@ export interface IUpdateOrganizationFormData {
 	cordinatY?: number
 }
 
+export interface ICreateOrganizationFormData {
+	name: string
+	description?: string
+	address: string
+	cordinatX?: number
+	cordinatY?: number
+}
+
 export interface IOrganizationInviteResponse {
 	code: string
 	expiresAt: string

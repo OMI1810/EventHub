@@ -52,48 +52,14 @@ export class UserService {
 		const role = dto.role ?? Role.USER
 		const isRegularUser = role === Role.USER
 
-		if (role === Role.ORGANIZATOR) {
-			return this.prisma.$transaction(async prisma => {
-				const user = await prisma.user.create({
-					data: {
-						email: dto.email,
-						phone,
-						contact,
-						password,
-						role
-					}
-				})
-
-				const organization = await prisma.organization.create({
-					data: {
-						name: dto.organizationName!.trim(),
-						description: this.optionalString(dto.organizationDescription),
-						address: dto.organizationAddress!.trim(),
-						cordinatX: dto.organizationCordinatX,
-						cordinatY: dto.organizationCordinatY,
-						ownerUserId: user.idUser
-					}
-				})
-
-				await prisma.userOrganization.create({
-					data: {
-						userId: user.idUser,
-						organizationId: organization.idOrganization
-					}
-				})
-
-				return user
-			})
-		}
-
 		return this.prisma.user.create({
 			data: {
 				email: dto.email,
 				phone,
 				contact,
-				surname: this.optionalString(dto.surname),
-				name: this.optionalString(dto.name),
-				patronymic: this.optionalString(dto.patronymic),
+				surname: role === Role.ORGANIZATOR ? undefined : this.optionalString(dto.surname),
+				name: role === Role.ORGANIZATOR ? undefined : this.optionalString(dto.name),
+				patronymic: role === Role.ORGANIZATOR ? undefined : this.optionalString(dto.patronymic),
 				birthDate: isRegularUser ? new Date(dto.birthDate!) : undefined,
 				city: isRegularUser ? this.optionalString(dto.city) : undefined,
 				password,

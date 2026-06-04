@@ -60,27 +60,22 @@ export class RegisterDto extends AuthDto {
   @IsString()
   city?: string;
 
-  @ValidateIf((dto) => dto.role === Role.ORGANIZATOR)
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   organizationName?: string;
 
-  @ValidateIf((dto) => dto.role === Role.ORGANIZATOR)
   @IsOptional()
   @IsString()
   organizationDescription?: string;
 
-  @ValidateIf((dto) => dto.role === Role.ORGANIZATOR)
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   organizationAddress?: string;
 
-  @ValidateIf((dto) => dto.role === Role.ORGANIZATOR)
   @IsOptional()
   @IsNumber()
   organizationCordinatX?: number;
 
-  @ValidateIf((dto) => dto.role === Role.ORGANIZATOR)
   @IsOptional()
   @IsNumber()
   organizationCordinatY?: number;

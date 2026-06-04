@@ -308,7 +308,13 @@ export class AdminService {
 		userId: string,
 		dto: CreateAdminOrganizationRequestDto
 	) {
-		await this.requireAdmin(userId)
+		const user = await this.requireAdmin(userId)
+
+		if (user.verificationToken) {
+			throw new ForbiddenException(
+				'Подтвердите почту перед отправкой заявки в организацию'
+			)
+		}
 
 		const invite =
 			await this.organizationInviteService.findActiveInviteByCode(dto.code)

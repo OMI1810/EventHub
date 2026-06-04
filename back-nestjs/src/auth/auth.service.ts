@@ -114,6 +114,31 @@ export class AuthService {
     return "Email verified!";
   }
 
+  async resendVerificationEmail(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { idUser: userId },
+      select: {
+        email: true,
+        verificationToken: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException("Пользователь не найден");
+    }
+
+    if (!user.verificationToken) {
+      throw new BadRequestException("Почта уже подтверждена");
+    }
+
+    await this.emailService.sendVerification(
+      user.email,
+      `${VERIFY_EMAIL_URL}${user.verificationToken}`,
+    );
+
+    return { success: true };
+  }
+
   async buildResponseObject(user: User) {
     const tokens = await this.issueTokens(user.idUser, user.role);
     return { user: this.omitPassword(user), ...tokens };

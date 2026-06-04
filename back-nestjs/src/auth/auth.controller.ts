@@ -13,6 +13,8 @@ import {
 } from "@nestjs/common";
 import { Request, Response } from "express";
 import { AuthService } from "./auth.service";
+import { Auth } from "./decorators/auth.decorator";
+import { CurrentUser } from "./decorators/user.decorator";
 import { AuthDto, RegisterDto } from "./dto/auth.dto";
 import { RefreshTokenService } from "./refresh-token.service";
 
@@ -54,6 +56,13 @@ export class AuthController {
     }
 
     return this.authService.verifyEmail(token);
+  }
+
+  @Auth()
+  @HttpCode(200)
+  @Post("auth/resend-verification-email")
+  async resendVerificationEmail(@CurrentUser("idUser") userId: string) {
+    return this.authService.resendVerificationEmail(userId);
   }
 
   @HttpCode(200)

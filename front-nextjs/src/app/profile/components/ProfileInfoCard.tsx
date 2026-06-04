@@ -1,5 +1,6 @@
 'use client'
 
+import { ResendVerificationEmailButton } from '@/components/auth/ResendVerificationEmailButton'
 import { IProfile } from '@/types/profile.types'
 import { ReactNode } from 'react'
 
@@ -67,6 +68,18 @@ export function ProfileInfoCard({
 					</button>
 				</div>
 			</div>
+
+			{profile.verificationToken ? (
+				<div className="mt-6 flex flex-col gap-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-200 sm:flex-row sm:items-center sm:justify-between">
+					<div>
+						<p className="font-semibold">Почта не верифицирована</p>
+						<p className="mt-1 text-amber-100/80">
+							Подтвердите email, чтобы получить полный доступ к возможностям аккаунта.
+						</p>
+					</div>
+					<ResendVerificationEmailButton className="shrink-0" />
+				</div>
+			) : null}
 
 			{editForm}
 

@@ -1,4 +1,4 @@
-import { axiosClassic } from '@/api/axios'
+import { axiosClassic, instance } from '@/api/axios'
 import { IFormData } from '@/types/auth.types'
 import { IUser } from '@/types/user.types'
 import authTokenService from './auth-token.service'
@@ -42,6 +42,12 @@ class AuthService {
 		if (response.data) authTokenService.removeAccessToken()
 
 		return response
+	}
+
+	async resendVerificationEmail() {
+		return instance.post<{ success: boolean }>(
+			'/auth/resend-verification-email'
+		)
 	}
 }
 

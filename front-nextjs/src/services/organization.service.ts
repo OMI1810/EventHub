@@ -5,6 +5,7 @@ import {
 	IOrganizationInviteResponse,
 	IOrganizationJoinRequestSummary,
 	IOrganizationSummary,
+	ICreateOrganizationFormData,
 	IUpdateOrganizationFormData
 } from '@/types/organization.types'
 
@@ -13,6 +14,10 @@ class OrganizationService {
 
 	async getMyOrganization() {
 		return instance.get<IOrganizationSummary>(`${this.BASE_URL}/me`)
+	}
+
+	async createMyOrganization(data: ICreateOrganizationFormData) {
+		return instance.post<IOrganizationSummary>(`${this.BASE_URL}/me`, data)
 	}
 
 	async updateMyOrganization(data: IUpdateOrganizationFormData) {

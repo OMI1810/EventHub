@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { Role, StatusJoinRequest } from '@prisma/client'
 import { OrganizationInviteService } from './organization-invite.service'
+import { CreateOrganizationDto } from './dto/create-organization.dto'
 import { UpdateOrganizationDto } from './dto/update-organization.dto'
 
 @Injectable()
@@ -26,6 +27,39 @@ export class OrganizationService {
 		}
 
 		return organization
+	}
+
+	async createMyOrganization(ownerId: string, dto: CreateOrganizationDto) {
+		const user = await this.requireVerifiedOrganizationOwner(ownerId)
+		const existingOrganization = await this.getOrganizationByOwnerId(ownerId)
+
+		if (existingOrganization) {
+			throw new BadRequestException('Организация уже создана')
+		}
+
+		const organization = await this.prisma.$transaction(async prisma => {
+			const createdOrganization = await prisma.organization.create({
+				data: {
+					name: dto.name.trim(),
+					description: this.optionalString(dto.description),
+					address: dto.address.trim(),
+					cordinatX: dto.cordinatX,
+					cordinatY: dto.cordinatY,
+					ownerUserId: user.idUser
+				}
+			})
+
+			await prisma.userOrganization.create({
+				data: {
+					userId: user.idUser,
+					organizationId: createdOrganization.idOrganization
+				}
+			})
+
+			return createdOrganization
+		})
+
+		return this.getMyOrganization(organization.ownerUserId)
 	}
 
 	async updateMyOrganization(ownerId: string, dto: UpdateOrganizationDto) {
@@ -496,7 +530,8 @@ export class OrganizationService {
 				userId: true,
 				user: {
 					select: {
-						role: true
+						role: true,
+						verificationToken: true
 					}
 				}
 			}
@@ -509,6 +544,12 @@ export class OrganizationService {
 		if (joinRequest.user.role !== Role.ADMIN) {
 			throw new BadRequestException(
 				'Только аккаунты администраторов могут вступать в организацию как администраторы'
+			)
+		}
+
+		if (joinRequest.user.verificationToken) {
+			throw new BadRequestException(
+				'Администратор должен подтвердить почту перед добавлением в организацию'
 			)
 		}
 
@@ -607,6 +648,37 @@ export class OrganizationService {
 				}
 			}
 		})
+	}
+
+	private async requireVerifiedOrganizationOwner(ownerId: string) {
+		const user = await this.prisma.user.findUnique({
+			where: {
+				idUser: ownerId
+			},
+			select: {
+				idUser: true,
+				role: true,
+				verificationToken: true
+			}
+		})
+
+		if (!user) {
+			throw new NotFoundException('Пользователь не найден')
+		}
+
+		if (user.role !== Role.ORGANIZATOR) {
+			throw new ForbiddenException(
+				'Создать организацию может только создатель организации'
+			)
+		}
+
+		if (user.verificationToken) {
+			throw new ForbiddenException(
+				'Подтвердите почту перед созданием организации'
+			)
+		}
+
+		return user
 	}
 
 	private optionalString(value?: string) {

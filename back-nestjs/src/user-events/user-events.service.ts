@@ -497,7 +497,7 @@ export class UserEventsService {
 	}
 
 	async participate(userId: string, eventId: string) {
-		await this.requireRegularUser(userId)
+		await this.requireVerifiedRegularUser(userId)
 
 		const event = await this.prisma.event.findUnique({
 			where: {
@@ -761,7 +761,7 @@ export class UserEventsService {
 	}
 
 	async selectCase(userId: string, eventId: string, caseId: string) {
-		await this.requireRegularUser(userId)
+		await this.requireVerifiedRegularUser(userId)
 
 		const participant = await this.prisma.userEvent.findUnique({
 			where: {
@@ -893,7 +893,7 @@ export class UserEventsService {
 		eventId: string,
 		dto: SaveUserEventSolutionDto
 	) {
-		await this.requireRegularUser(userId)
+		await this.requireVerifiedRegularUser(userId)
 
 		const normalizedUrlSolution = dto.urlSolution?.trim()
 		const normalizedUrlPresentation = dto.urlPresentation?.trim()
@@ -1057,7 +1057,8 @@ export class UserEventsService {
 			},
 			select: {
 				idUser: true,
-				role: true
+				role: true,
+				verificationToken: true
 			}
 		})
 
@@ -1068,6 +1069,18 @@ export class UserEventsService {
 		if (user.role !== Role.USER) {
 			throw new ForbiddenException(
 				'Р­С‚РѕС‚ СЂР°Р·РґРµР» РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ РѕР±С‹С‡РЅС‹Рј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏРј'
+			)
+		}
+
+		return user
+	}
+
+	private async requireVerifiedRegularUser(userId: string) {
+		const user = await this.requireRegularUser(userId)
+
+		if (user.verificationToken) {
+			throw new ForbiddenException(
+				'Подтвердите почту перед участием в мероприятиях'
 			)
 		}
 

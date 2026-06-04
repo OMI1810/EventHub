@@ -12,6 +12,7 @@ import {
 	UsePipes,
 	ValidationPipe
 } from '@nestjs/common'
+import { CreateOrganizationDto } from './dto/create-organization.dto'
 import { UpdateOrganizationDto } from './dto/update-organization.dto'
 import { OrganizationService } from './organization.service'
 
@@ -41,6 +42,17 @@ export class OrganizationController {
 	@Get('me/join-requests')
 	async getMyOrganizationJoinRequests(@CurrentUser('idUser') ownerId: string) {
 		return this.organizationService.getMyOrganizationJoinRequests(ownerId)
+	}
+
+	@Auth()
+	@UsePipes(new ValidationPipe())
+	@HttpCode(200)
+	@Post('me')
+	async createMyOrganization(
+		@CurrentUser('idUser') ownerId: string,
+		@Body() dto: CreateOrganizationDto
+	) {
+		return this.organizationService.createMyOrganization(ownerId, dto)
 	}
 
 	@Auth()
