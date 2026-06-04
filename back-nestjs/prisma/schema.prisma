@@ -163,14 +163,14 @@ model Event {
   solutions Solution[]
   results   Result[]
 
-  organizationId String       @map("organization_id")
-  organization   Organization @relation(fields: [organizationId], references: [idOrganization])
-  userId         String       @map("user_id")
-  user           User         @relation(fields: [userId], references: [idUser])
+  organizationId String             @map("organization_id")
+  organization   Organization       @relation(fields: [organizationId], references: [idOrganization])
+  userId         String             @map("user_id")
+  user           User               @relation(fields: [userId], references: [idUser])
   tag            EventTag[]
-  participant UserEvent[]
-  joinRequest EventJoinRequest[]
-  adminAccess EventAdminAccess[]
+  participant    UserEvent[]
+  joinRequest    EventJoinRequest[]
+  adminAccess    EventAdminAccess[]
 
   @@map("events")
 }
@@ -183,19 +183,20 @@ model EventAdminAccess {
   userId  String @map("user_id")
   user    User   @relation(fields: [userId], references: [idUser], onDelete: Cascade)
 
-  canView             Boolean @default(true) @map("can_view")
-  canEditGeneral      Boolean @default(false) @map("can_edit_general")
-  canEditSettings     Boolean @default(false) @map("can_edit_settings")
-  canEditMaterials    Boolean @default(false) @map("can_edit_materials")
-  canEditCases        Boolean @default(false) @map("can_edit_cases")
-  canViewParticipants Boolean @default(false) @map("can_view_participants")
-  canViewTeams        Boolean @default(false) @map("can_view_teams")
-  canViewSolutions    Boolean @default(false) @map("can_view_solutions")
-  canViewResults      Boolean @default(false) @map("can_view_results")
-  canEditResults      Boolean @default(false) @map("can_edit_results")
-  canDeleteResults    Boolean @default(false) @map("can_delete_results")
-  canFinishEvent      Boolean @default(false) @map("can_finish_event")
-  canExportCsv        Boolean @default(false) @map("can_export_csv")
+  canView                 Boolean @default(true) @map("can_view")
+  canEditGeneral          Boolean @default(false) @map("can_edit_general")
+  canEditSettings         Boolean @default(false) @map("can_edit_settings")
+  canEditMaterials        Boolean @default(false) @map("can_edit_materials")
+  canEditCases            Boolean @default(false) @map("can_edit_cases")
+  canViewParticipants     Boolean @default(false) @map("can_view_participants")
+  canViewTeams            Boolean @default(false) @map("can_view_teams")
+  canViewSolutions        Boolean @default(false) @map("can_view_solutions")
+  canViewResults          Boolean @default(false) @map("can_view_results")
+  canEditResults          Boolean @default(false) @map("can_edit_results")
+  canDeleteResults        Boolean @default(false) @map("can_delete_results")
+  canFinishEvent          Boolean @default(false) @map("can_finish_event")
+  canExportCsv            Boolean @default(false) @map("can_export_csv")
+  canManagePrivateInvites Boolean @default(false) @map("can_manage_private_invites")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -205,12 +206,12 @@ model EventAdminAccess {
 }
 
 model UserEvent {
-  eventId String @map("event_id")
-  event   Event  @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
-  userId  String @map("user_id")
+  eventId String  @map("event_id")
+  event   Event   @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
+  userId  String  @map("user_id")
   user    User    @relation(fields: [userId], references: [idUser], onDelete: Cascade)
-  caseId String? @map("case_id")
-  case   Case?   @relation(fields: [caseId], references: [idCase])
+  caseId  String? @map("case_id")
+  case    Case?   @relation(fields: [caseId], references: [idCase])
 
   createAt DateTime @default(now()) @map("create_at")
 
@@ -258,8 +259,8 @@ model Case {
   dateForEndSelected   DateTime
   dateStopCode         DateTime
 
-  eventId   String     @map("event_id")
-  event     Event      @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
+  eventId   String      @map("event_id")
+  event     Event       @relation(fields: [eventId], references: [idEvent], onDelete: Cascade)
   materials Material[]
   teams     Team[]
   solutions Solution[]
@@ -298,7 +299,7 @@ model Material {
 model UserTeam {
   userId String @map("user_id")
   user   User   @relation(fields: [userId], references: [idUser], onDelete: Cascade)
-  teamId String @map("tag_id")
+  teamId String @map("team_id")
   team   Team   @relation(fields: [teamId], references: [idTeam], onDelete: Cascade)
 
   role String?

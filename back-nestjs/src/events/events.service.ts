@@ -27,6 +27,7 @@ import {
 } from "./dto/create-event.dto";
 import {
   EventAdminPermissionsDto,
+  TransferEventOwnershipDto,
   UpsertEventAdminAccessDto,
 } from "./dto/event-admin-access.dto";
 import {
@@ -76,7 +77,6 @@ interface EventTimelineInput {
   cases?: EventTimelineCaseInput[];
 }
 
-
 type EventAdminPermissionKey =
   | "canView"
   | "canEditGeneral"
@@ -90,7 +90,8 @@ type EventAdminPermissionKey =
   | "canEditResults"
   | "canDeleteResults"
   | "canFinishEvent"
-  | "canExportCsv";
+  | "canExportCsv"
+  | "canManagePrivateInvites";
 
 const EVENT_ADMIN_PERMISSION_KEYS: EventAdminPermissionKey[] = [
   "canView",
@@ -106,6 +107,7 @@ const EVENT_ADMIN_PERMISSION_KEYS: EventAdminPermissionKey[] = [
   "canDeleteResults",
   "canFinishEvent",
   "canExportCsv",
+  "canManagePrivateInvites",
 ];
 
 const EVENT_EXPERT_PERMISSIONS: Record<EventAdminPermissionKey, boolean> = {
@@ -122,7 +124,26 @@ const EVENT_EXPERT_PERMISSIONS: Record<EventAdminPermissionKey, boolean> = {
   canDeleteResults: false,
   canFinishEvent: false,
   canExportCsv: true,
+  canManagePrivateInvites: false,
 };
+
+const EVENT_FULL_PERMISSIONS: Record<EventAdminPermissionKey, boolean> =
+  EVENT_ADMIN_PERMISSION_KEYS.reduce(
+    (acc, key) => ({
+      ...acc,
+      [key]: true,
+    }),
+    {} as Record<EventAdminPermissionKey, boolean>,
+  );
+
+const EVENT_EMPTY_PERMISSIONS: Record<EventAdminPermissionKey, boolean> =
+  EVENT_ADMIN_PERMISSION_KEYS.reduce(
+    (acc, key) => ({
+      ...acc,
+      [key]: false,
+    }),
+    {} as Record<EventAdminPermissionKey, boolean>,
+  );
 
 const EVENT_ADMIN_PERMISSION_DEPENDENCIES: Partial<
   Record<EventAdminPermissionKey, EventAdminPermissionKey[]>
@@ -139,6 +160,7 @@ const EVENT_ADMIN_PERMISSION_DEPENDENCIES: Partial<
   canDeleteResults: ["canView", "canViewResults", "canEditResults"],
   canFinishEvent: ["canView"],
   canExportCsv: ["canView"],
+  canManagePrivateInvites: ["canView"],
 };
 const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
   [CreateEventType.HACKATHON]: {
@@ -271,6 +293,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       },
       select: {
         idEvent: true,
+        userId: true,
         title: true,
         description: true,
         slug: true,
@@ -297,7 +320,30 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
           select: {
             idOrganization: true,
             name: true,
+            ownerUserId: true,
           },
+        },
+        adminAccess: {
+          where: {
+            userId,
+          },
+          select: {
+            canView: true,
+            canEditGeneral: true,
+            canEditSettings: true,
+            canEditMaterials: true,
+            canEditCases: true,
+            canViewParticipants: true,
+            canViewTeams: true,
+            canViewSolutions: true,
+            canViewResults: true,
+            canEditResults: true,
+            canDeleteResults: true,
+            canFinishEvent: true,
+            canExportCsv: true,
+            canManagePrivateInvites: true,
+          },
+          take: 1,
         },
         teams: {
           select: {
@@ -478,17 +524,28 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!event) {
-      throw new NotFoundException("РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ");
+      throw new NotFoundException("Мероприятие не найдено");
     }
+
+    const permissions = this.resolveEventPermissionSnapshot(userId, event);
 
     return {
       ...event,
+      permissions,
       registeredUsersCount: event.hasTeams
         ? this.countUniqueTeamUsers(event.teams)
         : event.participant.length,
+      userId: undefined,
+      adminAccess: undefined,
+      organization: {
+        idOrganization: event.organization.idOrganization,
+        name: event.organization.name,
+      },
       teams: event.teams.map((team) => ({
         ...team,
-        latestSolution: team.solutions[0] ?? null,
+        latestSolution: permissions.canViewSolutions
+          ? team.solutions[0] ?? null
+          : null,
         membersCount: team.user.length,
         members: team.user.map((member) => ({
           role: member.role,
@@ -503,7 +560,9 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         return {
           ...participant,
           user,
-          latestSolution: solutions[0] ?? null,
+          latestSolution: permissions.canViewSolutions
+            ? solutions[0] ?? null
+            : null,
         };
       }),
       cases: event.cases.map((eventCase) => ({
@@ -511,6 +570,9 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         tags: eventCase.tag.map((caseTag) => caseTag.tag),
         tag: undefined,
       })),
+      joinRequest: permissions.canManagePrivateInvites
+        ? event.joinRequest
+        : [],
     };
   }
 
@@ -523,7 +585,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
 
     if (event.status === EventStatus.FINISHED) {
       throw new BadRequestException(
-        "Р—Р°РІРµСЂС€РµРЅРЅРѕРµ РјРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµР»СЊР·СЏ СЂРµРґР°РєС‚РёСЂРѕРІР°С‚СЊ",
+        "Завершенное мероприятие нельзя редактировать",
       );
     }
 
@@ -546,7 +608,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!currentEvent) {
-      throw new NotFoundException("РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ");
+      throw new NotFoundException("Мероприятие не найдено");
     }
 
     this.validateEventTimeline({
@@ -581,7 +643,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         dataEnd: new Date(dto.dataEnd),
         format: dto.format,
         address:
-          dto.format === EventFormat.ONLINE ? "РћРЅР»Р°Р№РЅ" : dto.address.trim(),
+          dto.format === EventFormat.ONLINE ? "Онлайн" : dto.address.trim(),
         cordinatX: dto.cordinatX ?? null,
         cordinatY: dto.cordinatY ?? null,
         status:
@@ -629,7 +691,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!currentEvent) {
-      throw new NotFoundException("РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ");
+      throw new NotFoundException("Мероприятие не найдено");
     }
 
     const hasParticipantLimit =
@@ -647,15 +709,15 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       : currentEvent.dateDeadLine;
 
     if (hasParticipantLimit && !participantLimit) {
-      throw new BadRequestException("РўСЂРµР±СѓРµС‚СЃСЏ РѕР±С‰РёР№ Р»РёРјРёС‚ СѓС‡Р°СЃС‚РЅРёРєРѕРІ");
+      throw new BadRequestException("Требуется общий лимит участников");
     }
 
     if (hasTeams && !teamMemberLimit) {
-      throw new BadRequestException("РўСЂРµР±СѓРµС‚СЃСЏ Р»РёРјРёС‚ СѓС‡Р°СЃС‚РЅРёРєРѕРІ РІ РєРѕРјР°РЅРґРµ");
+      throw new BadRequestException("Требуется лимит участников в команде");
     }
 
     if (hasLoadedSolution && !dateDeadLine) {
-      throw new BadRequestException("РўСЂРµР±СѓРµС‚СЃСЏ РґРµРґР»Р°Р№РЅ Р·Р°РіСЂСѓР·РєРё СЂРµС€РµРЅРёР№");
+      throw new BadRequestException("Требуется дедлайн загрузки решений");
     }
 
     this.validateEventTimeline({
@@ -783,7 +845,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!event) {
-      throw new NotFoundException("РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ");
+      throw new NotFoundException("Мероприятие не найдено");
     }
 
     this.validateEventTimeline({
@@ -932,12 +994,12 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!event) {
-      throw new NotFoundException("РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ");
+      throw new NotFoundException("Мероприятие не найдено");
     }
 
     if (!event.hasResualt) {
       throw new BadRequestException(
-        "Р”Р»СЏ СЌС‚РѕРіРѕ РјРµСЂРѕРїСЂРёСЏС‚РёСЏ РЅРµ РІРєР»СЋС‡РµРЅС‹ СЂРµР·СѓР»СЊС‚Р°С‚С‹",
+        "Для этого мероприятия не включены результаты",
       );
     }
 
@@ -1009,13 +1071,31 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   async getMyEventAdminAccessOptions(userId: string, eventId: string) {
     const event = await this.ensureFullEventAccess(userId, eventId);
 
-    const [candidates, access] = await Promise.all([
+    const [owner, candidates, access] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: {
+          idUser: event.userId,
+        },
+        select: {
+          idUser: true,
+          email: true,
+          name: true,
+          surname: true,
+          patronymic: true,
+        },
+      }),
       this.prisma.user.findMany({
         where: {
           role: Role.ADMIN,
           OR: [
-            { ownedOrganizations: { some: { idOrganization: event.organizationId } } },
-            { organizations: { some: { organizationId: event.organizationId } } },
+            {
+              ownedOrganizations: {
+                some: { idOrganization: event.organizationId },
+              },
+            },
+            {
+              organizations: { some: { organizationId: event.organizationId } },
+            },
           ],
         },
         select: {
@@ -1045,12 +1125,16 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     ]);
 
     return {
+      owner,
+      canTransferOwnership: true,
       candidates: candidates.filter(
-        (candidate) => candidate.idUser !== event.userId && candidate.idUser !== userId,
+        (candidate) =>
+          candidate.idUser !== event.userId && candidate.idUser !== userId,
       ),
       access,
       presets: {
         expert: EVENT_EXPERT_PERMISSIONS,
+        admin: EVENT_FULL_PERMISSIONS,
       },
     };
   }
@@ -1063,7 +1147,9 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     const event = await this.ensureFullEventAccess(userId, eventId);
 
     if (dto.userId === event.userId || dto.userId === userId) {
-      throw new BadRequestException("Нельзя назначить доступ владельцу мероприятия");
+      throw new BadRequestException(
+        "Нельзя назначить доступ владельцу мероприятия",
+      );
     }
 
     const targetUser = await this.prisma.user.findFirst({
@@ -1071,7 +1157,11 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         idUser: dto.userId,
         role: Role.ADMIN,
         OR: [
-          { ownedOrganizations: { some: { idOrganization: event.organizationId } } },
+          {
+            ownedOrganizations: {
+              some: { idOrganization: event.organizationId },
+            },
+          },
           { organizations: { some: { organizationId: event.organizationId } } },
         ],
       },
@@ -1120,12 +1210,70 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
 
     return this.getMyEventAdminAccessOptions(userId, eventId);
   }
+
+  async transferMyEventOwnership(
+    userId: string,
+    eventId: string,
+    dto: TransferEventOwnershipDto,
+  ) {
+    const event = await this.ensureFullEventAccess(userId, eventId);
+
+    if (dto.userId === event.userId) {
+      throw new BadRequestException(
+        "Этот администратор уже владелец мероприятия",
+      );
+    }
+
+    const targetUser = await this.prisma.user.findFirst({
+      where: {
+        idUser: dto.userId,
+        role: Role.ADMIN,
+        OR: [
+          {
+            ownedOrganizations: {
+              some: { idOrganization: event.organizationId },
+            },
+          },
+          { organizations: { some: { organizationId: event.organizationId } } },
+        ],
+      },
+      select: {
+        idUser: true,
+      },
+    });
+
+    if (!targetUser) {
+      throw new BadRequestException(
+        "Новый владелец должен быть администратором организации",
+      );
+    }
+
+    await this.prisma.$transaction(async (prisma) => {
+      await prisma.event.update({
+        where: {
+          idEvent: eventId,
+        },
+        data: {
+          userId: dto.userId,
+        },
+      });
+
+      await prisma.eventAdminAccess.deleteMany({
+        where: {
+          eventId,
+          userId: dto.userId,
+        },
+      });
+    });
+
+    return this.getMyEventAdminAccessOptions(dto.userId, eventId);
+  }
   async createMyEventInvite(userId: string, eventId: string) {
-    const event = await this.ensureEventAccess(userId, eventId);
+    const event = await this.ensurePrivateInviteAccess(userId, eventId);
 
     if (event.status === EventStatus.FINISHED) {
       throw new BadRequestException(
-        "Р”Р»СЏ Р·Р°РІРµСЂС€РµРЅРЅРѕРіРѕ РјРµСЂРѕРїСЂРёСЏС‚РёСЏ РЅРµР»СЊР·СЏ СЃРѕР·РґР°С‚СЊ РїСЂРёРіР»Р°С€РµРЅРёРµ",
+        "Для завершенного мероприятия нельзя создать приглашение",
       );
     }
 
@@ -1152,7 +1300,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     requestId: string,
   ) {
-    await this.ensureEventAccess(userId, eventId);
+    await this.ensurePrivateInviteAccess(userId, eventId);
 
     const request = await this.prisma.eventJoinRequest.findFirst({
       where: {
@@ -1167,11 +1315,11 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!request) {
-      throw new NotFoundException("Р—Р°СЏРІРєР° РЅРµ РЅР°Р№РґРµРЅР°");
+      throw new NotFoundException("Заявка не найдена");
     }
 
     if (request.status !== StatusJoinRequest.PENDING) {
-      throw new BadRequestException("Р—Р°СЏРІРєР° СѓР¶Рµ РѕР±СЂР°Р±РѕС‚Р°РЅР°");
+      throw new BadRequestException("Заявка уже обработана");
     }
 
     await this.prisma.$transaction(async (prisma) => {
@@ -1207,7 +1355,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     requestId: string,
   ) {
-    await this.ensureEventAccess(userId, eventId);
+    await this.ensurePrivateInviteAccess(userId, eventId);
 
     const request = await this.prisma.eventJoinRequest.findFirst({
       where: {
@@ -1221,11 +1369,11 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!request) {
-      throw new NotFoundException("Р—Р°СЏРІРєР° РЅРµ РЅР°Р№РґРµРЅР°");
+      throw new NotFoundException("Заявка не найдена");
     }
 
     if (request.status !== StatusJoinRequest.PENDING) {
-      throw new BadRequestException("Р—Р°СЏРІРєР° СѓР¶Рµ РѕР±СЂР°Р±РѕС‚Р°РЅР°");
+      throw new BadRequestException("Заявка уже обработана");
     }
 
     await this.prisma.eventJoinRequest.update({
@@ -1280,7 +1428,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
 
     if (!user || (user.role !== Role.ADMIN && user.role !== Role.ORGANIZATOR)) {
       throw new ForbiddenException(
-        "РўРѕР»СЊРєРѕ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ Рё РѕСЂРіР°РЅРёР·Р°С‚РѕСЂ РјРѕР¶РµС‚ СЃРѕР·РґР°С‚СЊ РјРµСЂРѕРїСЂРёСЏС‚РёРµ",
+        "Только администратор и организатор может создать мероприятие",
       );
     }
 
@@ -1293,7 +1441,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!organization) {
-      throw new ForbiddenException("РћСЂРіР°РЅРёР·Р°С†РёРё РЅРµРґРѕСЃС‚СѓРїРЅС‹");
+      throw new ForbiddenException("Организации недоступны");
     }
 
     const features = this.resolveFeatures(dto);
@@ -1318,7 +1466,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
           slug: dto.slug.trim(),
           type: dto.type,
           address:
-            dto.format === EventFormat.ONLINE ? "РћРЅР»Р°Р№РЅ" : dto.address.trim(),
+            dto.format === EventFormat.ONLINE ? "Онлайн" : dto.address.trim(),
           cordinatX: dto.cordinatX ?? null,
           cordinatY: dto.cordinatY ?? null,
           dataStartRegistration:
@@ -1396,37 +1544,37 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
 
       if (hasTeam === hasUser) {
         throw new BadRequestException(
-          "Р”Р»СЏ СЂРµР·СѓР»СЊС‚Р°С‚Р° РЅСѓР¶РЅРѕ СѓРєР°Р·Р°С‚СЊ РєРѕРјР°РЅРґСѓ РёР»Рё СѓС‡Р°СЃС‚РЅРёРєР°",
+          "Для результата нужно указать команду или участника",
         );
       }
 
       if (event.hasTeams && !item.teamId) {
         throw new BadRequestException(
-          "Р”Р»СЏ РєРѕРјР°РЅРґРЅРѕРіРѕ РјРµСЂРѕРїСЂРёСЏС‚РёСЏ РЅСѓР¶РЅРѕ СѓРєР°Р·Р°С‚СЊ РєРѕРјР°РЅРґСѓ",
+          "Для командного мероприятия нужно указать команду",
         );
       }
 
       if (!event.hasTeams && !item.userId) {
         throw new BadRequestException(
-          "Р”Р»СЏ РёРЅРґРёРІРёРґСѓР°Р»СЊРЅРѕРіРѕ РјРµСЂРѕРїСЂРёСЏС‚РёСЏ РЅСѓР¶РЅРѕ СѓРєР°Р·Р°С‚СЊ СѓС‡Р°СЃС‚РЅРёРєР°",
+          "Для индивидуального мероприятия нужно указать участника",
         );
       }
 
       const caseId = event.hasCases ? item.caseId : null;
 
       if (event.hasCases && (!caseId || !caseIds.has(caseId))) {
-        throw new BadRequestException("РљРµР№СЃ РЅРµ РїСЂРёРЅР°РґР»РµР¶РёС‚ РјРµСЂРѕРїСЂРёСЏС‚РёСЋ");
+        throw new BadRequestException("Кейс не принадлежит мероприятию");
       }
 
       if (item.teamId) {
         const team = teamById.get(item.teamId);
 
         if (!team) {
-          throw new BadRequestException("РљРѕРјР°РЅРґР° РЅРµ РїСЂРёРЅР°РґР»РµР¶РёС‚ РјРµСЂРѕРїСЂРёСЏС‚РёСЋ");
+          throw new BadRequestException("Команда не принадлежит мероприятию");
         }
 
         if (event.hasCases && team.caseId !== caseId) {
-          throw new BadRequestException("РљРѕРјР°РЅРґР° РЅРµ РІС‹Р±СЂР°Р»Р° СЌС‚РѕС‚ РєРµР№СЃ");
+          throw new BadRequestException("Команда не выбрала этот кейс");
         }
       }
 
@@ -1434,11 +1582,11 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         const participant = participantByUserId.get(item.userId);
 
         if (!participant) {
-          throw new BadRequestException("РЈС‡Р°СЃС‚РЅРёРє РЅРµ РїСЂРёРЅР°РґР»РµР¶РёС‚ РјРµСЂРѕРїСЂРёСЏС‚РёСЋ");
+          throw new BadRequestException("Участник не принадлежит мероприятию");
         }
 
         if (event.hasCases && participant.caseId !== caseId) {
-          throw new BadRequestException("РЈС‡Р°СЃС‚РЅРёРє РЅРµ РІС‹Р±СЂР°Р» СЌС‚РѕС‚ РєРµР№СЃ");
+          throw new BadRequestException("Участник не выбрал этот кейс");
         }
       }
 
@@ -1447,7 +1595,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         : `user:${item.userId}`;
 
       if (targetKeys.has(targetKey)) {
-        throw new BadRequestException("Р¦РµР»СЊ СЂРµР·СѓР»СЊС‚Р°С‚Р° РїРѕРІС‚РѕСЂСЏРµС‚СЃСЏ");
+        throw new BadRequestException("Цель результата повторяется");
       }
 
       targetKeys.add(targetKey);
@@ -1457,7 +1605,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         const placeKey = `${scopeKey}:${item.place}`;
 
         if (placeByScope.has(placeKey)) {
-          throw new BadRequestException("РњРµСЃС‚Р° РЅРµ РґРѕР»Р¶РЅС‹ РїРѕРІС‚РѕСЂСЏС‚СЊСЃСЏ");
+          throw new BadRequestException("Места не должны повторяться");
         }
 
         placeByScope.set(placeKey, item.place);
@@ -1477,15 +1625,15 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     features: EventFeaturePreset,
   ) {
     if (features.hasCases && !dto.caseSettings) {
-      throw new BadRequestException("РўСЂРµР±СѓРµС‚СЃСЏ РЅР°СЃС‚СЂРѕР№РєР° РєРµР№СЃР°");
+      throw new BadRequestException("Требуется настройка кейса");
     }
 
     if (features.hasCases && (!dto.cases || dto.cases.length === 0)) {
-      throw new BadRequestException("РўСЂРµР±СѓРµС‚СЃСЏ С…РѕС‚СЏ Р±С‹ 1 РєРµР№СЃ");
+      throw new BadRequestException("Требуется хотя бы 1 кейс");
     }
 
     if (!features.hasCases && !dto.dateDeadLine && features.hasLoadedSolution) {
-      throw new BadRequestException("РўСЂРµР±СѓРµС‚СЃСЏ РґРµРґР»Р°Р№РЅ РґР»СЏ Р·Р°РіСЂСѓР·РєРё СЂРµС€РµРЅРёСЏ");
+      throw new BadRequestException("Требуется дедлайн для загрузки решения");
     }
   }
 
@@ -1494,8 +1642,35 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       OR: [
         { userId },
         { organization: { ownerUserId: userId } },
-        { organization: { users: { some: { userId } } } },
+        { adminAccess: { some: { userId, canView: true } } },
       ],
+    };
+  }
+
+  private resolveEventPermissionSnapshot(
+    userId: string,
+    event: {
+      userId: string;
+      organization: { ownerUserId: string };
+      adminAccess: Array<Record<EventAdminPermissionKey, boolean>>;
+    },
+  ) {
+    const hasFullAccess =
+      event.userId === userId || event.organization.ownerUserId === userId;
+
+    if (hasFullAccess) {
+      return {
+        ...EVENT_FULL_PERMISSIONS,
+        hasFullAccess: true,
+      };
+    }
+
+    const access = event.adminAccess[0];
+
+    return {
+      ...EVENT_EMPTY_PERMISSIONS,
+      ...(access ?? {}),
+      hasFullAccess: false,
     };
   }
 
@@ -1513,7 +1688,38 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!event) {
-      throw new NotFoundException("РњРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµ РЅР°Р№РґРµРЅРѕ");
+      throw new NotFoundException("Мероприятие не найдено");
+    }
+
+    return event;
+  }
+
+  private async ensurePrivateInviteAccess(userId: string, eventId: string) {
+    const event = await this.prisma.event.findFirst({
+      where: {
+        idEvent: eventId,
+        OR: [
+          { userId },
+          { organization: { ownerUserId: userId } },
+          { adminAccess: { some: { userId, canManagePrivateInvites: true } } },
+        ],
+      },
+      select: {
+        idEvent: true,
+        status: true,
+      },
+    });
+
+    if (!event) {
+      throw new ForbiddenException(
+        "Недостаточно прав для управления приглашениями",
+      );
+    }
+
+    if (event.status !== EventStatus.PRIVATE) {
+      throw new BadRequestException(
+        "Приглашения доступны только для приватного мероприятия",
+      );
     }
 
     return event;
@@ -1534,7 +1740,9 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!event) {
-      throw new ForbiddenException("Недостаточно прав для управления мероприятием");
+      throw new ForbiddenException(
+        "Недостаточно прав для управления мероприятием",
+      );
     }
 
     return event;
@@ -1544,13 +1752,13 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
 
     if (event.status === EventStatus.FINISHED) {
       throw new BadRequestException(
-        "Р—Р°РІРµСЂС€РµРЅРЅРѕРµ РјРµСЂРѕРїСЂРёСЏС‚РёРµ РЅРµР»СЊР·СЏ СЂРµРґР°РєС‚РёСЂРѕРІР°С‚СЊ",
+        "Завершенное мероприятие нельзя редактировать",
       );
     }
 
     if (new Date() >= event.dataStart) {
       throw new BadRequestException(
-        "РњРµСЂРѕРїСЂРёСЏС‚РёРµ СѓР¶Рµ РЅР°С‡Р°Р»РѕСЃСЊ, СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РЅРµРґРѕСЃС‚СѓРїРЅРѕ",
+        "Мероприятие уже началось, редактирование недоступно",
       );
     }
 
@@ -1575,7 +1783,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (foundCount !== new Set(materialIds).size) {
-      throw new BadRequestException("РњР°С‚РµСЂРёР°Р» РЅРµ РїСЂРёРЅР°РґР»РµР¶РёС‚ РјРµСЂРѕРїСЂРёСЏС‚РёСЋ");
+      throw new BadRequestException("Материал не принадлежит мероприятию");
     }
   }
 
@@ -1592,7 +1800,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (foundCount !== new Set(caseIds).size) {
-      throw new BadRequestException("РљРµР№СЃ РЅРµ РїСЂРёРЅР°РґР»РµР¶РёС‚ РјРµСЂРѕРїСЂРёСЏС‚РёСЋ");
+      throw new BadRequestException("Кейс не принадлежит мероприятию");
     }
   }
 
@@ -1618,7 +1826,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       });
 
       if (foundCount !== new Set(materialIds).size) {
-        throw new BadRequestException("РњР°С‚РµСЂРёР°Р» РєРµР№СЃР° РЅРµ РїСЂРёРЅР°РґР»РµР¶РёС‚ РєРµР№СЃСѓ");
+        throw new BadRequestException("Материал кейса не принадлежит кейсу");
       }
     }
 
@@ -1740,7 +1948,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
 
     if (protectedCase) {
       throw new BadRequestException(
-        "РќРµР»СЊР·СЏ СѓРґР°Р»РёС‚СЊ РєРµР№СЃ, Рє РєРѕС‚РѕСЂРѕРјСѓ СѓР¶Рµ РїСЂРёРІСЏР·Р°РЅС‹ РєРѕРјР°РЅРґС‹, СЂРµС€РµРЅРёСЏ РёР»Рё РёС‚РѕРіРё",
+        "Нельзя удалить кейс, к которому уже привязаны команды, решения или итоги",
       );
     }
 
@@ -1840,7 +2048,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!tag) {
-      throw new BadRequestException("РўСЌРі РЅРµРґРѕСЃС‚СѓРїРµРЅ");
+      throw new BadRequestException("Тэг недоступен");
     }
 
     return tag;
@@ -1854,7 +2062,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     const slug = this.toSlug(tagName);
 
     if (!slug) {
-      throw new BadRequestException("РќРµРІРµСЂРЅРѕРµ РёРјСЏ С‚РµРіР°");
+      throw new BadRequestException("Неверное имя тега");
     }
 
     return prisma.tag.upsert({
@@ -2022,38 +2230,38 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   private validateEventTimeline(input: EventTimelineInput) {
     const dataStart = this.requireValidDate(
       input.dataStart,
-      "Р”Р°С‚Р° РЅР°С‡Р°Р»Р° РјРµСЂРѕРїСЂРёСЏС‚РёСЏ",
+      "Дата начала мероприятия",
     );
     const dataEnd = this.requireValidDate(
       input.dataEnd,
-      "Р”Р°С‚Р° РѕРєРѕРЅС‡Р°РЅРёСЏ РјРµСЂРѕРїСЂРёСЏС‚РёСЏ",
+      "Дата окончания мероприятия",
     );
 
     if (dataStart >= dataEnd) {
       throw new BadRequestException(
-        "Р”Р°С‚Р° РѕРєРѕРЅС‡Р°РЅРёСЏ РјРµСЂРѕРїСЂРёСЏС‚РёСЏ РґРѕР»Р¶РЅР° Р±С‹С‚СЊ РїРѕР·Р¶Рµ РґР°С‚С‹ РЅР°С‡Р°Р»Р° РјРµСЂРѕРїСЂРёСЏС‚РёСЏ",
+        "Дата окончания мероприятия должна быть позже даты начала мероприятия",
       );
     }
 
     if (input.isPublic) {
       const registrationStart = this.requireValidDate(
         input.dataStartRegistration,
-        "Р”Р°С‚Р° РЅР°С‡Р°Р»Р° СЂРµРіРёСЃС‚СЂР°С†РёРё",
+        "Дата начала регистрации",
       );
       const registrationEnd = this.requireValidDate(
         input.dataEndRegistration,
-        "Р”Р°С‚Р° РѕРєРѕРЅС‡Р°РЅРёСЏ СЂРµРіРёСЃС‚СЂР°С†РёРё",
+        "Дата окончания регистрации",
       );
 
       if (registrationStart > registrationEnd) {
         throw new BadRequestException(
-          "РќР°С‡Р°Р»Рѕ СЂРµРіРёСЃС‚СЂР°С†РёРё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРѕР·Р¶Рµ РѕРєРѕРЅС‡Р°РЅРёСЏ СЂРµРіРёСЃС‚СЂР°С†РёРё",
+          "Начало регистрации не может быть позже окончания регистрации",
         );
       }
 
       if (registrationEnd > dataStart) {
         throw new BadRequestException(
-          "РћРєРѕРЅС‡Р°РЅРёРµ СЂРµРіРёСЃС‚СЂР°С†РёРё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРѕР·Р¶Рµ РЅР°С‡Р°Р»Р° РјРµСЂРѕРїСЂРёСЏС‚РёСЏ",
+          "Окончание регистрации не может быть позже начала мероприятия",
         );
       }
     }
@@ -2066,47 +2274,47 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
           : [];
 
       if (!cases.length) {
-        throw new BadRequestException("РўСЂРµР±СѓРµС‚СЃСЏ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РєРµР№СЃ");
+        throw new BadRequestException("Требуется хотя бы один кейс");
       }
 
       cases.forEach((eventCase, index) => {
         const caseNumber = index + 1;
         const selectionStart = this.requireValidDate(
           eventCase.dateForStartSelected,
-          `Р”Р°С‚Р° РЅР°С‡Р°Р»Р° РІС‹Р±РѕСЂР° РєРµР№СЃР° ${caseNumber}`,
+          `Дата начала выбора кейса ${caseNumber}`,
         );
         const selectionEnd = this.requireValidDate(
           eventCase.dateForEndSelected,
-          `Р”Р°С‚Р° РѕРєРѕРЅС‡Р°РЅРёСЏ РІС‹Р±РѕСЂР° РєРµР№СЃР° ${caseNumber}`,
+          `Дата окончания выбора кейса ${caseNumber}`,
         );
         const stopCode = eventCase.dateStopCode
           ? this.requireValidDate(
               eventCase.dateStopCode,
-              `РЎС‚РѕРї-РєРѕРґ/РґРµРґР»Р°Р№РЅ РєРµР№СЃР° ${caseNumber}`,
+              `Стоп-код/дедлайн кейса ${caseNumber}`,
             )
           : selectionEnd;
 
         if (selectionStart > selectionEnd) {
           throw new BadRequestException(
-            `РќР°С‡Р°Р»Рѕ РІС‹Р±РѕСЂР° РєРµР№СЃР° РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРѕР·Р¶Рµ РѕРєРѕРЅС‡Р°РЅРёСЏ РІС‹Р±РѕСЂР°`,
+            `Начало выбора кейса не может быть позже окончания выбора`,
           );
         }
 
         if (input.hasLoadedSolution && !eventCase.dateStopCode) {
           throw new BadRequestException(
-            `Р”Р»СЏ РєРµР№СЃР° С‚СЂРµР±СѓРµС‚СЃСЏ СЃС‚РѕРї-РєРѕРґ/РґРµРґР»Р°Р№РЅ Р·Р°РіСЂСѓР·РєРё СЂРµС€РµРЅРёСЏ`,
+            `Для кейса требуется стоп-код/дедлайн загрузки решения`,
           );
         }
 
         if (selectionEnd > stopCode) {
           throw new BadRequestException(
-            `РћРєРѕРЅС‡Р°РЅРёРµ РІС‹Р±РѕСЂР° РєРµР№СЃР° РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРѕР·Р¶Рµ СЃС‚РѕРї-РєРѕРґР°/РґРµРґР»Р°Р№РЅР°`,
+            `Окончание выбора кейса не может быть позже стоп-кода/дедлайна`,
           );
         }
 
         if (stopCode > dataEnd) {
           throw new BadRequestException(
-            `РЎС‚РѕРї-РєРѕРґ/РґРµРґР»Р°Р№РЅ РєРµР№СЃР° РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРѕР·Р¶Рµ РѕРєРѕРЅС‡Р°РЅРёСЏ РјРµСЂРѕРїСЂРёСЏС‚РёСЏ`,
+            `Стоп-код/дедлайн кейса не может быть позже окончания мероприятия`,
           );
         }
       });
@@ -2117,18 +2325,18 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     if (input.hasLoadedSolution) {
       const deadline = this.requireValidDate(
         input.dateDeadLine,
-        "Р”РµРґР»Р°Р№РЅ Р·Р°РіСЂСѓР·РєРё СЂРµС€РµРЅРёСЏ",
+        "Дедлайн загрузки решения",
       );
 
       if (deadline < dataStart) {
         throw new BadRequestException(
-          "Р”РµРґР»Р°Р№РЅ Р·Р°РіСЂСѓР·РєРё СЂРµС€РµРЅРёСЏ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ СЂР°РЅСЊС€Рµ РЅР°С‡Р°Р»Р° РјРµСЂРѕРїСЂРёСЏС‚РёСЏ",
+          "Дедлайн загрузки решения не может быть раньше начала мероприятия",
         );
       }
 
       if (deadline > dataEnd) {
         throw new BadRequestException(
-          "Р”РµРґР»Р°Р№РЅ Р·Р°РіСЂСѓР·РєРё СЂРµС€РµРЅРёСЏ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРѕР·Р¶Рµ РѕРєРѕРЅС‡Р°РЅРёСЏ РјРµСЂРѕРїСЂРёСЏС‚РёСЏ",
+          "Дедлайн загрузки решения не может быть позже окончания мероприятия",
         );
       }
     }
@@ -2136,13 +2344,13 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
 
   private requireValidDate(value: EventDateInput, fieldName: string) {
     if (!value) {
-      throw new BadRequestException(`${fieldName} РѕР±СЏР·Р°С‚РµР»СЊРЅР°`);
+      throw new BadRequestException(`${fieldName} обязательна`);
     }
 
     const date = value instanceof Date ? value : new Date(value);
 
     if (Number.isNaN(date.getTime())) {
-      throw new BadRequestException(`${fieldName} СѓРєР°Р·Р°РЅР° РЅРµРєРѕСЂСЂРµРєС‚РЅРѕ`);
+      throw new BadRequestException(`${fieldName} указана некорректно`);
     }
 
     return date;
@@ -2151,7 +2359,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   private validateEventDateRange(start: string, end: string) {
     if (new Date(start) > new Date(end)) {
       throw new BadRequestException(
-        "Р вЂќР В°РЎвЂљР В° Р С•Р С”Р С•Р Р…РЎвЂЎР В°Р Р…Р С‘РЎРЏ Р СР ВµРЎР‚Р С•Р С—РЎР‚Р С‘РЎРЏРЎвЂљР С‘РЎРЏ Р Р…Р Вµ Р СР С•Р В¶Р ВµРЎвЂљ Р В±РЎвЂ№РЎвЂљРЎРЉ РЎР‚Р В°Р Р…РЎРЉРЎв‚¬Р Вµ Р Т‘Р В°РЎвЂљРЎвЂ№ Р Р…Р В°РЎвЂЎР В°Р В»Р В°",
+        "Дата окончания мероприятия не может быть раньше даты начала",
       );
     }
   }
@@ -2159,7 +2367,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   private validateRegistrationDateRange(start: string, end: string) {
     if (new Date(start) > new Date(end)) {
       throw new BadRequestException(
-        "Р вЂќР В°РЎвЂљР В° Р С•Р С”Р С•Р Р…РЎвЂЎР В°Р Р…Р С‘РЎРЏ РЎР‚Р ВµР С–Р С‘РЎРѓРЎвЂљРЎР‚Р В°РЎвЂ Р С‘Р С‘ Р Р…Р Вµ Р СР С•Р В¶Р ВµРЎвЂљ Р В±РЎвЂ№РЎвЂљРЎРЉ РЎР‚Р В°Р Р…РЎРЉРЎв‚¬Р Вµ Р Т‘Р В°РЎвЂљРЎвЂ№ Р Р…Р В°РЎвЂЎР В°Р В»Р В° РЎР‚Р ВµР С–Р С‘РЎРѓРЎвЂљРЎР‚Р В°РЎвЂ Р С‘Р С‘",
+        "Дата окончания регистрации не может быть раньше даты начала регистрации",
       );
     }
   }

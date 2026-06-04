@@ -8,7 +8,6 @@ import eventService from "@/services/event.service";
 import { EventTagDraft, EventTagOption } from "@/types/event-create.types";
 import {
   EventInviteResponse,
-  ManagedEventAdminPermissions,
   ManagedEventCase,
   ManagedEventDetails,
   ManagedEventJoinRequest,
@@ -23,9 +22,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
-import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { AdminEventCsvExportModal } from "./AdminEventCsvExportModal";
+import {
+  EMPTY_EVENT_ADMIN_PERMISSIONS,
+  EventAdminAccessModal,
+} from "./EventAdminAccessModal";
 
 const ArcGisPointMap = dynamic(
   () =>
@@ -46,93 +49,20 @@ interface EventMaterialForm {
   url: string;
 }
 
-type EventAdminPermissionKey = keyof ManagedEventAdminPermissions;
+function normalizeManagedEventDetails(
+  event: ManagedEventDetails,
+): ManagedEventDetails {
+  const permissions = event.permissions;
 
-const EVENT_ADMIN_PERMISSION_LABELS: Array<{
-  key: EventAdminPermissionKey;
-  label: string;
-  description: string;
-}> = [
-  {
-    key: "canView",
-    label: "Просмотр",
-    description: "Видит мероприятие в админке",
-  },
-  {
-    key: "canEditGeneral",
-    label: "Редактировать описание",
-    description: "Меняет основные данные",
-  },
-  {
-    key: "canEditSettings",
-    label: "Редактировать настройки",
-    description: "Меняет возможности и лимиты",
-  },
-  {
-    key: "canEditMaterials",
-    label: "Редактировать материалы",
-    description: "Добавляет и меняет материалы",
-  },
-  {
-    key: "canEditCases",
-    label: "Редактировать кейсы",
-    description: "Добавляет и меняет кейсы",
-  },
-  {
-    key: "canViewParticipants",
-    label: "Участники",
-    description: "Видит участников",
-  },
-  { key: "canViewTeams", label: "Команды", description: "Видит команды" },
-  {
-    key: "canViewSolutions",
-    label: "Решения",
-    description: "Видит решения участников",
-  },
-  { key: "canViewResults", label: "Итоги", description: "Видит результаты" },
-  {
-    key: "canEditResults",
-    label: "Редактировать итоги",
-    description: "Выставляет и меняет места",
-  },
-  {
-    key: "canDeleteResults",
-    label: "Удалять итоги",
-    description: "Может очищать места",
-  },
-  {
-    key: "canFinishEvent",
-    label: "Завершить мероприятие",
-    description: "Может завершить мероприятие",
-  },
-  {
-    key: "canExportCsv",
-    label: "Экспорт CSV",
-    description: "Может выгружать данные мероприятия",
-  },
-];
-
-const EMPTY_EVENT_ADMIN_PERMISSIONS = EVENT_ADMIN_PERMISSION_LABELS.reduce(
-  (acc, permission) => ({ ...acc, [permission.key]: false }),
-  {} as ManagedEventAdminPermissions,
-);
-
-const EVENT_ADMIN_PERMISSION_DEPENDENCIES: Partial<
-  Record<EventAdminPermissionKey, EventAdminPermissionKey[]>
-> = {
-  canEditGeneral: ["canView"],
-  canEditSettings: ["canView"],
-  canEditMaterials: ["canView"],
-  canEditCases: ["canView"],
-  canViewParticipants: ["canView"],
-  canViewTeams: ["canView"],
-  canViewSolutions: ["canView"],
-  canViewResults: ["canView"],
-  canEditResults: ["canView", "canViewResults"],
-  canDeleteResults: ["canView", "canViewResults", "canEditResults"],
-  canFinishEvent: ["canView"],
-  canExportCsv: ["canView"],
-};
+  return {
+    ...event,
+    permissions: {
+      ...EMPTY_EVENT_ADMIN_PERMISSIONS,
+      ...(permissions ?? {}),
+      hasFullAccess: permissions?.hasFullAccess ?? false,
+    },
+  };
+}
 
 interface ModalProps {
   title: string;
@@ -188,48 +118,6 @@ function tagsToDrafts(tags: EventTagOption[]): EventTagDraft[] {
     id: tag.idTag || undefined,
     name: tag.name,
   }));
-}
-
-function applyEventAdminPermissionDependencies(
-  permissions: ManagedEventAdminPermissions,
-) {
-  const normalized = { ...permissions };
-  let changed = true;
-
-  while (changed) {
-    changed = false;
-
-    EVENT_ADMIN_PERMISSION_LABELS.forEach((permission) => {
-      if (!normalized[permission.key]) return;
-
-      (EVENT_ADMIN_PERMISSION_DEPENDENCIES[permission.key] ?? []).forEach(
-        (dependency) => {
-          if (normalized[dependency]) return;
-
-          normalized[dependency] = true;
-          changed = true;
-        },
-      );
-    });
-  }
-
-  return normalized;
-}
-
-function getLockedEventAdminPermissions(
-  permissions: ManagedEventAdminPermissions,
-) {
-  const locked = new Set<EventAdminPermissionKey>();
-
-  EVENT_ADMIN_PERMISSION_LABELS.forEach((permission) => {
-    if (!permissions[permission.key]) return;
-
-    (EVENT_ADMIN_PERMISSION_DEPENDENCIES[permission.key] ?? []).forEach(
-      (dependency) => locked.add(dependency),
-    );
-  });
-
-  return locked;
 }
 
 function caseToPayload(
@@ -1145,7 +1033,7 @@ function ResultPlacesEditor({
                       {target.description}
                     </p>
                   ) : null}
-                  {event.hasLoadedSolution && onOpenSolution ? (
+                  {event.hasLoadedSolution && event.permissions.canViewSolutions && onOpenSolution ? (
                     <SolutionStatus
                       solution={target.latestSolution}
                       onOpen={onOpenSolution}
@@ -1195,7 +1083,7 @@ function TeamModal({
     <Modal title={team.name} onClose={onClose}>
       <div className="space-y-4">
         <InfoRow label="Капитан" value={formatPersonName(team.caption)} />
-        {event.hasLoadedSolution ? (
+        {event.hasLoadedSolution && event.permissions.canViewSolutions ? (
           <SolutionStatus
             solution={team.latestSolution}
             onOpen={onOpenSolution}
@@ -1518,7 +1406,7 @@ function CaseDetailsModal({
                             .map((member) => formatPersonName(member.user))
                             .join(", ")}
                         </p>
-                        {event.hasLoadedSolution ? (
+                        {event.hasLoadedSolution && event.permissions.canViewSolutions ? (
                           <SolutionStatus
                             solution={team.latestSolution}
                             onOpen={onOpenSolution}
@@ -1545,7 +1433,7 @@ function CaseDetailsModal({
                       <p className="mt-2 text-xs text-zinc-500">
                         Дата присоединения: {formatDate(participant.createAt)}
                       </p>
-                      {event.hasLoadedSolution ? (
+                      {event.hasLoadedSolution && event.permissions.canViewSolutions ? (
                         <SolutionStatus
                           solution={participant.latestSolution}
                           onOpen={onOpenSolution}
@@ -1742,317 +1630,6 @@ function FinishEventModal({
   );
 }
 
-function EventAdminAccessModal({
-  eventId,
-  onClose,
-}: {
-  eventId: string;
-  onClose: () => void;
-}) {
-  const queryClient = useQueryClient();
-  const adminSearchRef = useRef<HTMLDivElement | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState("");
-  const [adminSearch, setAdminSearch] = useState("");
-  const [isAdminSearchOpen, setIsAdminSearchOpen] = useState(false);
-  const [permissions, setPermissions] = useState<ManagedEventAdminPermissions>(
-    EMPTY_EVENT_ADMIN_PERMISSIONS,
-  );
-  const queryKey = ["admin-event-access", eventId];
-
-  const { data, isLoading } = useQuery({
-    queryKey,
-    queryFn: () =>
-      eventService
-        .getMyEventAdminAccessOptions(eventId)
-        .then((response) => response.data),
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: () =>
-      eventService.upsertMyEventAdminAccess(eventId, {
-        userId: selectedUserId,
-        ...permissions,
-      }),
-    onSuccess: async (response) => {
-      queryClient.setQueryData(queryKey, response.data);
-      await queryClient.invalidateQueries({
-        queryKey: ["admin-event", eventId],
-      });
-      toast.success("Права администратора сохранены");
-    },
-    onError: () => toast.error("Не удалось сохранить права администратора"),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (userId: string) =>
-      eventService.deleteMyEventAdminAccess(eventId, userId),
-    onSuccess: async (response) => {
-      queryClient.setQueryData(queryKey, response.data);
-      await queryClient.invalidateQueries({
-        queryKey: ["admin-event", eventId],
-      });
-      toast.success("Администратор удален из мероприятия");
-    },
-    onError: () => toast.error("Не удалось удалить администратора"),
-  });
-
-  const selectedAccess = data?.access.find(
-    (access) => access.userId === selectedUserId,
-  );
-  const availableCandidates =
-    data?.candidates.filter(
-      (candidate) =>
-        candidate.idUser === selectedUserId ||
-        !data.access.some((access) => access.userId === candidate.idUser),
-    ) ?? [];
-  const filteredCandidates = availableCandidates.filter((candidate) => {
-    const search = normalizeSearch(adminSearch);
-    if (!search) return true;
-
-    return normalizeSearch(
-      `${formatPersonName(candidate)} ${candidate.email}`,
-    ).includes(search);
-  });
-
-  const selectAdminCandidate = (
-    candidate: (typeof availableCandidates)[number],
-  ) => {
-    setSelectedUserId(candidate.idUser);
-    setAdminSearch(`${formatPersonName(candidate)} - ${candidate.email}`);
-    setIsAdminSearchOpen(false);
-  };
-
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      if (
-        adminSearchRef.current &&
-        !adminSearchRef.current.contains(event.target as Node)
-      ) {
-        setIsAdminSearchOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!selectedUserId) {
-      setPermissions(EMPTY_EVENT_ADMIN_PERMISSIONS);
-      return;
-    }
-
-    const access = data?.access.find((item) => item.userId === selectedUserId);
-    if (!access) {
-      setPermissions(EMPTY_EVENT_ADMIN_PERMISSIONS);
-      return;
-    }
-
-    setPermissions(
-      applyEventAdminPermissionDependencies(
-        EVENT_ADMIN_PERMISSION_LABELS.reduce(
-          (acc, permission) => ({
-            ...acc,
-            [permission.key]: access[permission.key],
-          }),
-          {} as ManagedEventAdminPermissions,
-        ),
-      ),
-    );
-  }, [data?.access, selectedUserId]);
-
-  useEffect(() => {
-    if (!selectedUserId || !data) return;
-
-    const candidate =
-      data.candidates.find((item) => item.idUser === selectedUserId) ??
-      data.access.find((item) => item.userId === selectedUserId)?.user;
-
-    if (candidate) {
-      setAdminSearch(`${formatPersonName(candidate)} - ${candidate.email}`);
-    }
-  }, [data, selectedUserId]);
-
-  const applyExpertPreset = () => {
-    if (!data?.presets.expert) return;
-    setPermissions(applyEventAdminPermissionDependencies(data.presets.expert));
-  };
-
-  const togglePermission = (key: EventAdminPermissionKey) => {
-    setPermissions((current) => {
-      const lockedPermissions = getLockedEventAdminPermissions(current);
-      if (current[key] && lockedPermissions.has(key)) return current;
-
-      return applyEventAdminPermissionDependencies({
-        ...current,
-        [key]: !current[key],
-      });
-    });
-  };
-  const lockedPermissions = getLockedEventAdminPermissions(permissions);
-
-  return (
-    <Modal
-      title="Администраторы мероприятия"
-      onClose={onClose}
-      wide
-      footer={
-        <>
-          <button
-            type="button"
-            onClick={() => saveMutation.mutate()}
-            disabled={!selectedUserId || saveMutation.isPending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saveMutation.isPending ? "Сохранение..." : "Сохранить права"}
-          </button>
-        </>
-      }
-    >
-      {isLoading ? (
-        <div className="flex min-h-40 items-center justify-center">
-          <MiniLoader />
-        </div>
-      ) : (
-        <div className="grid gap-5">
-          <div className="grid gap-2">
-            <label className="text-sm font-medium text-zinc-200">
-              Администратор организации
-            </label>
-            <div ref={adminSearchRef} className="relative">
-              <input
-                type="text"
-                value={adminSearch}
-                onChange={(event) => {
-                  setAdminSearch(event.target.value);
-                  setSelectedUserId("");
-                  setIsAdminSearchOpen(true);
-                }}
-                onFocus={() => setIsAdminSearchOpen(true)}
-                placeholder="Начните вводить имя или email"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-primary"
-              />
-              {isAdminSearchOpen ? (
-                <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-64 overflow-y-auto rounded-md border border-zinc-800 bg-zinc-950 shadow-xl">
-                  {filteredCandidates.length ? (
-                    filteredCandidates.map((candidate) => (
-                      <button
-                        key={candidate.idUser}
-                        type="button"
-                        onClick={() => selectAdminCandidate(candidate)}
-                        className="block w-full px-3 py-3 text-left text-sm hover:bg-zinc-900"
-                      >
-                        <span className="block font-medium text-zinc-100">
-                          {formatPersonName(candidate)}
-                        </span>
-                        <span className="mt-1 block text-xs text-zinc-500">
-                          {candidate.email}
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <p className="px-3 py-3 text-sm text-zinc-500">
-                      Администраторы не найдены
-                    </p>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={applyExpertPreset}
-              className="rounded-md border border-emerald-700/70 px-3 py-2 text-sm text-emerald-300 hover:bg-emerald-950/30"
-            >
-              Шаблон: Эксперт
-            </button>
-            {selectedAccess ? (
-              <button
-                type="button"
-                onClick={() => deleteMutation.mutate(selectedAccess.userId)}
-                disabled={deleteMutation.isPending}
-                className="rounded-md border border-red-800 px-3 py-2 text-sm text-red-300 hover:bg-red-950/30 disabled:opacity-60"
-              >
-                Удалить доступ
-              </button>
-            ) : null}
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            {EVENT_ADMIN_PERMISSION_LABELS.map((permission) => {
-              const isLocked =
-                permissions[permission.key] &&
-                lockedPermissions.has(permission.key);
-              return (
-                <label
-                  key={permission.key}
-                  className={`flex gap-3 rounded-md border border-zinc-800 bg-zinc-900/50 p-3 ${
-                    isLocked ? "opacity-75" : ""
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={permissions[permission.key]}
-                    disabled={isLocked}
-                    onChange={() => togglePermission(permission.key)}
-                    className="mt-1 h-4 w-4 accent-primary disabled:cursor-not-allowed"
-                  />
-                  <span>
-                    <span className="block text-sm font-medium text-zinc-100">
-                      {permission.label}
-                    </span>
-                    <span className="mt-1 block text-xs text-zinc-500">
-                      {permission.description}
-                      {isLocked ? " Включено автоматически." : ""}
-                    </span>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-
-          <div className="grid gap-3">
-            <h3 className="text-sm font-semibold text-zinc-200">
-              Уже добавлены
-            </h3>
-            {data?.access.length ? (
-              data.access.map((access) => (
-                <button
-                  key={access.idAccess}
-                  type="button"
-                  onClick={() => setSelectedUserId(access.userId)}
-                  className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3 text-left hover:border-primary/60"
-                >
-                  <p className="text-sm font-medium text-zinc-100">
-                    {formatPersonName(access.user)} - {access.user.email}
-                  </p>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {
-                      EVENT_ADMIN_PERMISSION_LABELS.filter(
-                        (permission) => access[permission.key],
-                      ).length
-                    }{" "}
-                    прав включено
-                  </p>
-                </button>
-              ))
-            ) : (
-              <p className="text-sm text-zinc-500">
-                Дополнительные администраторы пока не назначены.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-    </Modal>
-  );
-}
-
 export function AdminEventDetailsPage() {
   const params = useParams<{ eventId: string }>();
   const eventId = params.eventId;
@@ -2079,6 +1656,7 @@ export function AdminEventDetailsPage() {
     queryKey: ["admin-event", eventId],
     queryFn: () =>
       eventService.getMyEventDetails(eventId).then((response) => response.data),
+    select: normalizeManagedEventDetails,
     enabled: Boolean(eventId),
   });
 
@@ -2290,7 +1868,7 @@ export function AdminEventDetailsPage() {
                   <p className="mt-1 text-sm text-zinc-500">
                     Капитан: {formatPersonName(team.caption)}
                   </p>
-                  {event.hasLoadedSolution ? (
+                  {event.hasLoadedSolution && event.permissions.canViewSolutions ? (
                     <SolutionStatus
                       solution={team.latestSolution}
                       onOpen={setSelectedSolution}
@@ -2320,7 +1898,7 @@ export function AdminEventDetailsPage() {
                       Дата присоединения пользователя:{" "}
                       {formatDate(participant.createAt)}
                     </p>
-                    {event.hasLoadedSolution ? (
+                    {event.hasLoadedSolution && event.permissions.canViewSolutions ? (
                       <SolutionStatus
                         solution={participant.latestSolution}
                         onOpen={setSelectedSolution}
@@ -2428,7 +2006,7 @@ export function AdminEventDetailsPage() {
         </DetailPanel>
       ) : null}
 
-      {event.status === "PRIVATE" ? (
+      {event.status === "PRIVATE" && event.permissions.canManagePrivateInvites ? (
         <>
           <EventInviteSection eventId={event.idEvent} />
           <EventJoinRequestsSection event={event} />
@@ -2468,7 +2046,7 @@ export function AdminEventDetailsPage() {
           onClose={() => setSelectedCase(null)}
         />
       ) : null}
-      {selectedSolution ? (
+      {selectedSolution && event.permissions.canViewSolutions ? (
         <SolutionDetailsModal
           solution={selectedSolution}
           onClose={() => setSelectedSolution(null)}
@@ -2490,6 +2068,7 @@ export function AdminEventDetailsPage() {
       {isAdminAccessOpen ? (
         <EventAdminAccessModal
           eventId={event.idEvent}
+          eventStatus={event.status}
           onClose={() => setIsAdminAccessOpen(false)}
         />
       ) : null}

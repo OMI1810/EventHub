@@ -13,7 +13,10 @@ import {
   ValidationPipe,
 } from "@nestjs/common";
 import { CreateEventDto } from "./dto/create-event.dto";
-import { UpsertEventAdminAccessDto } from "./dto/event-admin-access.dto";
+import {
+  TransferEventOwnershipDto,
+  UpsertEventAdminAccessDto,
+} from "./dto/event-admin-access.dto";
 import {
   UpdateEventCasesDto,
   UpdateEventMaterialsDto,
@@ -82,6 +85,18 @@ export class EventsController {
       eventId,
       targetUserId,
     );
+  }
+
+  @Auth()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @HttpCode(200)
+  @Patch("my/:eventId/owner")
+  async transferMyEventOwnership(
+    @CurrentUser("idUser") userId: string,
+    @Param("eventId") eventId: string,
+    @Body() dto: TransferEventOwnershipDto,
+  ) {
+    return this.eventsService.transferMyEventOwnership(userId, eventId, dto);
   }
 
   @Auth()

@@ -37,11 +37,8 @@ export interface IOrganizationEventSummary {
 	format: 'OFFLINE' | 'ONLINE' | 'HYBRID'
 	status:
 		| 'FINISHED'
-		| 'OPEN'
 		| 'PUBLISHED'
 		| 'PRIVATE'
-		| 'OPEN_REGISTRATION'
-		| 'CLOSED_REGISTRATION'
 	dataStart: string
 	dataEnd: string
 	hasTeams: boolean

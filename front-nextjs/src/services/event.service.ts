@@ -65,6 +65,13 @@ class EventService {
     );
   }
 
+  async transferMyEventOwnership(eventId: string, userId: string) {
+    return instance.patch<ManagedEventAdminAccessOptions>(
+      `${this.baseUrl}/my/${eventId}/owner`,
+      { userId },
+    );
+  }
+
   async updateMyEventGeneral(
     eventId: string,
     data: UpdateManagedEventGeneralData,

@@ -52,9 +52,18 @@ export class EventAdminPermissionsDto {
   @IsOptional()
   @IsBoolean()
   canExportCsv?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  canManagePrivateInvites?: boolean;
 }
 
 export class UpsertEventAdminAccessDto extends EventAdminPermissionsDto {
+  @IsString()
+  userId: string;
+}
+
+export class TransferEventOwnershipDto {
   @IsString()
   userId: string;
 }

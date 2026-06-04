@@ -155,6 +155,7 @@ export interface ManagedEventAdminPermissions {
   canDeleteResults: boolean;
   canFinishEvent: boolean;
   canExportCsv: boolean;
+  canManagePrivateInvites: boolean;
 }
 
 export interface ManagedEventPermissionSnapshot
@@ -178,10 +179,13 @@ export interface ManagedEventAdminAccess extends ManagedEventAdminPermissions {
 }
 
 export interface ManagedEventAdminAccessOptions {
+  owner?: ManagedEventAdminUser | null;
+  canTransferOwnership?: boolean;
   candidates: ManagedEventAdminUser[];
   access: ManagedEventAdminAccess[];
   presets: {
     expert: ManagedEventAdminPermissions;
+    admin: ManagedEventAdminPermissions;
   };
 }
 
