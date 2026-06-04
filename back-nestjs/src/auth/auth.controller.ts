@@ -72,7 +72,8 @@ export class AuthController {
   @Post("auth/login/resend-2fa")
   async resendTwoFactor(@Body() dto: ResendTwoFactorDto) {
     return this.authService.resendTwoFactor(dto);
-    
+  }
+
   @Post("auth/turniket/login")
   async loginTurniket(
     @Body() dto: TurniketLoginDto,

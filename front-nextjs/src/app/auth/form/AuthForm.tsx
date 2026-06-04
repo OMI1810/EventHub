@@ -22,7 +22,7 @@ const roleOptions: Array<{ label: string; value: TRole }> = [
 ];
 
 
-export function AuthForm({ isLogin }: Props) {
+export function AuthForm({ isLogin, authMode = "default" }: Props) {
   const [isPersonalDataModalOpen, setIsPersonalDataModalOpen] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState("");
 

@@ -86,6 +86,8 @@ export class AuthService {
       success: true,
       twoFactorToken: this.createTwoFactorToken(user),
     };
+  }
+
   async loginTurniket(dto: TurniketLoginDto) {
     const user = await this.validateTurniketUser(dto);
     return this.buildResponseObject(user);

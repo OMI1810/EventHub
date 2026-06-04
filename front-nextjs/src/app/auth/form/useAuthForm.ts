@@ -30,8 +30,14 @@ export function useAuthForm(
   } | null>(null);
 
   const { mutate: mutateLogin, isPending: isLoginPending } = useMutation({
-    mutationKey: ["login"],
-    mutationFn: (data: IFormData) => authService.main("login", data),
+    mutationKey: ["login", authMode],
+    mutationFn: (data: IFormData) =>
+      authMode === "turniket"
+        ? authService.loginTurniket({
+            login: data.email,
+            password: data.password,
+          })
+        : authService.main("login", data),
     onSuccess(response) {
       if (
         "requiresTwoFactor" in response.data &&
@@ -42,14 +48,14 @@ export function useAuthForm(
           email: response.data.email,
         });
         toast.success("Код подтверждения отправлен на почту");
-    mutationFn: (data: IFormData) =>
-      authMode === "turniket"
-        ? authService.loginTurniket({
-            login: data.email,
-            password: data.password,
-          })
-        : authService.main("login", data),
-    onSuccess(response) {
+        return;
+      }
+
+      if (!("accessToken" in response.data)) {
+        toast.error("Не удалось получить токен доступа");
+        return;
+      }
+
       if (authMode === "turniket" && response.data.user.role !== "TURNIKET") {
         void authService.logout();
         toast.error("Этот вход предназначен только для турникетов");
