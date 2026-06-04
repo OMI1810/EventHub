@@ -1,6 +1,7 @@
 import { InviteCoreService } from "@/invites/invite-core.service";
 import { BaseInvitePayload } from "@/invites/invite.types";
 import { PrismaService } from "@/prisma.service";
+import { UserService } from "@/user/user.service";
 import {
   BadRequestException,
   ForbiddenException,
@@ -10,6 +11,7 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import {
+  EventEntryDecisionCode,
   EventFormat,
   EventStatus,
   Prisma,
@@ -31,6 +33,13 @@ import {
   UpsertEventAdminAccessDto,
 } from "./dto/event-admin-access.dto";
 import {
+  CreateEventTurniketDto,
+  EventTurniketMutationResultDto,
+  EventTurniketOverviewDto,
+  EventTurniketOverviewItemDto,
+  UpdateEventTurniketStatusDto,
+} from "./dto/event-turniket.dto";
+import {
   UpdateEventCaseMaterialDto,
   UpdateEventCasesDto,
   UpdateEventMaterialsDto,
@@ -49,6 +58,7 @@ interface EventFeaturePreset {
   hasLoadedSolution: boolean;
   hasMaterials: boolean;
   hasResualt: boolean;
+  hasEntryPass: boolean;
 }
 
 interface EventInvitePayload extends BaseInvitePayload {
@@ -91,7 +101,9 @@ type EventAdminPermissionKey =
   | "canDeleteResults"
   | "canFinishEvent"
   | "canExportCsv"
-  | "canManagePrivateInvites";
+  | "canManagePrivateInvites"
+  | "canViewTurniketStats"
+  | "canManageTurnikets";
 
 const EVENT_ADMIN_PERMISSION_KEYS: EventAdminPermissionKey[] = [
   "canView",
@@ -108,6 +120,8 @@ const EVENT_ADMIN_PERMISSION_KEYS: EventAdminPermissionKey[] = [
   "canFinishEvent",
   "canExportCsv",
   "canManagePrivateInvites",
+  "canViewTurniketStats",
+  "canManageTurnikets",
 ];
 
 const EVENT_EXPERT_PERMISSIONS: Record<EventAdminPermissionKey, boolean> = {
@@ -125,6 +139,8 @@ const EVENT_EXPERT_PERMISSIONS: Record<EventAdminPermissionKey, boolean> = {
   canFinishEvent: false,
   canExportCsv: true,
   canManagePrivateInvites: false,
+  canViewTurniketStats: true,
+  canManageTurnikets: false,
 };
 
 const EVENT_FULL_PERMISSIONS: Record<EventAdminPermissionKey, boolean> =
@@ -161,6 +177,8 @@ const EVENT_ADMIN_PERMISSION_DEPENDENCIES: Partial<
   canFinishEvent: ["canView"],
   canExportCsv: ["canView"],
   canManagePrivateInvites: ["canView"],
+  canViewTurniketStats: ["canView"],
+  canManageTurnikets: ["canView"],
 };
 const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
   [CreateEventType.HACKATHON]: {
@@ -170,6 +188,7 @@ const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
     hasLoadedSolution: true,
     hasMaterials: false,
     hasResualt: true,
+    hasEntryPass: false,
   },
   [CreateEventType.MASTER_CLASS]: {
     hasCases: false,
@@ -178,6 +197,7 @@ const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
     hasLoadedSolution: false,
     hasMaterials: true,
     hasResualt: false,
+    hasEntryPass: false,
   },
   [CreateEventType.CONTEST]: {
     hasCases: false,
@@ -186,6 +206,7 @@ const EVENT_FEATURES: Record<CreateEventType, EventFeaturePreset> = {
     hasLoadedSolution: true,
     hasMaterials: true,
     hasResualt: true,
+    hasEntryPass: false,
   },
 };
 
@@ -198,6 +219,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly inviteCoreService: InviteCoreService,
+    private readonly userService: UserService,
   ) {}
 
   onModuleInit() {
@@ -249,6 +271,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         hasMaterials: true,
         hasLoadedSolution: true,
         hasResualt: true,
+        hasEntryPass: true,
         organization: {
           select: {
             idOrganization: true,
@@ -314,6 +337,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         hasLoadedSolution: true,
         hasMaterials: true,
         hasResualt: true,
+        hasEntryPass: true,
         participantLimit: true,
         participanInTeamLimit: true,
         organization: {
@@ -342,6 +366,8 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
             canFinishEvent: true,
             canExportCsv: true,
             canManagePrivateInvites: true,
+            canViewTurniketStats: true,
+            canManageTurnikets: true,
           },
           take: 1,
         },
@@ -576,6 +602,332 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  async getMyEventTurniketsOverview(
+    userId: string,
+    eventId: string,
+  ): Promise<EventTurniketOverviewDto> {
+    const access = await this.ensureTurniketStatisticsAccess(userId, eventId);
+
+    const [turnikets, entries] = await Promise.all([
+      this.prisma.eventTurniket.findMany({
+        where: {
+          eventId,
+        },
+        select: {
+          idTurniket: true,
+          label: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          userId: true,
+          user: {
+            select: {
+              email: true,
+            },
+          },
+          createdByAdmin: {
+            select: {
+              idUser: true,
+              email: true,
+              name: true,
+              surname: true,
+              patronymic: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      }),
+      this.prisma.eventEntryLog.findMany({
+        where: {
+          eventId,
+        },
+        select: {
+          idEventEntryLog: true,
+          scannedAt: true,
+          decision: true,
+          failureReason: true,
+          wasFirstSuccessfulEntry: true,
+          userDisplayNameSnapshot: true,
+          eventTitleSnapshot: true,
+          turniketLabelSnapshot: true,
+          scannerDeviceId: true,
+          tokenJti: true,
+          user: {
+            select: {
+              email: true,
+            },
+          },
+          team: {
+            select: {
+              name: true,
+            },
+          },
+          case: {
+            select: {
+              title: true,
+            },
+          },
+          turniketUserId: true,
+        },
+        orderBy: {
+          scannedAt: "desc",
+        },
+      }),
+    ]);
+
+    const entriesByTurniketUserId = new Map<string, typeof entries>();
+    entries.forEach((entry) => {
+      if (!entry.turniketUserId) return;
+      const current = entriesByTurniketUserId.get(entry.turniketUserId) ?? [];
+      current.push(entry);
+      entriesByTurniketUserId.set(entry.turniketUserId, current);
+    });
+
+    const turniketItems: EventTurniketOverviewItemDto[] = turnikets.map((turniket) => {
+      const turniketEntries = entriesByTurniketUserId.get(turniket.userId) ?? [];
+      const allowedEntries = turniketEntries.filter(
+        (entry) => entry.decision === EventEntryDecisionCode.ALLOW,
+      );
+
+      return {
+        idTurniket: turniket.idTurniket,
+        label: turniket.label,
+        login: turniket.user.email,
+        isActive: turniket.isActive,
+        createdAt: turniket.createdAt,
+        updatedAt: turniket.updatedAt,
+        createdByAdmin: turniket.createdByAdmin,
+        lastScannedAt: turniketEntries[0]?.scannedAt ?? null,
+        stats: {
+          totalScans: turniketEntries.length,
+          allowedEntries: allowedEntries.length,
+          deniedEntries: turniketEntries.length - allowedEntries.length,
+          uniqueParticipants: new Set(
+            allowedEntries
+              .map((entry) => entry.user?.email ?? entry.userDisplayNameSnapshot)
+              .filter(Boolean),
+          ).size,
+          firstSuccessfulEntries: allowedEntries.filter(
+            (entry) => entry.wasFirstSuccessfulEntry,
+          ).length,
+        },
+      };
+    });
+
+    const allowedEntries = entries.filter(
+      (entry) => entry.decision === EventEntryDecisionCode.ALLOW,
+    );
+    const deniedEntries = entries.filter(
+      (entry) => entry.decision !== EventEntryDecisionCode.ALLOW,
+    );
+
+    return {
+      canManage:
+        access.permissions.hasFullAccess ||
+        access.permissions.canEditSettings,
+      turnikets: turniketItems,
+      stats: {
+        totalScans: entries.length,
+        allowedEntries: allowedEntries.length,
+        deniedEntries: deniedEntries.length,
+        uniqueParticipants: new Set(
+          allowedEntries
+            .map((entry) => entry.user?.email ?? entry.userDisplayNameSnapshot)
+            .filter(Boolean),
+        ).size,
+        firstSuccessfulEntries: allowedEntries.filter(
+          (entry) => entry.wasFirstSuccessfulEntry,
+        ).length,
+        repeatAttempts: deniedEntries.filter(
+          (entry) => entry.decision === EventEntryDecisionCode.DENY_REPLAY,
+        ).length,
+        activeTurnikets: turniketItems.filter((turniket) => turniket.isActive)
+          .length,
+        lastScannedAt: entries[0]?.scannedAt ?? null,
+        denyBreakdown: {
+          expired: deniedEntries.filter(
+            (entry) => entry.decision === EventEntryDecisionCode.DENY_EXPIRED,
+          ).length,
+          replay: deniedEntries.filter(
+            (entry) => entry.decision === EventEntryDecisionCode.DENY_REPLAY,
+          ).length,
+          invalid: deniedEntries.filter(
+            (entry) => entry.decision === EventEntryDecisionCode.DENY_INVALID,
+          ).length,
+          notEligible: deniedEntries.filter(
+            (entry) =>
+              entry.decision === EventEntryDecisionCode.DENY_NOT_ELIGIBLE,
+          ).length,
+        },
+      },
+      entries: entries.map((entry) => ({
+        idEventEntryLog: entry.idEventEntryLog,
+        scannedAt: entry.scannedAt,
+        decision: entry.decision,
+        failureReason: entry.failureReason,
+        wasFirstSuccessfulEntry: entry.wasFirstSuccessfulEntry,
+        turniketLabel: entry.turniketLabelSnapshot,
+        participantLabel:
+          entry.userDisplayNameSnapshot ?? entry.user?.email ?? "Неизвестный участник",
+        participantEmail: entry.user?.email ?? null,
+        teamName: entry.team?.name ?? null,
+        caseTitle: entry.case?.title ?? null,
+      })),
+    };
+  }
+
+  async createMyEventTurniket(
+    userId: string,
+    eventId: string,
+    dto: CreateEventTurniketDto,
+  ): Promise<EventTurniketMutationResultDto> {
+    await this.ensureTurniketManagementAccess(userId, eventId);
+
+    const login = dto.login.trim();
+    const label = dto.label.trim();
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: {
+        email: login,
+      },
+      select: {
+        idUser: true,
+      },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException("Пользователь с таким логином уже существует");
+    }
+
+    await this.prisma.eventTurniket.findFirst({
+      where: {
+        eventId,
+        label,
+      },
+      select: {
+        idTurniket: true,
+      },
+    }).then((turniket) => {
+      if (turniket) {
+        throw new BadRequestException(
+          "Турникет с таким названием уже существует в этом мероприятии",
+        );
+      }
+    });
+
+    const createdTurniket = await this.prisma.$transaction(async (prisma) => {
+      const account = await this.userService.create({
+        email: login,
+        password: dto.password,
+        name: label,
+        role: Role.TURNIKET,
+      });
+
+      await prisma.user.update({
+        where: {
+          idUser: account.idUser,
+        },
+        data: {
+          verificationToken: null,
+        },
+      });
+
+      return prisma.eventTurniket.create({
+        data: {
+          eventId,
+          userId: account.idUser,
+          label,
+          isActive: true,
+          createdByAdminId: userId,
+        },
+        select: {
+          idTurniket: true,
+        },
+      });
+    });
+
+    return {
+      success: true,
+      idTurniket: createdTurniket.idTurniket,
+      overview: await this.getMyEventTurniketsOverview(userId, eventId),
+    };
+  }
+
+  async deleteMyEventTurniket(
+    userId: string,
+    eventId: string,
+    turniketId: string,
+  ): Promise<EventTurniketMutationResultDto> {
+    await this.ensureTurniketManagementAccess(userId, eventId);
+
+    const turniket = await this.prisma.eventTurniket.findFirst({
+      where: {
+        idTurniket: turniketId,
+        eventId,
+      },
+      select: {
+        idTurniket: true,
+        userId: true,
+      },
+    });
+
+    if (!turniket) {
+      throw new NotFoundException("Турникет не найден");
+    }
+
+    await this.prisma.$transaction(async (prisma) => {
+      await prisma.user.delete({
+        where: {
+          idUser: turniket.userId,
+        },
+      });
+    });
+
+    return {
+      success: true,
+      overview: await this.getMyEventTurniketsOverview(userId, eventId),
+    };
+  }
+
+  async updateMyEventTurniketStatus(
+    userId: string,
+    eventId: string,
+    turniketId: string,
+    dto: UpdateEventTurniketStatusDto,
+  ): Promise<EventTurniketMutationResultDto> {
+    await this.ensureTurniketManagementAccess(userId, eventId);
+
+    const turniket = await this.prisma.eventTurniket.findFirst({
+      where: {
+        idTurniket: turniketId,
+        eventId,
+      },
+      select: {
+        idTurniket: true,
+      },
+    });
+
+    if (!turniket) {
+      throw new NotFoundException("РўСѓСЂРЅРёРєРµС‚ РЅРµ РЅР°Р№РґРµРЅ");
+    }
+
+    await this.prisma.eventTurniket.update({
+      where: {
+        idTurniket: turniketId,
+      },
+      data: {
+        isActive: dto.isActive,
+      },
+    });
+
+    return {
+      success: true,
+      overview: await this.getMyEventTurniketsOverview(userId, eventId),
+    };
+  }
+
   async updateMyEventGeneral(
     userId: string,
     eventId: string,
@@ -673,6 +1025,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         hasLoadedSolution: true,
         hasMaterials: true,
         hasResualt: true,
+        hasEntryPass: true,
         participantLimit: true,
         participanInTeamLimit: true,
         dateDeadLine: true,
@@ -701,6 +1054,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     const hasCases = dto.hasCases ?? currentEvent.hasCases;
     const hasLoadedSolution =
       dto.hasLoadedSolution ?? currentEvent.hasLoadedSolution;
+    const hasEntryPass = dto.hasEntryPass ?? currentEvent.hasEntryPass;
     const participantLimit =
       dto.participantLimit ?? currentEvent.participantLimit ?? undefined;
     const teamMemberLimit =
@@ -744,6 +1098,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         hasLoadedSolution,
         hasMaterials: dto.hasMaterials ?? currentEvent.hasMaterials,
         hasResualt: dto.hasResualt ?? currentEvent.hasResualt,
+        hasEntryPass,
         participantLimit: hasParticipantLimit ? participantLimit : null,
         participanInTeamLimit: hasTeams ? teamMemberLimit : null,
         dateDeadLine: hasLoadedSolution ? dateDeadLine : null,
@@ -1493,6 +1848,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
           hasLoadedSolution: features.hasLoadedSolution,
           hasMaterials: features.hasMaterials,
           hasResualt: features.hasResualt,
+          hasEntryPass: features.hasEntryPass,
           participantLimit: features.hasParticipantLimit
             ? dto.participantLimit
             : null,
@@ -1674,6 +2030,89 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       ...(access ?? {}),
       hasFullAccess: false,
     };
+  }
+
+  private async getTurniketAccessContext(userId: string, eventId: string) {
+    const event = await this.prisma.event.findFirst({
+      where: {
+        idEvent: eventId,
+        ...this.getAccessibleEventWhere(userId),
+      },
+      select: {
+        idEvent: true,
+        userId: true,
+        organization: {
+          select: {
+            ownerUserId: true,
+          },
+        },
+        adminAccess: {
+          where: {
+            userId,
+          },
+          select: {
+            canView: true,
+            canEditGeneral: true,
+            canEditSettings: true,
+            canEditMaterials: true,
+            canEditCases: true,
+            canViewParticipants: true,
+            canViewTeams: true,
+            canViewSolutions: true,
+            canViewResults: true,
+            canEditResults: true,
+            canDeleteResults: true,
+            canFinishEvent: true,
+            canExportCsv: true,
+            canManagePrivateInvites: true,
+            canViewTurniketStats: true,
+            canManageTurnikets: true,
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException("Мероприятие не найдено");
+    }
+
+    return {
+      eventId: event.idEvent,
+      permissions: this.resolveEventPermissionSnapshot(userId, event),
+    };
+  }
+
+  private async ensureTurniketStatisticsAccess(userId: string, eventId: string) {
+    const context = await this.getTurniketAccessContext(userId, eventId);
+
+    const canViewStats =
+      context.permissions.hasFullAccess ||
+      context.permissions.canViewTurniketStats;
+
+    if (!canViewStats) {
+      throw new ForbiddenException(
+        "Недостаточно прав для просмотра статистики турникетов",
+      );
+    }
+
+    return context;
+  }
+
+  private async ensureTurniketManagementAccess(userId: string, eventId: string) {
+    const context = await this.getTurniketAccessContext(userId, eventId);
+
+    const canManage =
+      context.permissions.hasFullAccess ||
+      context.permissions.canManageTurnikets;
+
+    if (!canManage) {
+      throw new ForbiddenException(
+        "Недостаточно прав для управления турникетами",
+      );
+    }
+
+    return context;
   }
 
   private async ensureEventAccess(userId: string, eventId: string) {
@@ -1983,6 +2422,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       hasLoadedSolution: dto.hasLoadedSolution ?? false,
       hasMaterials: dto.hasMaterials ?? false,
       hasResualt: dto.hasResualt ?? false,
+      hasEntryPass: dto.hasEntryPass ?? false,
     };
   }
 

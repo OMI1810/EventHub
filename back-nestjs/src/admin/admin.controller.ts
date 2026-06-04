@@ -13,6 +13,7 @@ import {
 	ValidationPipe
 } from '@nestjs/common'
 import { AdminService } from './admin.service'
+import { CreateTurniketAccountDto } from './dto/create-turniket-account.dto'
 import { CreateAdminOrganizationRequestDto } from './dto/create-admin-organization-request.dto'
 import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto'
 
@@ -75,5 +76,16 @@ export class AdminController {
 		@Param('requestId') requestId: string
 	) {
 		return this.adminService.cancelOrganizationRequest(userId, requestId)
+	}
+
+	@Auth()
+	@UsePipes(new ValidationPipe())
+	@HttpCode(200)
+	@Post('turnikets')
+	async createTurniketAccount(
+		@CurrentUser('idUser') userId: string,
+		@Body() dto: CreateTurniketAccountDto
+	) {
+		return this.adminService.createTurniketAccount(userId, dto)
 	}
 }

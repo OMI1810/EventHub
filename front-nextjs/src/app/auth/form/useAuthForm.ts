@@ -10,7 +10,10 @@ import { useTransition } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 
-export function useAuthForm(isLogin: boolean) {
+export function useAuthForm(
+  isLogin: boolean,
+  authMode: "default" | "turniket" = "default",
+) {
   const { register, handleSubmit, reset, setValue, watch } = useForm<IFormData>(
     {
       defaultValues: {
@@ -24,16 +27,32 @@ export function useAuthForm(isLogin: boolean) {
 
   const { mutate: mutateLogin, isPending: isLoginPending } = useMutation({
     mutationKey: ["login"],
-    mutationFn: (data: IFormData) => authService.main("login", data),
-    onSuccess() {
+    mutationFn: (data: IFormData) =>
+      authMode === "turniket"
+        ? authService.loginTurniket({
+            login: data.email,
+            password: data.password,
+          })
+        : authService.main("login", data),
+    onSuccess(response) {
+      if (authMode === "turniket" && response.data.user.role !== "TURNIKET") {
+        void authService.logout();
+        toast.error("Этот вход предназначен только для турникетов");
+        return;
+      }
+
       startTransition(() => {
         reset();
-        router.push(PUBLIC_PAGES.HOME);
+        router.push(authMode === "turniket" ? "/turniket" : PUBLIC_PAGES.HOME);
       });
     },
     onError(error) {
       if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.message);
+        const message =
+          error.response?.data?.message ||
+          error.message ||
+          "Не удалось выполнить вход";
+        toast.error(message);
       }
     },
   });
@@ -49,7 +68,11 @@ export function useAuthForm(isLogin: boolean) {
     },
     onError(error) {
       if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.message);
+        const message =
+          error.response?.data?.message ||
+          error.message ||
+          "Не удалось выполнить регистрацию";
+        toast.error(message);
       }
     },
   });

@@ -25,6 +25,7 @@ import { useParams } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { AdminEventCsvExportModal } from "./AdminEventCsvExportModal";
+import { AdminEventTurniketSection } from "./AdminEventTurniketSection";
 import {
   EMPTY_EVENT_ADMIN_PERMISSIONS,
   EventAdminAccessModal,
@@ -1836,6 +1837,13 @@ export function AdminEventDetailsPage() {
           />
         </div>
       </DetailPanel>
+
+      {event.hasEntryPass &&
+      (event.permissions.hasFullAccess ||
+        event.permissions.canViewTurniketStats ||
+        event.permissions.canManageTurnikets) ? (
+        <AdminEventTurniketSection eventId={event.idEvent} />
+      ) : null}
 
       <div className={eventPanelsGridClass}>
         {event.teams.length ? (
