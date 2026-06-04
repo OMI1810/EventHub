@@ -1,12 +1,13 @@
 "use client";
 
+import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { MiniLoader } from "@/components/ui/MiniLoader";
 import { PhoneInput } from "@/components/ui/PhoneInput";
-import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
 import { TRole } from "@/types/user.types";
+import { useState } from "react";
 import { twMerge } from "tailwind-merge";
-import styles from "./AuthForm.module.scss";
 import { AuthToggle } from "./AuthToggle";
+import styles from "./AuthForm.module.scss";
 import { useAuthForm } from "./useAuthForm";
 
 interface Props {
@@ -20,6 +21,7 @@ const roleOptions: Array<{ label: string; value: TRole }> = [
 ];
 
 export function AuthForm({ isLogin }: Props) {
+  const [isPersonalDataModalOpen, setIsPersonalDataModalOpen] = useState(false);
   const {
     handleSubmit,
     isLoading,
@@ -37,7 +39,7 @@ export function AuthForm({ isLogin }: Props) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="w-full max-w-2xl mx-auto"
+      className="mx-auto w-full max-w-2xl"
     >
       <div className="mb-4">
         <label className="text-gray-600">
@@ -63,7 +65,7 @@ export function AuthForm({ isLogin }: Props) {
         </label>
       </div>
 
-      {!isLogin && (
+      {!isLogin ? (
         <>
           <div className="mb-4">
             <label className="text-gray-600">
@@ -201,11 +203,82 @@ export function AuthForm({ isLogin }: Props) {
               className="mt-1 h-4 w-4 shrink-0 accent-primary"
             />
             <span>
-              Я согласен на обработку персональных данных
+              Я согласен на{" "}
+              <button
+                type="button"
+                onClick={() => setIsPersonalDataModalOpen(true)}
+                className="text-primary underline underline-offset-2 hover:text-primary/80"
+              >
+                обработку персональных данных
+              </button>
             </span>
           </label>
         </>
-      )}
+      ) : null}
+
+      {isPersonalDataModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-white shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">
+                  Обработка персональных данных
+                </h2>
+                <p className="mt-2 text-sm text-zinc-400">
+                  Для регистрации и работы аккаунта обрабатываются данные,
+                  которые вы указываете в форме.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPersonalDataModalOpen(false)}
+                className="rounded-md px-2 py-1 text-xl text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4 text-sm text-zinc-300">
+              <div>
+                <p className="font-medium text-zinc-100">Общие данные</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>Email</li>
+                  <li>Телефон</li>
+                  <li>Дополнительный контакт, если он указан</li>
+                  <li>Выбранная роль аккаунта</li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="font-medium text-zinc-100">
+                  Для пользователя и администратора
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>Фамилия, имя и отчество, если они указаны</li>
+                  <li>Дата рождения</li>
+                  <li>Город</li>
+                </ul>
+              </div>
+
+              <p className="text-zinc-400">
+                Эти данные нужны для создания аккаунта, связи с вами,
+                определения роли и предоставления доступа к функциям сервиса.
+                Они точто не будут сливаться в даркнет.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsPersonalDataModalOpen(false)}
+                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/80"
+              >
+                Понятно
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-3">
         <button
@@ -213,7 +286,7 @@ export function AuthForm({ isLogin }: Props) {
           className={twMerge(
             styles["btn-primary"],
             isLogin ? "bg-primary" : "bg-secondary",
-            isLoading && "opacity-75 cursor-not-allowed",
+            isLoading && "cursor-not-allowed opacity-75",
           )}
           disabled={isLoading}
         >
