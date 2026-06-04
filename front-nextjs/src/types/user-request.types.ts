@@ -5,6 +5,7 @@ export type UserRequestType = 'event' | 'team'
 
 export interface IUserRequestEventInfo {
 	idEvent: string
+	slug: string
 	title: string
 	type: string
 	format: EventFormat

@@ -64,20 +64,24 @@ export function UserSidebar() {
 								<MiniLoader width={60} height={60} />
 							</div>
 						) : items.length ? (
-							items.map(item => (
-								<Link
-									key={item.idEvent}
-									href={USER_PAGES.event(item.idEvent)}
-									className={twMerge(
-										'block rounded-2xl border px-4 py-3 text-sm transition-colors',
-										pathname === USER_PAGES.event(item.idEvent)
-											? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-											: 'border-zinc-800 text-zinc-200 hover:bg-zinc-800'
-									)}
-								>
-									{item.title}
-								</Link>
-							))
+							items.map(item => {
+								const href = USER_PAGES.event(item.slug || item.idEvent)
+
+								return (
+									<Link
+										key={item.idEvent}
+										href={href}
+										className={twMerge(
+											'block rounded-2xl border px-4 py-3 text-sm transition-colors',
+											pathname === href
+												? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+												: 'border-zinc-800 text-zinc-200 hover:bg-zinc-800'
+										)}
+									>
+										{item.title}
+									</Link>
+								)
+							})
 						) : (
 							<div className="rounded-2xl border border-dashed border-zinc-800 px-4 py-5 text-sm text-zinc-500">
 								У вас нет зарегистрированных мероприятий.

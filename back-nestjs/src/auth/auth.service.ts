@@ -13,6 +13,7 @@ import { Prisma, Role, type User } from "@prisma/client";
 import { verify } from "argon2";
 import { omit } from "lodash";
 import { AuthDto, RegisterDto } from "./dto/auth.dto";
+import { TurniketLoginDto } from "./dto/turniket-login.dto";
 
 @Injectable()
 export class AuthService {
@@ -28,6 +29,11 @@ export class AuthService {
 
   async login(dto: AuthDto) {
     const user = await this.validateUser(dto);
+    return this.buildResponseObject(user);
+  }
+
+  async loginTurniket(dto: TurniketLoginDto) {
+    const user = await this.validateTurniketUser(dto);
     return this.buildResponseObject(user);
   }
 
@@ -94,6 +100,9 @@ export class AuthService {
       throw new UnauthorizedException("Invalid refresh token");
     }
     const user = await this.userService.getById(result.id);
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
     return this.buildResponseObject(user);
   }
 
@@ -112,6 +121,31 @@ export class AuthService {
     });
 
     return "Email verified!";
+  }
+
+  async resendVerificationEmail(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { idUser: userId },
+      select: {
+        email: true,
+        verificationToken: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException("Пользователь не найден");
+    }
+
+    if (!user.verificationToken) {
+      throw new BadRequestException("Почта уже подтверждена");
+    }
+
+    await this.emailService.sendVerification(
+      user.email,
+      `${VERIFY_EMAIL_URL}${user.verificationToken}`,
+    );
+
+    return { success: true };
   }
 
   async buildResponseObject(user: User) {
@@ -139,6 +173,20 @@ export class AuthService {
     if (!isValid) {
       throw new UnauthorizedException("Email or password invalid");
     }
+    return user;
+  }
+
+  private async validateTurniketUser(dto: TurniketLoginDto) {
+    const user = await this.userService.getByEmail(dto.login);
+    if (!user || user.role !== Role.TURNIKET) {
+      throw new UnauthorizedException("Login or password invalid");
+    }
+
+    const isValid = await verify(user.password, dto.password);
+    if (!isValid) {
+      throw new UnauthorizedException("Login or password invalid");
+    }
+
     return user;
   }
 

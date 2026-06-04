@@ -46,7 +46,7 @@ export class PublicEventsService {
 	async getEventDetails(eventId: string) {
 		const event = await this.prisma.event.findFirst({
 			where: {
-				idEvent: eventId,
+				OR: [{ idEvent: eventId }, { slug: eventId }],
 				status: EventStatus.PUBLISHED
 			},
 			select: {

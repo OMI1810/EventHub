@@ -5,7 +5,8 @@ export function useOrganization(enabled = true) {
 	const { data, isLoading, error } = useQuery({
 		queryKey: ['organization', 'me'],
 		queryFn: () => organizationService.getMyOrganization(),
-		enabled
+		enabled,
+		retry: false
 	})
 
 	return {

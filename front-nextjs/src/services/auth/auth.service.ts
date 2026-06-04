@@ -1,4 +1,4 @@
-import { axiosClassic } from '@/api/axios'
+import { axiosClassic, instance } from '@/api/axios'
 import { IFormData } from '@/types/auth.types'
 import { IUser } from '@/types/user.types'
 import authTokenService from './auth-token.service'
@@ -8,6 +8,11 @@ interface IAuthResponse {
 	accessToken: string
 }
 
+interface ITurniketLoginData {
+	login: string
+	password: string
+}
+
 class AuthService {
 	async main(
 		type: 'login' | 'register',
@@ -15,6 +20,19 @@ class AuthService {
 	) {
 		const response = await axiosClassic.post<IAuthResponse>(
 			`/auth/${type}`,
+			data
+		)
+
+		if (response.data.accessToken) {
+			authTokenService.saveAccessToken(response.data.accessToken)
+		}
+
+		return response
+	}
+
+	async loginTurniket(data: ITurniketLoginData) {
+		const response = await axiosClassic.post<IAuthResponse>(
+			'/auth/turniket/login',
 			data
 		)
 
@@ -42,6 +60,12 @@ class AuthService {
 		if (response.data) authTokenService.removeAccessToken()
 
 		return response
+	}
+
+	async resendVerificationEmail() {
+		return instance.post<{ success: boolean }>(
+			'/auth/resend-verification-email'
+		)
 	}
 }
 

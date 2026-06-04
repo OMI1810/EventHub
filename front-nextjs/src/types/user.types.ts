@@ -1,4 +1,4 @@
-export type TRole = "USER" | "ADMIN" | "ORGANIZATOR";
+export type TRole = "USER" | "ADMIN" | "ORGANIZATOR" | "TURNIKET";
 
 export interface IUser {
   idUser: string;

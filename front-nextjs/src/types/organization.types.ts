@@ -37,11 +37,8 @@ export interface IOrganizationEventSummary {
 	format: 'OFFLINE' | 'ONLINE' | 'HYBRID'
 	status:
 		| 'FINISHED'
-		| 'OPEN'
 		| 'PUBLISHED'
 		| 'PRIVATE'
-		| 'OPEN_REGISTRATION'
-		| 'CLOSED_REGISTRATION'
 	dataStart: string
 	dataEnd: string
 	hasTeams: boolean
@@ -59,6 +56,14 @@ export interface IUpdateOrganizationFormData {
 	name?: string
 	description?: string
 	address?: string
+	cordinatX?: number
+	cordinatY?: number
+}
+
+export interface ICreateOrganizationFormData {
+	name: string
+	description?: string
+	address: string
 	cordinatX?: number
 	cordinatY?: number
 }

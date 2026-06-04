@@ -107,7 +107,7 @@ export class UserTeamsService {
 	}
 
 	async createTeam(userId: string, eventId: string, dto: CreateUserTeamDto) {
-		await this.requireRegularUser(userId)
+		await this.requireVerifiedRegularUser(userId)
 		const event = await this.requireTeamEnabledParticipation(userId, eventId)
 
 		const existingTeam = await this.findUserTeamForEvent(userId, eventId)
@@ -149,7 +149,7 @@ export class UserTeamsService {
 	}
 
 	async updateTeam(userId: string, teamId: string, dto: UpdateUserTeamDto) {
-		await this.requireRegularUser(userId)
+		await this.requireVerifiedRegularUser(userId)
 
 		const team = await this.requireCaptainTeamAccess(userId, teamId)
 		const teamFormat =
@@ -245,7 +245,7 @@ export class UserTeamsService {
 	}
 
 	async createTeamInvite(userId: string, teamId: string) {
-		await this.requireRegularUser(userId)
+		await this.requireVerifiedRegularUser(userId)
 		const team = await this.requireCaptainTeamAccess(userId, teamId)
 
 		if (!getEventTimeState(team.event).canManageTeams) {
@@ -258,7 +258,7 @@ export class UserTeamsService {
 	}
 
 	async joinByInvite(userId: string, dto: JoinTeamByInviteDto) {
-		await this.requireRegularUser(userId)
+		await this.requireVerifiedRegularUser(userId)
 		const invite = await this.teamInviteService.findActiveInviteByCode(dto.code)
 
 		if (!invite || invite.eventId !== dto.eventId) {
@@ -321,7 +321,7 @@ export class UserTeamsService {
 	}
 
 	async approveJoinRequest(userId: string, requestId: string) {
-		await this.requireRegularUser(userId)
+		await this.requireVerifiedRegularUser(userId)
 
 		const request = await this.prisma.teamJoinRequest.findUnique({
 			where: {
@@ -332,6 +332,11 @@ export class UserTeamsService {
 				teamId: true,
 				userId: true,
 				status: true,
+				user: {
+					select: {
+						verificationToken: true
+					}
+				},
 				team: {
 					select: {
 						idTeam: true,
@@ -370,6 +375,12 @@ export class UserTeamsService {
 
 		if (request.status !== StatusJoinRequest.PENDING) {
 			throw new BadRequestException('Можно одобрить только ожидающую заявку')
+		}
+
+		if (request.user.verificationToken) {
+			throw new BadRequestException(
+				'Пользователь должен подтвердить почту перед вступлением в команду'
+			)
 		}
 
 		if (!getEventTimeState(request.team.event).canManageTeams) {
@@ -474,7 +485,8 @@ export class UserTeamsService {
 			},
 			select: {
 				idUser: true,
-				role: true
+				role: true,
+				verificationToken: true
 			}
 		})
 
@@ -484,6 +496,18 @@ export class UserTeamsService {
 
 		if (user.role !== Role.USER) {
 			throw new ForbiddenException('Этот раздел доступен только обычным пользователям')
+		}
+
+		return user
+	}
+
+	private async requireVerifiedRegularUser(userId: string) {
+		const user = await this.requireRegularUser(userId)
+
+		if (user.verificationToken) {
+			throw new ForbiddenException(
+				'Подтвердите почту перед участием в мероприятиях'
+			)
 		}
 
 		return user

@@ -1,6 +1,7 @@
 import { Auth } from '@/auth/decorators/auth.decorator'
 import { CurrentUser } from '@/auth/decorators/user.decorator'
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common'
+import { RevokeUserEventPassDto } from './dto/revoke-user-event-pass.dto'
 import { SaveUserEventSolutionDto } from './dto/save-user-event-solution.dto'
 import { SelectUserEventCaseDto } from './dto/select-user-event-case.dto'
 import { UserEventsService } from './user-events.service'
@@ -70,5 +71,26 @@ export class UserEventsController {
 		@Body() dto: SaveUserEventSolutionDto
 	) {
 		return this.userEventsService.saveSolution(userId, eventId, dto)
+	}
+
+	@Auth()
+	@HttpCode(200)
+	@Post(':eventId/pass/token')
+	async createPassToken(
+		@CurrentUser('idUser') userId: string,
+		@Param('eventId') eventId: string
+	) {
+		return this.userEventsService.createPassToken(userId, eventId)
+	}
+
+	@Auth()
+	@HttpCode(200)
+	@Post(':eventId/pass/revoke')
+	async revokePassToken(
+		@CurrentUser('idUser') userId: string,
+		@Param('eventId') eventId: string,
+		@Body() dto: RevokeUserEventPassDto
+	) {
+		return this.userEventsService.revokePassToken(userId, eventId, dto.token)
 	}
 }

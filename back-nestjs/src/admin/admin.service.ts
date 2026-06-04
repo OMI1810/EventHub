@@ -1,5 +1,6 @@
 import { OrganizationInviteService } from '@/organization/organization-invite.service'
 import { PrismaService } from '@/prisma.service'
+import { UserService } from '@/user/user.service'
 import {
 	BadRequestException,
 	ForbiddenException,
@@ -7,6 +8,7 @@ import {
 	NotFoundException
 } from '@nestjs/common'
 import { Role, StatusJoinRequest } from '@prisma/client'
+import { CreateTurniketAccountDto } from './dto/create-turniket-account.dto'
 import { CreateAdminOrganizationRequestDto } from './dto/create-admin-organization-request.dto'
 import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto'
 
@@ -14,7 +16,8 @@ import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto'
 export class AdminService {
 	constructor(
 		private readonly prisma: PrismaService,
-		private readonly organizationInviteService: OrganizationInviteService
+		private readonly organizationInviteService: OrganizationInviteService,
+		private readonly userService: UserService
 	) {}
 
 	async getProfile(userId: string) {
@@ -96,6 +99,21 @@ export class AdminService {
 			  ).map(item => item.idTeam)
 			: []
 
+		const turniketUserIds = eventIds.length
+			? (
+					await this.prisma.eventTurniket.findMany({
+						where: {
+							eventId: {
+								in: eventIds
+							}
+						},
+						select: {
+							userId: true
+						}
+					})
+			  ).map(item => item.userId)
+			: []
+
 		await this.prisma.$transaction(async prisma => {
 			if (teamIds.length) {
 				await prisma.teamJoinRequest.deleteMany({
@@ -170,6 +188,16 @@ export class AdminService {
 			}
 
 			if (eventIds.length) {
+				if (turniketUserIds.length) {
+					await prisma.user.deleteMany({
+						where: {
+							idUser: {
+								in: turniketUserIds
+							}
+						}
+					})
+				}
+
 				await prisma.event.deleteMany({
 					where: {
 						idEvent: {
@@ -308,7 +336,13 @@ export class AdminService {
 		userId: string,
 		dto: CreateAdminOrganizationRequestDto
 	) {
-		await this.requireAdmin(userId)
+		const user = await this.requireAdmin(userId)
+
+		if (user.verificationToken) {
+			throw new ForbiddenException(
+				'Подтвердите почту перед отправкой заявки в организацию'
+			)
+		}
 
 		const invite =
 			await this.organizationInviteService.findActiveInviteByCode(dto.code)
@@ -402,6 +436,27 @@ export class AdminService {
 		})
 
 		return { success: true }
+	}
+
+	async createTurniketAccount(
+		userId: string,
+		dto: CreateTurniketAccountDto
+	) {
+		await this.requireAdmin(userId)
+
+		const turniket = await this.userService.create({
+			email: dto.email,
+			password: dto.password,
+			name: dto.name,
+			role: Role.TURNIKET
+		})
+
+		return {
+			idUser: turniket.idUser,
+			email: turniket.email,
+			name: turniket.name,
+			role: turniket.role
+		}
 	}
 
 	private async requireAdmin(userId: string) {

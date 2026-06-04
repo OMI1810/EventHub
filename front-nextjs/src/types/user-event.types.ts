@@ -46,6 +46,7 @@ export interface IUserEventFeedItem {
 	hasMaterials: boolean
 	hasLoadedSolution: boolean
 	hasResualt: boolean
+	hasEntryPass: boolean
 	hasParticipantLimit: boolean
 	participantLimit?: number | null
 	registeredUsersCount: number
@@ -113,6 +114,13 @@ export interface IUserEventTeamContext {
 	teamId?: string | null
 	isCaptain: boolean
 	selectedCaseId?: string | null
+	format?: EventFormat | null
+}
+
+export interface IUserEventEntryPassState {
+	enabled: boolean
+	isAvailable: boolean
+	reason: string | null
 }
 
 export interface IUserEventSolution {
@@ -136,6 +144,7 @@ export interface IUserEventDetails extends IUserEventFeedItem {
 	selectedCase: IUserSelectedEventCase | null
 	selectedCaseMaterials: IUserEventMaterial[]
 	teamContext?: IUserEventTeamContext | null
+	entryPass: IUserEventEntryPassState
 	solution: IUserEventSolution | null
 	results: IUserEventResult[]
 }

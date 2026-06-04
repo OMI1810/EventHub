@@ -13,8 +13,11 @@ import {
 } from "@nestjs/common";
 import { Request, Response } from "express";
 import { AuthService } from "./auth.service";
+import { Auth } from "./decorators/auth.decorator";
+import { CurrentUser } from "./decorators/user.decorator";
 import { AuthDto, RegisterDto } from "./dto/auth.dto";
 import { RefreshTokenService } from "./refresh-token.service";
+import { TurniketLoginDto } from "./dto/turniket-login.dto";
 
 @Controller()
 export class AuthController {
@@ -28,6 +31,21 @@ export class AuthController {
   @Post("auth/login")
   async login(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
     const { refreshToken, ...response } = await this.authService.login(dto);
+
+    this.refreshTokenService.addRefreshTokenToResponse(res, refreshToken);
+
+    return response;
+  }
+
+  @UsePipes(new ValidationPipe())
+  @HttpCode(200)
+  @Post("auth/turniket/login")
+  async loginTurniket(
+    @Body() dto: TurniketLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { refreshToken, ...response } =
+      await this.authService.loginTurniket(dto);
 
     this.refreshTokenService.addRefreshTokenToResponse(res, refreshToken);
 
@@ -54,6 +72,13 @@ export class AuthController {
     }
 
     return this.authService.verifyEmail(token);
+  }
+
+  @Auth()
+  @HttpCode(200)
+  @Post("auth/resend-verification-email")
+  async resendVerificationEmail(@CurrentUser("idUser") userId: string) {
+    return this.authService.resendVerificationEmail(userId);
   }
 
   @HttpCode(200)

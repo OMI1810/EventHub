@@ -25,6 +25,11 @@ import { useParams } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { AdminEventCsvExportModal } from "./AdminEventCsvExportModal";
+import { AdminEventTurniketSection } from "./AdminEventTurniketSection";
+import {
+  EMPTY_EVENT_ADMIN_PERMISSIONS,
+  EventAdminAccessModal,
+} from "./EventAdminAccessModal";
 
 const ArcGisPointMap = dynamic(
   () =>
@@ -43,6 +48,21 @@ interface EventMaterialForm {
   idMaterial?: string;
   title: string;
   url: string;
+}
+
+function normalizeManagedEventDetails(
+  event: ManagedEventDetails,
+): ManagedEventDetails {
+  const permissions = event.permissions;
+
+  return {
+    ...event,
+    permissions: {
+      ...EMPTY_EVENT_ADMIN_PERMISSIONS,
+      ...(permissions ?? {}),
+      hasFullAccess: permissions?.hasFullAccess ?? false,
+    },
+  };
 }
 
 interface ModalProps {
@@ -366,7 +386,9 @@ function EventJoinRequestRow({
     mutationFn: () =>
       eventService.approveMyEventJoinRequest(eventId, request.idJoinEvent),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin-event", eventId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-event", eventId],
+      });
       toast.success("Заявка принята");
     },
     onError: () => toast.error("Не удалось принять заявку"),
@@ -376,7 +398,9 @@ function EventJoinRequestRow({
     mutationFn: () =>
       eventService.rejectMyEventJoinRequest(eventId, request.idJoinEvent),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin-event", eventId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-event", eventId],
+      });
       toast.success("Заявка отклонена");
     },
     onError: () => toast.error("Не удалось отклонить заявку"),
@@ -1010,7 +1034,7 @@ function ResultPlacesEditor({
                       {target.description}
                     </p>
                   ) : null}
-                  {event.hasLoadedSolution && onOpenSolution ? (
+                  {event.hasLoadedSolution && event.permissions.canViewSolutions && onOpenSolution ? (
                     <SolutionStatus
                       solution={target.latestSolution}
                       onOpen={onOpenSolution}
@@ -1060,7 +1084,7 @@ function TeamModal({
     <Modal title={team.name} onClose={onClose}>
       <div className="space-y-4">
         <InfoRow label="Капитан" value={formatPersonName(team.caption)} />
-        {event.hasLoadedSolution ? (
+        {event.hasLoadedSolution && event.permissions.canViewSolutions ? (
           <SolutionStatus
             solution={team.latestSolution}
             onOpen={onOpenSolution}
@@ -1186,7 +1210,7 @@ function CaseDetailsModal({
           >
             {saveCaseMutation.isPending ? "Сохранение..." : "Сохранить кейс"}
           </button>
-        ) : (
+        ) : event.permissions.canEditCases ? (
           <button
             type="button"
             onClick={() => setIsEditing(true)}
@@ -1194,7 +1218,7 @@ function CaseDetailsModal({
           >
             Редактировать кейс
           </button>
-        )
+        ) : null
       }
     >
       {isEditing ? (
@@ -1383,7 +1407,7 @@ function CaseDetailsModal({
                             .map((member) => formatPersonName(member.user))
                             .join(", ")}
                         </p>
-                        {event.hasLoadedSolution ? (
+                        {event.hasLoadedSolution && event.permissions.canViewSolutions ? (
                           <SolutionStatus
                             solution={team.latestSolution}
                             onOpen={onOpenSolution}
@@ -1410,7 +1434,7 @@ function CaseDetailsModal({
                       <p className="mt-2 text-xs text-zinc-500">
                         Дата присоединения: {formatDate(participant.createAt)}
                       </p>
-                      {event.hasLoadedSolution ? (
+                      {event.hasLoadedSolution && event.permissions.canViewSolutions ? (
                         <SolutionStatus
                           solution={participant.latestSolution}
                           onOpen={onOpenSolution}
@@ -1623,6 +1647,7 @@ export function AdminEventDetailsPage() {
     useState<ManagedEventSolution | null>(null);
   const [isAddCaseOpen, setIsAddCaseOpen] = useState(false);
   const [isCsvOpen, setIsCsvOpen] = useState(false);
+  const [isAdminAccessOpen, setIsAdminAccessOpen] = useState(false);
 
   const {
     data: event,
@@ -1632,6 +1657,7 @@ export function AdminEventDetailsPage() {
     queryKey: ["admin-event", eventId],
     queryFn: () =>
       eventService.getMyEventDetails(eventId).then((response) => response.data),
+    select: normalizeManagedEventDetails,
     enabled: Boolean(eventId),
   });
 
@@ -1752,13 +1778,26 @@ export function AdminEventDetailsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => setIsCsvOpen(true)}
-            className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
-          >
-            Экспорт CSV
-          </button>
+          {event.permissions.hasFullAccess ? (
+            <button
+              type="button"
+              onClick={() => setIsAdminAccessOpen(true)}
+              className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
+            >
+              Администраторы
+            </button>
+          ) : null}
+          {event.permissions.canExportCsv ? (
+            <button
+              type="button"
+              onClick={() => setIsCsvOpen(true)}
+              className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
+            >
+              Экспорт CSV
+            </button>
+          ) : null}
+          {event.permissions.canEditGeneral ||
+          event.permissions.canEditMaterials ? (
           <button
             type="button"
             onClick={() => setIsEditOpen(true)}
@@ -1766,6 +1805,7 @@ export function AdminEventDetailsPage() {
           >
             Редактировать
           </button>
+          ) : null}
         </div>
       </div>
 
@@ -1798,6 +1838,13 @@ export function AdminEventDetailsPage() {
         </div>
       </DetailPanel>
 
+      {event.hasEntryPass &&
+      (event.permissions.hasFullAccess ||
+        event.permissions.canViewTurniketStats ||
+        event.permissions.canManageTurnikets) ? (
+        <AdminEventTurniketSection eventId={event.idEvent} />
+      ) : null}
+
       <div className={eventPanelsGridClass}>
         {event.teams.length ? (
           <DetailPanel
@@ -1829,7 +1876,7 @@ export function AdminEventDetailsPage() {
                   <p className="mt-1 text-sm text-zinc-500">
                     Капитан: {formatPersonName(team.caption)}
                   </p>
-                  {event.hasLoadedSolution ? (
+                  {event.hasLoadedSolution && event.permissions.canViewSolutions ? (
                     <SolutionStatus
                       solution={team.latestSolution}
                       onOpen={setSelectedSolution}
@@ -1859,7 +1906,7 @@ export function AdminEventDetailsPage() {
                       Дата присоединения пользователя:{" "}
                       {formatDate(participant.createAt)}
                     </p>
-                    {event.hasLoadedSolution ? (
+                    {event.hasLoadedSolution && event.permissions.canViewSolutions ? (
                       <SolutionStatus
                         solution={participant.latestSolution}
                         onOpen={setSelectedSolution}
@@ -1881,13 +1928,15 @@ export function AdminEventDetailsPage() {
             <section className="rounded-lg border border-zinc-800 bg-zinc-950 p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-zinc-100">Кейсы</h2>
-                <button
-                  type="button"
-                  onClick={() => setIsAddCaseOpen(true)}
+                {event.permissions.canEditCases ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddCaseOpen(true)}
                   className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
                 >
                   Добавить
-                </button>
+                  </button>
+                ) : null}
               </div>
               <div className="max-h-96 space-y-3 overflow-y-auto pr-2">
                 {event.cases.map((eventCase) => (
@@ -1965,13 +2014,14 @@ export function AdminEventDetailsPage() {
         </DetailPanel>
       ) : null}
 
-      {event.status === "PRIVATE" ? (
+      {event.status === "PRIVATE" && event.permissions.canManagePrivateInvites ? (
         <>
           <EventInviteSection eventId={event.idEvent} />
           <EventJoinRequestsSection event={event} />
         </>
       ) : null}
 
+      {event.permissions.canFinishEvent ? (
       <div className="flex justify-end">
         <button
           type="button"
@@ -1981,8 +2031,10 @@ export function AdminEventDetailsPage() {
           Завершить мероприятие
         </button>
       </div>
+      ) : null}
 
-      {isEditOpen ? (
+      {isEditOpen &&
+      (event.permissions.canEditGeneral || event.permissions.canEditMaterials) ? (
         <EditEventModal event={event} onClose={() => setIsEditOpen(false)} />
       ) : null}
       {selectedTeam ? (
@@ -2002,26 +2054,33 @@ export function AdminEventDetailsPage() {
           onClose={() => setSelectedCase(null)}
         />
       ) : null}
-      {selectedSolution ? (
+      {selectedSolution && event.permissions.canViewSolutions ? (
         <SolutionDetailsModal
           solution={selectedSolution}
           onClose={() => setSelectedSolution(null)}
         />
       ) : null}
-      {isAddCaseOpen ? (
+      {isAddCaseOpen && event.permissions.canEditCases ? (
         <AddCaseModal
           event={event}
           tagOptions={options?.tags ?? []}
           onClose={() => setIsAddCaseOpen(false)}
         />
       ) : null}
-      {isCsvOpen ? (
+      {isCsvOpen && event.permissions.canExportCsv ? (
         <AdminEventCsvExportModal
           event={event}
           onClose={() => setIsCsvOpen(false)}
         />
       ) : null}
-      {isFinishOpen ? (
+      {isAdminAccessOpen ? (
+        <EventAdminAccessModal
+          eventId={event.idEvent}
+          eventStatus={event.status}
+          onClose={() => setIsAdminAccessOpen(false)}
+        />
+      ) : null}
+      {isFinishOpen && event.permissions.canFinishEvent ? (
         <FinishEventModal
           isPending={finishMutation.isPending}
           onClose={() => setIsFinishOpen(false)}

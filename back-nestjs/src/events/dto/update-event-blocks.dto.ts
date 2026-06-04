@@ -39,6 +39,10 @@ export class UpdateEventSettingsDto {
   hasResualt?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  hasEntryPass?: boolean;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   participantLimit?: number;

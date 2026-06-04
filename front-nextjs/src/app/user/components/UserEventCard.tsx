@@ -57,6 +57,7 @@ export function UserEventCard({ event }: Props) {
 	const queryClient = useQueryClient()
 	const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false)
 	const blockedReason = getParticipationBlockedReason(event)
+	const eventHref = USER_PAGES.event(event.slug || event.idEvent)
 
 	const { mutate: mutateParticipate, isPending: isParticipatingPending } = useMutation({
 		mutationKey: ['user-events', 'participate', event.idEvent],
@@ -95,11 +96,11 @@ export function UserEventCard({ event }: Props) {
 			<article
 				role="link"
 				tabIndex={0}
-				onClick={() => router.push(USER_PAGES.event(event.idEvent))}
+				onClick={() => router.push(eventHref)}
 				onKeyDown={currentEvent => {
 					if (currentEvent.key === 'Enter' || currentEvent.key === ' ') {
 						currentEvent.preventDefault()
-						router.push(USER_PAGES.event(event.idEvent))
+						router.push(eventHref)
 					}
 				}}
 				className="group cursor-pointer rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5 transition-colors hover:border-zinc-700 hover:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"

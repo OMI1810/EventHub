@@ -34,4 +34,5 @@ export interface IFormData extends Pick<IUser, "email"> {
   organizationAddress?: string;
   organizationCordinatX?: number;
   organizationCordinatY?: number;
+  personalDataConsent?: boolean;
 }

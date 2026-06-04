@@ -30,6 +30,7 @@ export interface ManagedEventSummary {
   hasMaterials: boolean;
   hasLoadedSolution: boolean;
   hasResualt: boolean;
+  hasEntryPass: boolean;
   organization: ManagedEventOrganization;
   registeredUsersCount: number;
 }
@@ -141,6 +142,131 @@ export interface ManagedEventJoinRequest {
   };
 }
 
+export interface ManagedEventAdminPermissions {
+  canView: boolean;
+  canEditGeneral: boolean;
+  canEditSettings: boolean;
+  canEditMaterials: boolean;
+  canEditCases: boolean;
+  canViewParticipants: boolean;
+  canViewTeams: boolean;
+  canViewSolutions: boolean;
+  canViewResults: boolean;
+  canEditResults: boolean;
+  canDeleteResults: boolean;
+  canFinishEvent: boolean;
+  canExportCsv: boolean;
+  canManagePrivateInvites: boolean;
+  canViewTurniketStats: boolean;
+  canManageTurnikets: boolean;
+}
+
+export interface ManagedEventPermissionSnapshot
+  extends ManagedEventAdminPermissions {
+  hasFullAccess: boolean;
+}
+
+export interface ManagedEventTurniket {
+  idTurniket: string;
+  label: string;
+  login: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastScannedAt?: string | null;
+  createdByAdmin: ManagedEventAdminUser;
+  stats: {
+    totalScans: number;
+    allowedEntries: number;
+    deniedEntries: number;
+    uniqueParticipants: number;
+    firstSuccessfulEntries: number;
+  };
+}
+
+export interface ManagedEventTurniketStats {
+  totalScans: number;
+  allowedEntries: number;
+  deniedEntries: number;
+  uniqueParticipants: number;
+  firstSuccessfulEntries: number;
+  repeatAttempts: number;
+  activeTurnikets: number;
+  lastScannedAt?: string | null;
+  denyBreakdown: {
+    expired: number;
+    replay: number;
+    invalid: number;
+    notEligible: number;
+  };
+}
+
+export interface ManagedEventTurniketEntry {
+  idEventEntryLog: string;
+  scannedAt: string;
+  decision:
+    | "ALLOW"
+    | "DENY_EXPIRED"
+    | "DENY_REPLAY"
+    | "DENY_INVALID"
+    | "DENY_NOT_ELIGIBLE";
+  failureReason?: string | null;
+  wasFirstSuccessfulEntry: boolean;
+  turniketLabel?: string | null;
+  participantLabel: string;
+  participantEmail?: string | null;
+  teamName?: string | null;
+  caseTitle?: string | null;
+}
+
+export interface ManagedEventTurniketOverview {
+  canManage: boolean;
+  turnikets: ManagedEventTurniket[];
+  stats: ManagedEventTurniketStats;
+  entries: ManagedEventTurniketEntry[];
+}
+
+export interface ManagedEventAdminUser {
+  idUser: string;
+  email: string;
+  name?: string | null;
+  surname?: string | null;
+  patronymic?: string | null;
+}
+
+export interface ManagedEventAdminAccess extends ManagedEventAdminPermissions {
+  idAccess: string;
+  eventId: string;
+  userId: string;
+  user: ManagedEventAdminUser;
+}
+
+export interface ManagedEventAdminAccessOptions {
+  owner?: ManagedEventAdminUser | null;
+  canTransferOwnership?: boolean;
+  candidates: ManagedEventAdminUser[];
+  access: ManagedEventAdminAccess[];
+  presets: {
+    expert: ManagedEventAdminPermissions;
+    admin: ManagedEventAdminPermissions;
+  };
+}
+
+export interface UpsertManagedEventAdminAccessData
+  extends Partial<ManagedEventAdminPermissions> {
+  userId: string;
+}
+
+export interface CreateManagedEventTurniketData {
+  login: string;
+  password: string;
+  label: string;
+}
+
+export interface UpdateManagedEventTurniketStatusData {
+  isActive: boolean;
+}
+
 export interface ManagedEventDetails extends ManagedEventSummary {
   description?: string | null;
   slug: string;
@@ -157,6 +283,7 @@ export interface ManagedEventDetails extends ManagedEventSummary {
   materials: ManagedEventMaterial[];
   results: ManagedEventResult[];
   joinRequest: ManagedEventJoinRequest[];
+  permissions: ManagedEventPermissionSnapshot;
 }
 
 export interface UpdateManagedEventGeneralData {
@@ -186,6 +313,7 @@ export interface UpdateManagedEventSettingsData {
   hasLoadedSolution?: boolean;
   hasMaterials?: boolean;
   hasResualt?: boolean;
+  hasEntryPass?: boolean;
   participantLimit?: number;
   teamMemberLimit?: number;
   dateDeadLine?: string;

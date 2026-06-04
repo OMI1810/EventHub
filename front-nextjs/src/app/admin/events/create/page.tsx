@@ -40,6 +40,14 @@ function toIsoDateTime(value: string) {
   return value ? new Date(value).toISOString() : undefined;
 }
 
+function toSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 interface EventTypeOption {
   value: EventCreateType | "OTHER";
   label: string;
@@ -119,6 +127,7 @@ const presets: Record<EventCreateType, EventFeaturePreset> = {
     hasLoadedSolution: true,
     hasMaterials: false,
     hasResualt: true,
+    hasEntryPass: false,
   },
   MASTER_CLASS: {
     hasCases: false,
@@ -127,6 +136,7 @@ const presets: Record<EventCreateType, EventFeaturePreset> = {
     hasLoadedSolution: false,
     hasMaterials: true,
     hasResualt: false,
+    hasEntryPass: false,
   },
   CONTEST: {
     hasCases: false,
@@ -135,6 +145,7 @@ const presets: Record<EventCreateType, EventFeaturePreset> = {
     hasLoadedSolution: true,
     hasMaterials: true,
     hasResualt: true,
+    hasEntryPass: false,
   },
 };
 
@@ -183,6 +194,7 @@ const createCustomEventTypeModal = (): CustomEventTypeModalForm => ({
     hasLoadedSolution: false,
     hasMaterials: false,
     hasResualt: false,
+    hasEntryPass: false,
   },
 });
 
@@ -203,6 +215,7 @@ export default function CreateEventPage() {
     useState<EventFeaturePreset | null>(null);
   const [step, setStep] = useState<"type" | "base" | "settings">("type");
   const [baseForm, setBaseForm] = useState<BaseEventForm>(initialBaseForm);
+  const [isSlugTouched, setIsSlugTouched] = useState(false);
   const [selectedTags, setSelectedTags] = useState<EventTagDraft[]>([]);
   const [tagSearch, setTagSearch] = useState("");
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
@@ -273,7 +286,24 @@ export default function CreateEventPage() {
   });
 
   const updateBaseForm = (field: keyof BaseEventForm, value: string) => {
-    setBaseForm((current) => ({ ...current, [field]: value }));
+    setBaseForm((current) => {
+      if (field === "title" && !isSlugTouched) {
+        return {
+          ...current,
+          title: value,
+          slug: toSlug(value),
+        };
+      }
+
+      if (field === "slug") {
+        return {
+          ...current,
+          slug: toSlug(value),
+        };
+      }
+
+      return { ...current, [field]: value };
+    });
   };
 
   const updateOrganization = (organizationId: string) => {
@@ -497,6 +527,7 @@ export default function CreateEventPage() {
       hasLoadedSolution: features.hasLoadedSolution,
       hasMaterials: features.hasMaterials,
       hasResualt: features.hasResualt,
+      hasEntryPass: features.hasEntryPass,
       title: baseForm.title,
       description: baseForm.description || undefined,
       slug: baseForm.slug,
@@ -591,7 +622,10 @@ export default function CreateEventPage() {
             <TextField
               label="Slug"
               value={baseForm.slug}
-              onChange={(value) => updateBaseForm("slug", value)}
+              onChange={(value) => {
+                setIsSlugTouched(true);
+                updateBaseForm("slug", value);
+              }}
               required
             />
             <div className="md:col-span-2">
@@ -933,6 +967,14 @@ export default function CreateEventPage() {
             <Panel title="Результаты">
               <p className="text-sm text-zinc-300">
                 Публикация результатов включена.
+              </p>
+            </Panel>
+          )}
+
+          {features.hasEntryPass && (
+            <Panel title="QR-пропуск">
+              <p className="text-sm text-zinc-300">
+                Для мероприятия будет доступен одноразовый QR-пропуск на вход.
               </p>
             </Panel>
           )}
@@ -1286,6 +1328,11 @@ function CustomEventTypeModal({
               checked={form.features.hasResualt}
               label="Вкладка итоги"
               onChange={(checked) => updateFeature("hasResualt", checked)}
+            />
+            <FeatureCheckbox
+              checked={form.features.hasEntryPass}
+              label="QR-пропуск"
+              onChange={(checked) => updateFeature("hasEntryPass", checked)}
             />
           </div>
         </div>

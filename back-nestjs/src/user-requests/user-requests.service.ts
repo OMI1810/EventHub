@@ -41,6 +41,7 @@ export class UserRequestsService {
 							event: {
 								select: {
 									idEvent: true,
+									slug: true,
 									title: true,
 									type: true,
 									format: true,
@@ -67,6 +68,7 @@ export class UserRequestsService {
 					event: {
 						select: {
 							idEvent: true,
+							slug: true,
 							title: true,
 							type: true,
 							format: true,
@@ -90,6 +92,7 @@ export class UserRequestsService {
 				status: request.status,
 				event: {
 					idEvent: request.event.idEvent,
+					slug: request.event.slug,
 					title: request.event.title,
 					type: request.event.type,
 					format: request.event.format,
@@ -108,6 +111,7 @@ export class UserRequestsService {
 				},
 				event: {
 					idEvent: request.team.event.idEvent,
+					slug: request.team.event.slug,
 					title: request.team.event.title,
 					type: request.team.event.type,
 					format: request.team.event.format,
@@ -120,7 +124,7 @@ export class UserRequestsService {
 	}
 
 	async submitByCode(userId: string, rawCode: string) {
-		await this.requireRegularUser(userId)
+		await this.requireVerifiedRegularUser(userId)
 
 		const code = rawCode.trim()
 		if (!code) {
@@ -387,7 +391,8 @@ export class UserRequestsService {
 			},
 			select: {
 				idUser: true,
-				role: true
+				role: true,
+				verificationToken: true
 			}
 		})
 
@@ -397,6 +402,18 @@ export class UserRequestsService {
 
 		if (user.role !== Role.USER) {
 			throw new ForbiddenException('Раздел доступен только обычным пользователям')
+		}
+
+		return user
+	}
+
+	private async requireVerifiedRegularUser(userId: string) {
+		const user = await this.requireRegularUser(userId)
+
+		if (user.verificationToken) {
+			throw new ForbiddenException(
+				'Подтвердите почту перед участием в мероприятиях'
+			)
 		}
 
 		return user
