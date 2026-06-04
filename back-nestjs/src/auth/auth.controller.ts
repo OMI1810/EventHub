@@ -15,7 +15,12 @@ import { Request, Response } from "express";
 import { AuthService } from "./auth.service";
 import { Auth } from "./decorators/auth.decorator";
 import { CurrentUser } from "./decorators/user.decorator";
-import { AuthDto, RegisterDto } from "./dto/auth.dto";
+import {
+  AuthDto,
+  RegisterDto,
+  ResendTwoFactorDto,
+  VerifyTwoFactorDto,
+} from "./dto/auth.dto";
 import { RefreshTokenService } from "./refresh-token.service";
 
 @Controller()
@@ -29,11 +34,43 @@ export class AuthController {
   @HttpCode(200)
   @Post("auth/login")
   async login(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
-    const { refreshToken, ...response } = await this.authService.login(dto);
+    const response = await this.authService.login(dto);
+
+    if ("requiresTwoFactor" in response) {
+      return response;
+    }
+
+    const { refreshToken, ...responseWithoutRefreshToken } = response as {
+      refreshToken: string;
+      accessToken: string;
+      user: unknown;
+    };
+
+    this.refreshTokenService.addRefreshTokenToResponse(res, refreshToken);
+
+    return responseWithoutRefreshToken;
+  }
+
+  @UsePipes(new ValidationPipe())
+  @HttpCode(200)
+  @Post("auth/login/verify-2fa")
+  async verifyTwoFactor(
+    @Body() dto: VerifyTwoFactorDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { refreshToken, ...response } =
+      await this.authService.verifyTwoFactor(dto);
 
     this.refreshTokenService.addRefreshTokenToResponse(res, refreshToken);
 
     return response;
+  }
+
+  @UsePipes(new ValidationPipe())
+  @HttpCode(200)
+  @Post("auth/login/resend-2fa")
+  async resendTwoFactor(@Body() dto: ResendTwoFactorDto) {
+    return this.authService.resendTwoFactor(dto);
   }
 
   @UsePipes(new ValidationPipe())

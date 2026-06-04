@@ -22,6 +22,7 @@ const roleOptions: Array<{ label: string; value: TRole }> = [
 
 export function AuthForm({ isLogin }: Props) {
   const [isPersonalDataModalOpen, setIsPersonalDataModalOpen] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
   const {
     handleSubmit,
     isLoading,
@@ -29,12 +30,72 @@ export function AuthForm({ isLogin }: Props) {
     register,
     selectedRole,
     setValue,
+    twoFactorState,
+    verifyTwoFactor,
+    resendTwoFactor,
     watch,
   } = useAuthForm(isLogin);
 
   const phoneValue = watch("phone") ?? "";
   const cityValue = watch("city") ?? "";
   const isRegularUser = selectedRole === "USER";
+
+  if (isLogin && twoFactorState) {
+    return (
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          verifyTwoFactor(twoFactorCode);
+        }}
+        className="mx-auto w-full max-w-2xl"
+      >
+        <div className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-white">
+          <h1 className="text-xl font-semibold">Подтверждение входа</h1>
+          <p className="mt-2 text-sm text-zinc-400">
+            Мы отправили код подтверждения на {twoFactorState.email}.
+          </p>
+        </div>
+
+        <div className="mb-4">
+          <label className="text-gray-600">
+            Код из письма
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={twoFactorCode}
+              onChange={(event) => setTwoFactorCode(event.target.value)}
+              placeholder="Введите 6-значный код"
+              className={styles["input-field"]}
+              required
+            />
+          </label>
+        </div>
+
+        <div className="mb-3 grid gap-3 sm:grid-cols-2">
+          <button
+            type="submit"
+            className={twMerge(
+              styles["btn-primary"],
+              "bg-primary",
+              isLoading && "cursor-not-allowed opacity-75",
+            )}
+            disabled={isLoading}
+          >
+            {isLoading ? <MiniLoader /> : "Подтвердить"}
+          </button>
+          <button
+            type="button"
+            onClick={() => resendTwoFactor()}
+            disabled={isLoading}
+            className="mt-1 rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Отправить код повторно
+          </button>
+        </div>
+      </form>
+    );
+  }
 
   return (
     <form

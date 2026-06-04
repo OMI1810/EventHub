@@ -10,9 +10,14 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Prisma, Role, type User } from "@prisma/client";
-import { verify } from "argon2";
+import { hash, verify } from "argon2";
 import { omit } from "lodash";
-import { AuthDto, RegisterDto } from "./dto/auth.dto";
+import {
+  AuthDto,
+  RegisterDto,
+  ResendTwoFactorDto,
+  VerifyTwoFactorDto,
+} from "./dto/auth.dto";
 
 @Injectable()
 export class AuthService {
@@ -25,10 +30,60 @@ export class AuthService {
 
   private readonly TOKEN_EXPIRATION_ACCESS = "1h";
   private readonly TOKEN_EXPIRATION_REFRESH = "7d";
+  private readonly TOKEN_EXPIRATION_TWO_FACTOR = "10m";
+  private readonly TWO_FACTOR_CODE_TTL_MS = 10 * 1000;
 
   async login(dto: AuthDto) {
     const user = await this.validateUser(dto);
+    return this.startTwoFactorLogin(user);
+  }
+
+  async verifyTwoFactor(dto: VerifyTwoFactorDto) {
+    const payload = await this.verifyTwoFactorToken(dto.twoFactorToken);
+    const user = await this.prisma.user.findUnique({
+      where: {
+        idUser: payload.id,
+      },
+    });
+
+    if (!user || !user.otpCode || !user.otpExpiresAt) {
+      throw new UnauthorizedException("Код подтверждения недействителен");
+    }
+
+    if (user.otpExpiresAt.getTime() < Date.now()) {
+      await this.clearTwoFactorCode(user.idUser);
+      throw new UnauthorizedException("Код подтверждения истек");
+    }
+
+    const isValidCode = await verify(user.otpCode, dto.code.trim());
+
+    if (!isValidCode) {
+      throw new UnauthorizedException("Неверный код подтверждения");
+    }
+
+    await this.clearTwoFactorCode(user.idUser);
+
     return this.buildResponseObject(user);
+  }
+
+  async resendTwoFactor(dto: ResendTwoFactorDto) {
+    const payload = await this.verifyTwoFactorToken(dto.twoFactorToken);
+    const user = await this.prisma.user.findUnique({
+      where: {
+        idUser: payload.id,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("Код подтверждения недействителен");
+    }
+
+    await this.createAndSendTwoFactorCode(user);
+
+    return {
+      success: true,
+      twoFactorToken: this.createTwoFactorToken(user),
+    };
   }
 
   async register(dto: RegisterDto) {
@@ -49,11 +104,15 @@ export class AuthService {
 
     if (existingUser) {
       if (existingUser.email === dto.email) {
-        throw new BadRequestException("Пользователь с таким email уже существует");
+        throw new BadRequestException(
+          "Пользователь с таким email уже существует",
+        );
       }
 
       if (dto.phone?.trim() && existingUser.phone === dto.phone.trim()) {
-        throw new BadRequestException("Пользователь с таким телефоном уже существует");
+        throw new BadRequestException(
+          "Пользователь с таким телефоном уже существует",
+        );
       }
 
       if (dto.contact?.trim() && existingUser.contact === dto.contact.trim()) {
@@ -153,6 +212,84 @@ export class AuthService {
       expiresIn: this.TOKEN_EXPIRATION_REFRESH,
     });
     return { accessToken, refreshToken };
+  }
+
+  private async startTwoFactorLogin(user: User) {
+    await this.createAndSendTwoFactorCode(user);
+
+    return {
+      requiresTwoFactor: true,
+      twoFactorToken: this.createTwoFactorToken(user),
+      email: user.email,
+    };
+  }
+
+  private createTwoFactorToken(user: Pick<User, "idUser" | "role">) {
+    return this.jwt.sign(
+      {
+        id: user.idUser,
+        role: user.role,
+        purpose: "two-factor",
+      },
+      {
+        expiresIn: this.TOKEN_EXPIRATION_TWO_FACTOR,
+      },
+    );
+  }
+
+  private async createAndSendTwoFactorCode(user: User) {
+    const code = this.createTwoFactorCode();
+    const codeHash = await hash(code);
+
+    await this.prisma.user.update({
+      where: {
+        idUser: user.idUser,
+      },
+      data: {
+        otpCode: codeHash,
+        otpExpiresAt: new Date(Date.now() + this.TWO_FACTOR_CODE_TTL_MS),
+      },
+    });
+
+    await this.emailService.sendTwoFactorCode(user.email, code);
+  }
+
+  private createTwoFactorCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  private async verifyTwoFactorToken(twoFactorToken: string) {
+    if (!twoFactorToken?.trim()) {
+      throw new UnauthorizedException("Код подтверждения недействителен");
+    }
+
+    try {
+      const payload = await this.jwt.verifyAsync<{
+        id: string;
+        role: Role;
+        purpose?: string;
+      }>(twoFactorToken);
+
+      if (payload.purpose !== "two-factor") {
+        throw new UnauthorizedException("Код подтверждения недействителен");
+      }
+
+      return payload;
+    } catch {
+      throw new UnauthorizedException("Код подтверждения недействителен");
+    }
+  }
+
+  private async clearTwoFactorCode(userId: string) {
+    await this.prisma.user.update({
+      where: {
+        idUser: userId,
+      },
+      data: {
+        otpCode: null,
+        otpExpiresAt: null,
+      },
+    });
   }
 
   private async validateUser(dto: AuthDto) {

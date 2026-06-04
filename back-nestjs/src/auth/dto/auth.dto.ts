@@ -22,6 +22,22 @@ export class AuthDto {
   password: string;
 }
 
+export class VerifyTwoFactorDto {
+  @IsString()
+  @IsNotEmpty()
+  twoFactorToken: string;
+
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+}
+
+export class ResendTwoFactorDto {
+  @IsString()
+  @IsNotEmpty()
+  twoFactorToken: string;
+}
+
 export class RegisterDto extends AuthDto {
   @IsOptional()
   @IsString()
