@@ -18,6 +18,7 @@ import {
   ResendTwoFactorDto,
   VerifyTwoFactorDto,
 } from "./dto/auth.dto";
+import { TurniketLoginDto } from "./dto/turniket-login.dto";
 
 @Injectable()
 export class AuthService {
@@ -63,6 +64,11 @@ export class AuthService {
 
     await this.clearTwoFactorCode(user.idUser);
 
+    return this.buildResponseObject(user);
+  }
+
+  async loginTurniket(dto: TurniketLoginDto) {
+    const user = await this.validateTurniketUser(dto);
     return this.buildResponseObject(user);
   }
 
@@ -153,6 +159,9 @@ export class AuthService {
       throw new UnauthorizedException("Invalid refresh token");
     }
     const user = await this.userService.getById(result.id);
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
     return this.buildResponseObject(user);
   }
 
@@ -301,6 +310,20 @@ export class AuthService {
     if (!isValid) {
       throw new UnauthorizedException("Email or password invalid");
     }
+    return user;
+  }
+
+  private async validateTurniketUser(dto: TurniketLoginDto) {
+    const user = await this.userService.getByEmail(dto.login);
+    if (!user || user.role !== Role.TURNIKET) {
+      throw new UnauthorizedException("Login or password invalid");
+    }
+
+    const isValid = await verify(user.password, dto.password);
+    if (!isValid) {
+      throw new UnauthorizedException("Login or password invalid");
+    }
+
     return user;
   }
 

@@ -22,6 +22,7 @@ import {
   VerifyTwoFactorDto,
 } from "./dto/auth.dto";
 import { RefreshTokenService } from "./refresh-token.service";
+import { TurniketLoginDto } from "./dto/turniket-login.dto";
 
 @Controller()
 export class AuthController {
@@ -60,6 +61,21 @@ export class AuthController {
   ) {
     const { refreshToken, ...response } =
       await this.authService.verifyTwoFactor(dto);
+
+    this.refreshTokenService.addRefreshTokenToResponse(res, refreshToken);
+
+    return response;
+  }
+
+  @UsePipes(new ValidationPipe())
+  @HttpCode(200)
+  @Post("auth/turniket/login")
+  async loginTurniket(
+    @Body() dto: TurniketLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { refreshToken, ...response } =
+      await this.authService.loginTurniket(dto);
 
     this.refreshTokenService.addRefreshTokenToResponse(res, refreshToken);
 

@@ -3,12 +3,20 @@ import { AuthForm } from "./form/AuthForm";
 
 interface Props {
   isLogin: boolean;
+  authMode?: "default" | "turniket";
 }
 
-export function AuthPage({ isLogin }: Props) {
+export function AuthPage({ isLogin, authMode = "default" }: Props) {
+  const heading =
+    authMode === "turniket"
+      ? "Вход турникета"
+      : isLogin
+        ? "Авторизация"
+        : "Регистрация";
+
   return (
-    <AuthPageWrapper heading={isLogin ? "Авторизация" : "Регистрация"}>
-      <AuthForm isLogin={isLogin} />
+    <AuthPageWrapper heading={heading}>
+      <AuthForm isLogin={isLogin} authMode={authMode} />
     </AuthPageWrapper>
   );
 }

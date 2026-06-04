@@ -7,13 +7,18 @@ import { protectLoginPages } from "./server-actions/middlewares/protect-login.mi
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
 
+  if (pathname.startsWith("/turniket/auth")) {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith(PUBLIC_PAGES.AUTH)) {
     return protectLoginPages(request);
   }
 
   if (
     pathname.startsWith(DASHBOARD_PAGES.HOME) ||
-    pathname.startsWith("/admin")
+    pathname.startsWith("/admin") ||
+    pathname.startsWith('/turniket')
   ) {
     return protectDashboardPages(request);
   }
@@ -22,5 +27,5 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/auth/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/auth/:path*", '/turniket/:path*'],
 };
