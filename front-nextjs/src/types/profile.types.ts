@@ -10,6 +10,7 @@ export interface IProfile {
 	contact?: string | null
 	role: TRole
 	verificationToken?: string | null
+	isTwoFactorEnabled?: boolean
 }
 
 export interface IUpdateProfileFormData {

@@ -4,6 +4,7 @@ import { PrismaService } from "@/prisma.service";
 import { UserService } from "@/user/user.service";
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -37,6 +38,15 @@ export class AuthService {
 
   async login(dto: AuthDto) {
     const user = await this.validateUser(dto);
+
+    if (
+      user.role === Role.TURNIKET ||
+      !this.canUseTwoFactor(user.role) ||
+      !user.isTwoFactorEnabled
+    ) {
+      return this.buildResponseObject(user);
+    }
+
     return this.startTwoFactorLogin(user);
   }
 
@@ -208,6 +218,48 @@ export class AuthService {
     return { success: true };
   }
 
+  async updateTwoFactorSetting(userId: string, enabled: boolean) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        idUser: userId,
+      },
+      select: {
+        idUser: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException("Пользователь не найден");
+    }
+
+    if (!this.canUseTwoFactor(user.role)) {
+      throw new ForbiddenException(
+        "Двухфакторная авторизация доступна только пользователям, администраторам и организаторам",
+      );
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: {
+        idUser: userId,
+      },
+      data: {
+        isTwoFactorEnabled: enabled,
+        ...(enabled
+          ? {}
+          : {
+              otpCode: null,
+              otpExpiresAt: null,
+            }),
+      },
+      select: {
+        isTwoFactorEnabled: true,
+      },
+    });
+
+    return updatedUser;
+  }
+
   async buildResponseObject(user: User) {
     const tokens = await this.issueTokens(user.idUser, user.role);
     return { user: this.omitPassword(user), ...tokens };
@@ -326,6 +378,12 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  private canUseTwoFactor(role: Role) {
+    const allowedRoles: Role[] = [Role.USER, Role.ADMIN, Role.ORGANIZATOR];
+
+    return allowedRoles.includes(role);
   }
 
   private omitPassword(user: User) {

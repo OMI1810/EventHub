@@ -14,4 +14,5 @@ export interface IUser {
   verificationToken?: string;
   otpCode?: string;
   otpExpiresAt?: Date;
+  isTwoFactorEnabled?: boolean;
 }

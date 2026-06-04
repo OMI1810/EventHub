@@ -1,6 +1,7 @@
 'use client'
 
 import { ResendVerificationEmailButton } from '@/components/auth/ResendVerificationEmailButton'
+import { ProfileTwoFactorSettings } from '@/app/profile/components/ProfileTwoFactorSettings'
 import { MiniLoader } from '@/components/ui/MiniLoader'
 import { PUBLIC_PAGES } from '@/config/pages/public.config'
 import { useOrganization } from '@/hooks/useOrganization'
@@ -40,7 +41,7 @@ function OrganizationAccessError({
 
 export function OrganizationDashboard() {
 	const router = useRouter()
-	const { isLoading: isProfileLoading, user } = useProfile()
+	const { isLoading: isProfileLoading, user, refetch } = useProfile()
 	const canViewOrganizationDashboard = user.role === 'ORGANIZATOR'
 	const shouldLoadOrganization =
 		canViewOrganizationDashboard && !user.verificationToken
@@ -141,6 +142,12 @@ export function OrganizationDashboard() {
 							<ResendVerificationEmailButton className="shrink-0" />
 						</div>
 					) : null}
+
+					<ProfileTwoFactorSettings
+						enabled={Boolean(user.isTwoFactorEnabled)}
+						className="mb-6"
+						onChanged={refetch}
+					/>
 
 					{activeTab === 'info' ? (
 						<OrganizationInfoSection organization={organization} />

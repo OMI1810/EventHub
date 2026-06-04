@@ -2,6 +2,7 @@
 
 import { ProfileInfoCard } from '@/app/profile/components/ProfileInfoCard'
 import { ProfileLayout } from '@/app/profile/components/ProfileLayout'
+import { ProfileTwoFactorSettings } from '@/app/profile/components/ProfileTwoFactorSettings'
 import { MiniLoader } from '@/components/ui/MiniLoader'
 import { DASHBOARD_PAGES } from '@/config/pages/dashboard.config'
 import { PUBLIC_PAGES } from '@/config/pages/public.config'
@@ -127,6 +128,11 @@ export function AdminProfilePage() {
 						/>
 					) : null
 				}
+			/>
+
+			<ProfileTwoFactorSettings
+				enabled={Boolean(adminProfile.isTwoFactorEnabled)}
+				onChanged={refetch}
 			/>
 
 			<AdminOrganizationsSection

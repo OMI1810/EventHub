@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   Query,
   Req,
@@ -19,6 +20,7 @@ import {
   AuthDto,
   RegisterDto,
   ResendTwoFactorDto,
+  UpdateTwoFactorSettingDto,
   VerifyTwoFactorDto,
 } from "./dto/auth.dto";
 import { RefreshTokenService } from "./refresh-token.service";
@@ -107,6 +109,17 @@ export class AuthController {
     }
 
     return this.authService.verifyEmail(token);
+  }
+
+  @Auth()
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @HttpCode(200)
+  @Patch("auth/two-factor")
+  async updateTwoFactorSetting(
+    @CurrentUser("idUser") userId: string,
+    @Body() dto: UpdateTwoFactorSettingDto,
+  ) {
+    return this.authService.updateTwoFactorSetting(userId, dto.enabled);
   }
 
   @Auth()

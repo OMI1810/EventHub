@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import {
   IsEmail,
+  IsBoolean,
   IsEnum,
   IsISO8601,
   IsNotEmpty,
@@ -36,6 +37,11 @@ export class ResendTwoFactorDto {
   @IsString()
   @IsNotEmpty()
   twoFactorToken: string;
+}
+
+export class UpdateTwoFactorSettingDto {
+  @IsBoolean()
+  enabled: boolean;
 }
 
 export class RegisterDto extends AuthDto {

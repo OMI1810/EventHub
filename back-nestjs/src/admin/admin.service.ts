@@ -32,7 +32,8 @@ export class AdminService {
 			phone: user.phone,
 			contact: user.contact,
 			role: user.role,
-			verificationToken: user.verificationToken
+			verificationToken: user.verificationToken,
+			isTwoFactorEnabled: user.isTwoFactorEnabled
 		}
 	}
 
@@ -473,7 +474,8 @@ export class AdminService {
 				phone: true,
 				contact: true,
 				role: true,
-				verificationToken: true
+				verificationToken: true,
+				isTwoFactorEnabled: true
 			}
 		})
 

@@ -96,6 +96,12 @@ class AuthService {
 			'/auth/resend-verification-email'
 		)
 	}
+
+	async updateTwoFactorSetting(enabled: boolean) {
+		return instance.patch<{ isTwoFactorEnabled: boolean }>('/auth/two-factor', {
+			enabled
+		})
+	}
 }
 
 export default new AuthService()

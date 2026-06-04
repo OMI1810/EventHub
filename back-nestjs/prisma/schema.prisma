@@ -71,6 +71,8 @@ model User {
   otpCode      String?   @map("otp_code")
   otpExpiresAt DateTime? @map("otp_expires_at")
 
+  isTwoFactorEnabled Boolean @default(false) @map("is_two_factor_enabled")
+
   role Role @default(USER)
 
   organizations      UserOrganization[]
