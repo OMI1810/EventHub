@@ -3,6 +3,7 @@
 import { UserOrganizationContactsModal } from '@/app/user/events/[eventId]/UserOrganizationContactsModal'
 import { EventAuthCtaRow } from '@/components/events/EventAuthCtaRow'
 import { EventHeaderBase } from '@/components/events/EventHeaderBase'
+import { GUEST_PAGES } from '@/config/pages/guest.config'
 import { IPublicEventDetails } from '@/types/public-event.types'
 import { useState } from 'react'
 
@@ -24,6 +25,7 @@ export function GuestEventHeader({ event }: Props) {
 				dataStart={event.dataStart}
 				dataEnd={event.dataEnd}
 				onOpenOrganization={() => setIsOrganizationModalOpen(true)}
+				detailsHref={GUEST_PAGES.eventAbout(event.slug || event.idEvent)}
 				actions={<EventAuthCtaRow />}
 			/>
 

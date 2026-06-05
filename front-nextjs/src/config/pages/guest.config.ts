@@ -6,6 +6,10 @@ class GuestPages {
 	event(idEvent: string) {
 		return `${this.EVENTS}/${idEvent}`
 	}
+
+	eventAbout(idEvent: string) {
+		return `${this.event(idEvent)}/about`
+	}
 }
 
 export const GUEST_PAGES = new GuestPages()

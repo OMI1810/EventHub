@@ -1,9 +1,8 @@
 'use client'
 
 import { MiniLoader } from '@/components/ui/MiniLoader'
-import { DASHBOARD_PAGES } from '@/config/pages/dashboard.config'
-import { USER_PAGES } from '@/config/pages/user.config'
 import { useProfile } from '@/hooks/useProfile'
+import { getRoleHomePath } from '@/utils/get-role-home-path'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -14,22 +13,7 @@ export function DashboardEntry() {
 	useEffect(() => {
 		if (isLoading) return
 
-		if (user.role === 'ORGANIZATOR') {
-			router.replace(DASHBOARD_PAGES.ORGANIZATION)
-			return
-		}
-
-		if (user.role === 'USER') {
-			router.replace(USER_PAGES.HOME)
-			return
-		}
-
-		if (user.role === 'TURNIKET') {
-			router.replace('/turniket')
-			return
-		}
-
-		router.replace(DASHBOARD_PAGES.PROFILE)
+		router.replace(getRoleHomePath(user.role))
 	}, [isLoading, router, user.role])
 
 	return (

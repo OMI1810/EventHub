@@ -13,7 +13,8 @@ function formatEventDates(start: string, end: string) {
 	const formatter = new Intl.DateTimeFormat('ru-RU', {
 		day: '2-digit',
 		month: '2-digit',
-		year: 'numeric'
+		year: 'numeric',
+		timeZone: 'Europe/Moscow'
 	})
 
 	return `${formatter.format(new Date(start))} - ${formatter.format(
@@ -36,41 +37,50 @@ export function GuestEventCard({ event }: Props) {
 					router.push(eventHref)
 				}
 			}}
-			className="group cursor-pointer rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5 transition-colors hover:border-zinc-700 hover:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+			className="group flex min-h-[19rem] min-w-0 cursor-pointer flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/70 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 sm:p-5"
 		>
-			<div>
-				<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+			<div className="min-w-0">
+				<p
+					title={event.organization.name}
+					className="truncate text-xs uppercase tracking-[0.2em] text-zinc-500"
+				>
 					{event.organization.name}
 				</p>
-				<h3 className="mt-3 text-2xl font-bold transition-colors group-hover:text-emerald-300">
+				<h3
+					title={event.title}
+					className="mt-3 line-clamp-2 break-words text-xl font-bold text-zinc-100 transition-colors [overflow-wrap:anywhere] group-hover:text-emerald-300 sm:text-2xl"
+				>
 					{event.title}
 				</h3>
 			</div>
 
-			<p className="mt-4 text-sm leading-6 text-zinc-400">
+			<p
+				title={event.description || undefined}
+				className="mt-4 line-clamp-3 break-words text-sm leading-6 text-zinc-400 [overflow-wrap:anywhere]"
+			>
 				{event.description || 'Описание мероприятия отсутствует.'}
 			</p>
 
-			<div className="mt-5 flex flex-wrap gap-2 text-xs text-zinc-400">
-				<span className="rounded-full border border-zinc-800 px-3 py-1">
+			<div className="mt-5 flex min-w-0 flex-wrap gap-2 text-xs text-zinc-400">
+				<span className="max-w-full truncate rounded-full border border-zinc-800 px-3 py-1">
 					{event.type}
 				</span>
-				<span className="rounded-full border border-zinc-800 px-3 py-1">
+				<span className="max-w-full truncate rounded-full border border-zinc-800 px-3 py-1">
 					{event.format}
 				</span>
-				<span className="rounded-full border border-zinc-800 px-3 py-1">
+				<span className="max-w-full truncate rounded-full border border-zinc-800 px-3 py-1">
 					{formatEventDates(event.dataStart, event.dataEnd)}
 				</span>
 			</div>
 
-			<div className="mt-6 flex flex-wrap items-center gap-3">
+			<div className="mt-auto pt-6">
 				<button
 					type="button"
 					onClick={currentEvent => {
 						currentEvent.stopPropagation()
 						router.push(PUBLIC_PAGES.LOGIN)
 					}}
-					className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+					className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 sm:w-auto"
 				>
 					Войти, чтобы участвовать
 				</button>

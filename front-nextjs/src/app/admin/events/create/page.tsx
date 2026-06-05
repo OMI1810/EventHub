@@ -2,6 +2,7 @@
 
 import { MiniLoader } from "@/components/ui/MiniLoader";
 import { AddressAutocomplete } from "@/components/address/AddressAutocomplete";
+import { ADMIN_PAGES } from "@/config/pages/admin.config";
 import eventService from "@/services/event.service";
 import {
   EventCaseDraft,
@@ -270,7 +271,7 @@ export default function CreateEventPage() {
     mutationKey: ["create-event"],
     mutationFn: (data: EventCreateDraft) => eventService.create(data),
     onSuccess() {
-      router.push("/");
+      router.push(ADMIN_PAGES.EVENTS);
       toast.success("Мероприятие создано");
     },
     onError(error) {
