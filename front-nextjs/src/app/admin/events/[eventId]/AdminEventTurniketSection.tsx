@@ -157,7 +157,7 @@ export function AdminEventTurniketSection({
 
   if (isLoading || !data) {
     return (
-      <section className="rounded-lg border border-zinc-800 bg-zinc-950 p-5">
+      <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/80 p-6">
         <div className="flex min-h-40 items-center justify-center">
           <MiniLoader />
         </div>
@@ -166,7 +166,7 @@ export function AdminEventTurniketSection({
   }
 
   return (
-    <section className="space-y-6 rounded-lg border border-zinc-800 bg-zinc-950 p-5">
+    <section className="space-y-6 rounded-[2rem] border border-zinc-800 bg-zinc-900/80 p-6">
       <div className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold text-zinc-100">Турникеты и проходы</h2>
         <p className="text-sm text-zinc-400">
@@ -176,7 +176,7 @@ export function AdminEventTurniketSection({
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
             Сканирований
           </p>
@@ -184,7 +184,7 @@ export function AdminEventTurniketSection({
             {data.stats.totalScans}
           </p>
         </div>
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
             Успешных
           </p>
@@ -192,7 +192,7 @@ export function AdminEventTurniketSection({
             {data.stats.allowedEntries}
           </p>
         </div>
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
             Отказов
           </p>
@@ -200,7 +200,7 @@ export function AdminEventTurniketSection({
             {data.stats.deniedEntries}
           </p>
         </div>
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
             Уникально вошли
           </p>
@@ -211,7 +211,7 @@ export function AdminEventTurniketSection({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h3 className="text-base font-semibold text-zinc-100">
               Турникеты мероприятия
@@ -232,7 +232,7 @@ export function AdminEventTurniketSection({
               {data.turnikets.map((turniket) => (
                 <div
                   key={turniket.idTurniket}
-                  className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-4"
+                  className="rounded-2xl border border-zinc-800 bg-black/30 p-4"
                 >
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
@@ -325,7 +325,7 @@ export function AdminEventTurniketSection({
           )}
         </div>
 
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
           <h3 className="text-base font-semibold text-zinc-100">
             Создать турникет
           </h3>

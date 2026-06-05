@@ -52,6 +52,8 @@ interface EventTypeOption {
   value: EventCreateType | "OTHER";
   label: string;
   description: string;
+  highlights: string[];
+  accent?: "default" | "primary";
 }
 
 interface BaseEventForm {
@@ -100,22 +102,99 @@ const eventTypeOptions: EventTypeOption[] = [
   {
     value: "HACKATHON",
     label: "Хакатон",
-    description: "Кейсы, команды по кейсам, решения и результаты.",
+    description: "Кейсы, командная механика и полноценная соревновательная структура.",
+    highlights: ["Кейсы", "Команды", "Загрузка решений"],
+    accent: "primary",
   },
   {
     value: "MASTER_CLASS",
     label: "Мастер-класс",
-    description: "Лимит участников и материалы мероприятия.",
+    description: "Более простой сценарий с материалами и ограничением по участникам.",
+    highlights: ["Материалы", "Лимит участников", "Без команд"],
+    accent: "primary",
   },
   {
     value: "CONTEST",
     label: "Конкурс",
-    description: "Лимит участников, материалы, решения и результаты.",
+    description: "Индивидуальный формат с загрузкой решений и итоговой таблицей.",
+    highlights: ["Лимит участников", "Загрузка решений", "Итоги"],
+    accent: "primary",
   },
   {
     value: "OTHER",
     label: "Другое",
-    description: "Свой вид мероприятия и набор настроек.",
+    description: "Соберите собственный тип мероприятия из нужных вам модулей.",
+    highlights: ["Гибкие настройки", "Свои модули", "Предпросмотр структуры"],
+  },
+];
+
+const customFeatureGroups: Array<{
+  title: string;
+  description: string;
+  items: Array<{
+    key: keyof EventFeaturePreset;
+    label: string;
+    description: string;
+  }>;
+}> = [
+  {
+    title: "Командная механика",
+    description: "Определяет, как участники объединяются и взаимодействуют внутри события.",
+    items: [
+      {
+        key: "hasTeams",
+        label: "Команды",
+        description: "Участники смогут собираться в команды и работать вместе.",
+      },
+      {
+        key: "hasCases",
+        label: "Кейсы",
+        description: "В событии появится сценарий выбора кейса и связанный поток работы.",
+      },
+    ],
+  },
+  {
+    title: "Контент и работа участников",
+    description: "Материалы и действия, которые будут доступны пользователям во время события.",
+    items: [
+      {
+        key: "hasMaterials",
+        label: "Материалы мероприятия",
+        description: "Администратор сможет публиковать материалы для участников.",
+      },
+      {
+        key: "hasLoadedSolution",
+        label: "Загрузка решений",
+        description: "Участники смогут отправлять свои решения внутри мероприятия.",
+      },
+    ],
+  },
+  {
+    title: "Ограничения и результаты",
+    description: "Настройки, влияющие на вместимость и финальную выдачу результатов.",
+    items: [
+      {
+        key: "hasParticipantLimit",
+        label: "Общий лимит участников",
+        description: "Для мероприятия можно будет задать ограничение по количеству мест.",
+      },
+      {
+        key: "hasResualt",
+        label: "Вкладка итоги",
+        description: "В мероприятии будет доступен блок публикации итогов.",
+      },
+    ],
+  },
+  {
+    title: "Проход и доступ",
+    description: "Инфраструктурные настройки для офлайн-сценариев и прохода на площадку.",
+    items: [
+      {
+        key: "hasEntryPass",
+        label: "QR-пропуск",
+        description: "Для участников можно будет использовать одноразовый QR-пропуск на вход.",
+      },
+    ],
   },
 ];
 
@@ -266,6 +345,15 @@ export default function CreateEventPage() {
     );
   }, [selectedType]);
 
+  const selectedFeatureLabels = useMemo(() => {
+    if (!features) return [];
+
+    return customFeatureGroups
+      .flatMap((group) => group.items)
+      .filter((item) => features[item.key])
+      .map((item) => item.label);
+  }, [features]);
+
   const { mutate: createEvent, isPending: isCreating } = useMutation({
     mutationKey: ["create-event"],
     mutationFn: (data: EventCreateDraft) => eventService.create(data),
@@ -396,6 +484,12 @@ export default function CreateEventPage() {
 
   const submitBaseSettings = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!baseForm.organizationId) {
+      toast.error("Выберите организацию");
+      return;
+    }
+
     setStep("settings");
   };
 
@@ -577,207 +671,369 @@ export default function CreateEventPage() {
   };
 
   return (
-    <section className="w-full max-w-6xl text-white">
-      <div className="mb-8">
+    <section className="w-full min-w-0 max-w-none overflow-x-hidden text-white">
+      <div className="mb-6 min-w-0 sm:mb-8">
         <p className="text-sm text-zinc-400">Администрирование</p>
-        <h1 className="mt-2 text-3xl font-semibold">Создание мероприятия</h1>
+        <h1 className="mt-2 break-words text-3xl font-semibold">
+          Создание мероприятия
+        </h1>
       </div>
 
       {step === "type" && (
-        <div className="grid gap-3 md:grid-cols-2">
-          {eventTypeOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() =>
-                  option.value === "OTHER"
-                    ? openCustomTypeModal()
-                    : selectType(option.value)
-                }
-                className="rounded-md border border-zinc-700 bg-zinc-900/60 p-4 text-left transition hover:border-primary"
-              >
-                <span className="text-lg font-medium">{option.label}</span>
-                <span className="mt-2 block text-sm text-zinc-400">
-                  {option.description}
-                </span>
-              </button>
-          ))}
+        <div className="grid gap-6">
+          <section className="min-w-0 rounded-[2rem] border border-zinc-800 bg-zinc-900/70 p-4 sm:p-6 md:p-8">
+            <div className="min-w-0 max-w-3xl">
+              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                Шаг 1
+              </p>
+              <h2 className="mt-3 break-words text-2xl font-semibold text-zinc-50">
+                Выберите основу мероприятия
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">
+                Начните с готового сценария, если он подходит под ваш формат, либо
+                соберите собственный тип мероприятия с нужными модулями и
+                возможностями.
+              </p>
+            </div>
+
+            <div className="mt-6 grid min-w-0 gap-4 md:grid-cols-2">
+              {eventTypeOptions.map((option) => {
+                const isPrimary = option.accent === "primary";
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() =>
+                      option.value === "OTHER"
+                        ? openCustomTypeModal()
+                        : selectType(option.value)
+                    }
+                    className={twMerge(
+                      "group relative min-w-0 rounded-[1.75rem] border bg-zinc-950/50 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-zinc-600 hover:bg-zinc-900 sm:p-5",
+                      isPrimary
+                        ? "border-zinc-700"
+                        : "border-zinc-800",
+                    )}
+                  >
+                    <div className="min-w-0 pr-36 sm:pr-44">
+                      <span className="block break-words text-xl font-semibold text-zinc-50 sm:text-2xl">
+                        {option.label}
+                      </span>
+                    </div>
+
+                    {isPrimary ? (
+                      <span className="absolute right-4 top-4 inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-emerald-200 sm:right-5 sm:top-5 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
+                        Базовый сценарий
+                      </span>
+                    ) : (
+                      <span className="absolute right-4 top-4 inline-flex rounded-full border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-zinc-300 sm:right-5 sm:top-5 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
+                        Гибкая настройка
+                      </span>
+                    )}
+
+                    <p className="mt-4 text-sm leading-6 text-zinc-400">
+                      {option.description}
+                    </p>
+
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {option.highlights.map((highlight) => (
+                        <span
+                          key={highlight}
+                          className="rounded-full border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-xs text-zinc-300"
+                        >
+                          {highlight}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
         </div>
       )}
 
       {step === "base" && selectedType && features && (
-        <form onSubmit={submitBaseSettings} className="grid gap-5">
-          <div className="rounded-md border border-zinc-700 bg-zinc-900/60 p-4">
-            <p className="text-sm text-zinc-400">Тип мероприятия</p>
-            <p className="mt-1 text-xl font-medium">{selectedTypeLabel}</p>
+        <form onSubmit={submitBaseSettings} className="grid gap-6">
+          <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/70 p-4 sm:p-6 md:p-8">
+            <div className="max-w-3xl">
+              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                Шаг 2
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold text-zinc-50">
+                Базовая структура мероприятия
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">
+                Теперь задайте основную информацию о событии: как оно будет
+                называться, где и когда пройдёт, в каком формате публикуется и
+                по каким тегам его смогут находить.
+              </p>
+            </div>
+          </section>
+
+          <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/70 p-4 sm:p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+              Выбранный шаблон
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <p className="text-xl font-semibold text-zinc-50">
+                {selectedTypeLabel}
+              </p>
+              {selectedFeatureLabels.length > 0 ? (
+                selectedFeatureLabels.map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full border border-zinc-700 bg-zinc-950/80 px-3 py-1 text-xs text-zinc-300"
+                  >
+                    {label}
+                  </span>
+                ))
+              ) : (
+                <span className="rounded-full border border-zinc-700 bg-zinc-950/80 px-3 py-1 text-xs text-zinc-300">
+                  Без дополнительных модулей
+                </span>
+              )}
+            </div>
+          </section>
+
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.95fr)]">
+            <Panel title="Базовая информация">
+              <div className="grid gap-4 xl:grid-cols-3 xl:auto-rows-min">
+                <div className="md:col-span-2">
+                  <TextField
+                    label="Название"
+                    value={baseForm.title}
+                    onChange={(value) => updateBaseForm("title", value)}
+                    required
+                  />
+                </div>
+                <TextField
+                  label="Slug"
+                  value={baseForm.slug}
+                  onChange={(value) => {
+                    setIsSlugTouched(true);
+                    updateBaseForm("slug", value);
+                  }}
+                  required
+                />
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-sm text-zinc-400 xl:col-span-1">
+                  Короткая ссылка формируется из названия, но вы можете
+                  отредактировать её вручную.
+                </div>
+                <div className="xl:col-span-3">
+                  <TextAreaField
+                    label="Описание"
+                    value={baseForm.description}
+                    onChange={(value) => updateBaseForm("description", value)}
+                    rows={8}
+                    resize="none"
+                  />
+                </div>
+              </div>
+            </Panel>
+
+            <Panel title="Публикация и формат">
+              <div className="grid gap-4 content-start">
+                <div className="grid gap-2">
+                  <p className="text-sm text-zinc-300">Организация</p>
+                  {isOptionsLoading ? (
+                    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-4 text-sm text-zinc-400">
+                      Загрузка организаций...
+                    </div>
+                  ) : (
+                    <ScrollList className="max-h-72">
+                      <div className="grid gap-2">
+                        {organizations.map((organization) => {
+                          const isSelected =
+                            baseForm.organizationId ===
+                            organization.idOrganization;
+
+                          return (
+                            <button
+                              key={organization.idOrganization}
+                              type="button"
+                              onClick={() =>
+                                updateOrganization(organization.idOrganization)
+                              }
+                              className={twMerge(
+                                "w-full min-w-0 rounded-2xl border px-4 py-3 text-left transition",
+                                isSelected
+                                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-100"
+                                  : "border-zinc-800 bg-zinc-950/70 text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900",
+                              )}
+                            >
+                              <p className="font-medium">{organization.name}</p>
+                              <p className="mt-1 text-sm text-zinc-400">
+                                {organization.address || "Адрес организации пока не указан"}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </ScrollList>
+                  )}
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <SegmentedControl
+                    label="Формат"
+                    value={baseForm.format}
+                    onChange={(value) => updateFormat(value as EventFormat)}
+                    options={[
+                      { value: "OFFLINE", label: "Офлайн" },
+                      { value: "ONLINE", label: "Онлайн" },
+                      { value: "HYBRID", label: "Гибрид" },
+                    ]}
+                  />
+                  <SegmentedControl
+                    label="Статус"
+                    value={baseForm.status}
+                    onChange={(value) =>
+                      updateStatus(value as EventPublicationStatus)
+                    }
+                    options={[
+                      { value: "PRIVATE", label: "Приватное" },
+                      { value: "PUBLIC", label: "Публичное" },
+                    ]}
+                  />
+                </div>
+              </div>
+            </Panel>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <TextField
-              label="Название"
-              value={baseForm.title}
-              onChange={(value) => updateBaseForm("title", value)}
-              required
-            />
-            <TextField
-              label="Slug"
-              value={baseForm.slug}
-              onChange={(value) => {
-                setIsSlugTouched(true);
-                updateBaseForm("slug", value);
-              }}
-              required
-            />
-            <div className="md:col-span-2">
-              <TextAreaField
-                label="Описание"
-                value={baseForm.description}
-                onChange={(value) => updateBaseForm("description", value)}
-              />
+          <Panel title="Расписание">
+            <div className="grid gap-6">
+              <div>
+                <p className="text-sm text-zinc-400">Проведение</p>
+                <div className="mt-3 grid gap-4 xl:grid-cols-2">
+                  <TextField
+                    label="Дата и время начала"
+                    type="datetime-local"
+                    value={baseForm.dataStart}
+                    onChange={(value) => updateBaseForm("dataStart", value)}
+                    required
+                  />
+                  <TextField
+                    label="Дата и время завершения"
+                    type="datetime-local"
+                    value={baseForm.dataEnd}
+                    onChange={(value) => updateBaseForm("dataEnd", value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {baseForm.status === "PUBLIC" ? (
+                <div>
+                  <p className="text-sm text-zinc-400">Регистрация</p>
+                  <div className="mt-3 grid gap-4 xl:grid-cols-2">
+                    <TextField
+                      label="Начало регистрации"
+                      type="datetime-local"
+                      value={baseForm.dataStartRegistration}
+                      onChange={(value) =>
+                        updateBaseForm("dataStartRegistration", value)
+                      }
+                      required
+                    />
+                    <TextField
+                      label="Конец регистрации"
+                      type="datetime-local"
+                      value={baseForm.dataEndRegistration}
+                      onChange={(value) =>
+                        updateBaseForm("dataEndRegistration", value)
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {features.hasLoadedSolution && !features.hasCases ? (
+                <div className="max-w-xl">
+                  <TextField
+                    label="Дедлайн сдачи решения"
+                    type="datetime-local"
+                    value={baseForm.dateDeadLine}
+                    onChange={(value) => updateBaseForm("dateDeadLine", value)}
+                    required
+                  />
+                </div>
+              ) : null}
             </div>
-            <SelectField
-              label="Организация"
-              value={baseForm.organizationId}
-              onChange={updateOrganization}
-              required
-            >
-              <option value="">
-                {isOptionsLoading ? "Загрузка..." : "Выберите организацию"}
-              </option>
-              {organizations.map((organization) => (
-                <option
-                  key={organization.idOrganization}
-                  value={organization.idOrganization}
-                >
-                  {organization.name}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField
-              label="Формат"
-              value={baseForm.format}
-              onChange={(value) => updateFormat(value as EventFormat)}
-            >
-              <option value="OFFLINE">Офлайн</option>
-              <option value="ONLINE">Онлайн</option>
-              <option value="HYBRID">Гибрид</option>
-            </SelectField>
-            <SelectField
-              label="Статус"
-              value={baseForm.status}
-              onChange={(value) =>
-                updateStatus(value as EventPublicationStatus)
-              }
-            >
-              <option value="PRIVATE">Приватное</option>
-              <option value="PUBLIC">Публичное</option>
-            </SelectField>
-            <TextField
-              label="Дата и время начала"
-              type="datetime-local"
-              value={baseForm.dataStart}
-              onChange={(value) => updateBaseForm("dataStart", value)}
-              required
-            />
-            <TextField
-              label="Дата и время завершения"
-              type="datetime-local"
-              value={baseForm.dataEnd}
-              onChange={(value) => updateBaseForm("dataEnd", value)}
-              required
-            />
-            {baseForm.status === "PUBLIC" && (
-              <>
-                <TextField
-                  label="Начало регистрации"
-                  type="datetime-local"
-                  value={baseForm.dataStartRegistration}
-                  onChange={(value) =>
-                    updateBaseForm("dataStartRegistration", value)
-                  }
+          </Panel>
+
+          {baseForm.format !== "ONLINE" ? (
+            <Panel title="Локация">
+              <div className="grid gap-4">
+                <AddressAutocomplete
+                  label="Адрес"
+                  value={baseForm.address}
                   required
-                />
-                <TextField
-                  label="Конец регистрации"
-                  type="datetime-local"
-                  value={baseForm.dataEndRegistration}
-                  onChange={(value) =>
-                    updateBaseForm("dataEndRegistration", value)
+                  onManualChange={(address) =>
+                    setBaseForm((current) => ({
+                      ...current,
+                      address,
+                      cordinatX: null,
+                      cordinatY: null,
+                    }))
                   }
-                  required
+                  onSelect={(address) =>
+                    setBaseForm((current) => ({
+                      ...current,
+                      address: address.address,
+                      cordinatX: address.cordinatX,
+                      cordinatY: address.cordinatY,
+                    }))
+                  }
                 />
-              </>
-            )}
-            {features.hasLoadedSolution && !features.hasCases && (
-              <TextField
-                label="Дедлайн сдачи решения"
-                type="datetime-local"
-                value={baseForm.dateDeadLine}
-                onChange={(value) => updateBaseForm("dateDeadLine", value)}
-                required
-              />
-            )}
-            {baseForm.format !== "ONLINE" && (
-              <>
-            <AddressAutocomplete
-              label="Адрес"
-              value={baseForm.address}
-              required
-              onManualChange={(address) =>
-                setBaseForm((current) => ({
-                  ...current,
-                  address,
-                  cordinatX: null,
-                  cordinatY: null,
-                }))
-              }
-              onSelect={(address) =>
-                setBaseForm((current) => ({
-                  ...current,
-                  address: address.address,
-                  cordinatX: address.cordinatX,
-                  cordinatY: address.cordinatY,
-                }))
-              }
-            />
-                <div className="md:col-span-2">
+                <div className="overflow-hidden rounded-[1.5rem] border border-zinc-800 xl:min-h-[32rem]">
                   <ArcGisPointMap
                     cordinatX={baseForm.cordinatX}
                     cordinatY={baseForm.cordinatY}
+                    heightClassName="h-72 xl:h-[32rem]"
                   />
                 </div>
-              </>
-            )}
-            <div className="md:col-span-2">
-              <TagCombobox
-                filteredTags={filteredTags}
-                isOpen={isTagDropdownOpen}
-                search={tagSearch}
-                selectedTags={selectedTags}
-                onAddFromSearch={addTagFromSearch}
-                onClose={() => setIsTagDropdownOpen(false)}
-                onInputFocus={() => setIsTagDropdownOpen(true)}
-                onRemoveTag={removeTag}
-                onSearchChange={(value) => {
-                  setTagSearch(value);
-                  setIsTagDropdownOpen(true);
-                }}
-                onSelectTag={(tag) => addTag({ id: tag.idTag, name: tag.name })}
-              />
-            </div>
-          </div>
+              </div>
+            </Panel>
+          ) : (
+            <Panel title="Локация">
+              <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/40 px-4 py-4 text-sm leading-6 text-zinc-400">
+                Для онлайн-мероприятия физический адрес и карта не требуются.
+              </div>
+            </Panel>
+          )}
 
-          <div className="flex justify-between gap-3">
+          <Panel title="Теги">
+            <TagCombobox
+              filteredTags={filteredTags}
+              isOpen={isTagDropdownOpen}
+              search={tagSearch}
+              selectedTags={selectedTags}
+              onAddFromSearch={addTagFromSearch}
+              onClose={() => setIsTagDropdownOpen(false)}
+              onInputFocus={() => setIsTagDropdownOpen(true)}
+              onRemoveTag={removeTag}
+              onSearchChange={(value) => {
+                setTagSearch(value);
+                setIsTagDropdownOpen(true);
+              }}
+              onSelectTag={(tag) => addTag({ id: tag.idTag, name: tag.name })}
+            />
+          </Panel>
+
+          <div className="flex flex-col justify-between gap-3 sm:flex-row">
             <button
               type="button"
               onClick={() => setStep("type")}
-              className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-200"
+              className="rounded-2xl border border-zinc-700 px-4 py-3 text-sm text-zinc-200"
             >
               Назад
             </button>
             <button
               type="submit"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white"
+              className="rounded-2xl bg-primary px-5 py-3 text-sm font-medium text-white"
             >
               Далее
             </button>
@@ -854,9 +1110,12 @@ export default function CreateEventPage() {
                           {eventCase.tags.map((tag) => (
                             <span
                               key={tag.id ?? tag.name}
-                              className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-zinc-300"
+                              className="max-w-full overflow-hidden rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-zinc-300"
+                              title={tag.name}
                             >
-                              {tag.name}
+                              <span className="block max-w-44 truncate">
+                                {tag.name}
+                              </span>
                             </span>
                           ))}
                         </div>
@@ -1125,9 +1384,10 @@ function TagCombobox({
               key={tag.id ?? tag.name}
               type="button"
               onClick={() => onRemoveTag(tag)}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-100 hover:border-red-400 hover:text-red-200"
+              className="max-w-full overflow-hidden rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1 text-left text-sm text-zinc-100 hover:border-red-400 hover:text-red-200"
+              title={tag.name}
             >
-              {tag.name}
+              <span className="block max-w-44 truncate">{tag.name}</span>
             </button>
           ))}
         </div>
@@ -1164,6 +1424,45 @@ function ScrollList({
   );
 }
 
+function SegmentedControl({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm text-zinc-300">{label}</p>
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/50 p-2">
+        {options.map((option) => {
+          const isActive = option.value === value;
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChange(option.value)}
+              className={twMerge(
+                "min-w-[8rem] flex-1 rounded-xl border px-4 py-2 text-center text-sm transition",
+                isActive
+                  ? "border-emerald-500/40 bg-emerald-500/12 text-emerald-200"
+                  : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900",
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function TextField({
   label,
   value,
@@ -1186,7 +1485,7 @@ function TextField({
   if (hidden) return null;
 
   return (
-    <label className="grid gap-2 text-sm text-zinc-300">
+    <label className="grid min-w-0 gap-2 text-sm text-zinc-300">
       {label}
       <input
         type={type}
@@ -1195,7 +1494,7 @@ function TextField({
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-primary"
+        className="w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-primary"
       />
     </label>
   );
@@ -1215,13 +1514,13 @@ function SelectField({
   required?: boolean;
 }) {
   return (
-    <label className="grid gap-2 text-sm text-zinc-300">
+    <label className="grid min-w-0 gap-2 text-sm text-zinc-300">
       {label}
       <select
         required={required}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-primary"
+        className="w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-primary"
       >
         {children}
       </select>
@@ -1233,19 +1532,26 @@ function TextAreaField({
   label,
   value,
   onChange,
+  rows = 4,
+  resize = "vertical",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  rows?: number;
+  resize?: "none" | "vertical";
 }) {
   return (
-    <label className="grid gap-2 text-sm text-zinc-300">
+    <label className="grid min-w-0 gap-2 text-sm text-zinc-300">
       {label}
       <textarea
         value={value}
-        rows={4}
+        rows={rows}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-primary"
+        className={twMerge(
+          "w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-primary",
+          resize === "none" ? "resize-none" : "resize-y",
+        )}
       />
     </label>
   );
@@ -1275,76 +1581,158 @@ function CustomEventTypeModal({
     });
   };
 
+  const enabledFeatures = customFeatureGroups
+    .flatMap((group) => group.items)
+    .filter((item) => form.features[item.key]);
+
+  const enabledFeatureLabels = enabledFeatures.map((feature) => feature.label);
+
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-md border border-zinc-700 bg-zinc-950 p-5 text-white">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold">Другой тип мероприятия</h2>
-          <button type="button" onClick={onClose} className="text-zinc-400">
-            Закрыть
-          </button>
-        </div>
-
-        <div className="mt-5 grid gap-5">
-          <TextField
-            label="Вид мероприятия"
-            value={form.typeName}
-            onChange={(value) => onChange({ ...form, typeName: value })}
-            required
-          />
-
-          <div className="grid gap-3">
-            <p className="text-sm text-zinc-300">Настройки мероприятия</p>
-            <FeatureCheckbox
-              checked={form.features.hasCases}
-              label="Кейсы"
-              onChange={(checked) => updateFeature("hasCases", checked)}
-            />
-            <FeatureCheckbox
-              checked={form.features.hasTeams}
-              label="Команды"
-              onChange={(checked) => updateFeature("hasTeams", checked)}
-            />
-            <FeatureCheckbox
-              checked={form.features.hasParticipantLimit}
-              label="Общий лимит участников"
-              onChange={(checked) =>
-                updateFeature("hasParticipantLimit", checked)
-              }
-            />
-            <FeatureCheckbox
-              checked={form.features.hasLoadedSolution}
-              label="Возможность загружать решения"
-              onChange={(checked) =>
-                updateFeature("hasLoadedSolution", checked)
-              }
-            />
-            <FeatureCheckbox
-              checked={form.features.hasMaterials}
-              label="Загрузка материалов для мероприятия"
-              onChange={(checked) => updateFeature("hasMaterials", checked)}
-            />
-            <FeatureCheckbox
-              checked={form.features.hasResualt}
-              label="Вкладка итоги"
-              onChange={(checked) => updateFeature("hasResualt", checked)}
-            />
-            <FeatureCheckbox
-              checked={form.features.hasEntryPass}
-              label="QR-пропуск"
-              onChange={(checked) => updateFeature("hasEntryPass", checked)}
-            />
+    <div className="fixed inset-0 z-50 bg-black/70 sm:p-4">
+      <div className="mx-auto flex h-[100dvh] max-h-[100dvh] w-full min-w-0 max-w-none flex-col overflow-x-hidden overflow-y-hidden border-zinc-700 bg-zinc-950 text-white shadow-2xl sm:h-[calc(100dvh-2rem)] sm:max-w-5xl sm:rounded-[2rem] sm:border">
+        <div className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950 px-4 py-3 sm:px-5 sm:py-5 md:px-7">
+          <div className="min-w-0 max-w-3xl">
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+              Свой шаблон
+            </p>
+            <h2 className="mt-2 break-words text-xl font-semibold leading-tight text-zinc-50 sm:mt-3 sm:text-3xl">
+              Другой тип мероприятия
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-5 text-zinc-400 sm:mt-3 sm:leading-6">
+              Соберите собственную структуру мероприятия из нужных модулей.
+              <span className="hidden xl:inline">
+                {" "}На компьютере справа будет виден краткий итог выбранных
+                возможностей.
+              </span>
+            </p>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end">
-          <button
-            type="button"
-            onClick={onApply}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium"
-          >
-            Применить
-          </button>
+        <div className="grid min-h-0 flex-1 gap-0 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
+          <div className="flex min-h-0 min-w-0 flex-col overflow-x-hidden px-3 py-3 sm:px-5 sm:py-5 md:px-7">
+            <div className="shrink-0 rounded-[1.25rem] border border-zinc-800 bg-zinc-900/60 p-3 sm:rounded-[1.5rem] sm:p-5">
+              <TextField
+                label="Вид мероприятия"
+                value={form.typeName}
+                onChange={(value) => onChange({ ...form, typeName: value })}
+                required
+              />
+            </div>
+
+            <div className="mt-3 min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1 sm:mt-6">
+              <div className="grid gap-6">
+                {customFeatureGroups.map((group) => (
+                  <section
+                    key={group.title}
+                    className="min-w-0 rounded-[1.25rem] border border-zinc-800 bg-zinc-900/60 p-4 sm:rounded-[1.5rem] sm:p-5"
+                  >
+                    <div className="max-w-2xl">
+                      <h3 className="text-base font-semibold text-zinc-50 sm:text-lg">
+                        {group.title}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-zinc-400">
+                        {group.description}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
+                      {group.items.map((item) => (
+                        <FeatureCheckbox
+                          key={item.key}
+                          checked={form.features[item.key]}
+                          label={item.label}
+                          description={item.description}
+                          onChange={(checked) => updateFeature(item.key, checked)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <aside className="hidden min-h-0 flex-col border-l border-zinc-800 bg-zinc-900/50 xl:flex">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-7">
+              <div className="min-w-0 rounded-[1.5rem] border border-zinc-800 bg-zinc-900/60 p-5">
+                <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                  Предпросмотр структуры
+                </p>
+                <h3 className="mt-3 line-clamp-2 overflow-hidden break-all text-xl font-semibold leading-tight text-zinc-50">
+                  {form.typeName.trim() || "Новый тип мероприятия"}
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-zinc-400">
+                  После применения этот тип станет основой для дальнейшего
+                  заполнения формы создания мероприятия.
+                </p>
+
+                <div className="mt-5 grid gap-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        Активных модулей
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-zinc-100">
+                        {enabledFeatures.length}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        Режим
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-zinc-100">
+                        {enabledFeatures.length > 0
+                          ? "Настраиваемый"
+                          : "Пустой шаблон"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {enabledFeatureLabels.length > 0 ? (
+                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-4">
+                      <p className="text-sm font-medium text-zinc-100">
+                        Будут включены
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {enabledFeatureLabels.map((label) => (
+                          <span
+                            key={label}
+                            className="rounded-full border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-300"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 px-4 py-4 text-sm leading-6 text-zinc-400">
+                      Пока не выбрано ни одной опции. Отметьте нужные модули
+                      слева, чтобы собрать свой сценарий мероприятия.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div className="shrink-0 border-t border-zinc-800 bg-zinc-950/95 px-3 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:px-5 sm:py-4 md:px-7">
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:text-white"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              onClick={onApply}
+              className="min-w-0 flex-1 rounded-2xl bg-primary px-4 py-3 text-sm font-medium transition hover:bg-emerald-500"
+            >
+              Применить
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1354,21 +1742,32 @@ function CustomEventTypeModal({
 function FeatureCheckbox({
   checked,
   label,
+  description,
   onChange,
 }: {
   checked: boolean;
   label: string;
+  description?: string;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200">
+    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/80 px-3 py-3 text-sm text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-900 sm:px-4 sm:py-4">
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-primary"
+        className="mt-1 h-4 w-4 shrink-0 accent-primary"
       />
-      {label}
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-zinc-100">
+          {label}
+        </span>
+        {description ? (
+          <span className="mt-1 block text-sm leading-5 text-zinc-400 sm:leading-6">
+            {description}
+          </span>
+        ) : null}
+      </span>
     </label>
   );
 }
