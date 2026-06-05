@@ -173,3 +173,9 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/eventhub?schema=publ
 /turniket
 /turniket/auth/login
 ```
+
+### Сайт задеплоен 
+
+```text
+eventhub.omi.bz/
+```
