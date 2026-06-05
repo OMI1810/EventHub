@@ -1,10 +1,6 @@
-import type { Metadata } from 'next'
-import { OrganizationDashboard } from './OrganizationDashboard'
-
-export const metadata: Metadata = {
-	title: 'Панель организации'
-}
+import { DASHBOARD_PAGES } from '@/config/pages/dashboard.config'
+import { redirect } from 'next/navigation'
 
 export default function Page() {
-	return <OrganizationDashboard />
+	redirect(DASHBOARD_PAGES.ORGANIZATION)
 }

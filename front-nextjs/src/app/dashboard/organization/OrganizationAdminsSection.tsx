@@ -13,12 +13,14 @@ export function OrganizationAdminsSection() {
 		useState<IOrganizationAdminSummary | null>(null)
 
 	return (
-		<section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
+		<section className="max-w-full overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-4 shadow-xl sm:p-8">
 			<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 				Администраторы организации
 			</p>
-			<h1 className="mt-3 text-3xl font-bold">Список администраторов</h1>
-			<p className="mt-4 max-w-3xl text-sm text-zinc-300">
+			<h1 className="mt-3 break-words text-3xl font-bold [overflow-wrap:anywhere]">
+				Список администраторов
+			</h1>
+			<p className="mt-4 max-w-3xl break-words text-sm text-zinc-300 [overflow-wrap:anywhere]">
 				Здесь отображаются все администраторы, которые уже работают от имени
 				этой организации.
 			</p>
@@ -33,25 +35,37 @@ export function OrganizationAdminsSection() {
 				</p>
 			) : (
 				<div className="mt-6 space-y-3">
-					{admins.map(admin => (
-						<button
-							key={admin.idUser}
-							type="button"
-							onClick={() => setSelectedAdmin(admin)}
-							className="flex w-full items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-left transition-colors hover:bg-zinc-800/70"
-						>
-							<div>
-								<p className="text-sm font-medium text-zinc-100">
-									{getOrganizationAdminDisplayName(admin)}
-								</p>
-								<p className="mt-1 text-xs text-zinc-500">{admin.email}</p>
-							</div>
+					{admins.map(admin => {
+						const displayName = getOrganizationAdminDisplayName(admin)
 
-							<span className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-								Подробнее
-							</span>
-						</button>
-					))}
+						return (
+							<button
+								key={admin.idUser}
+								type="button"
+								onClick={() => setSelectedAdmin(admin)}
+								className="flex w-full min-w-0 items-center justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-left transition-colors hover:bg-zinc-800/70"
+							>
+								<div className="min-w-0 flex-1">
+									<p
+										title={displayName}
+										className="truncate text-sm font-medium text-zinc-100"
+									>
+										{displayName}
+									</p>
+									<p
+										title={admin.email}
+										className="mt-1 truncate text-xs text-zinc-500"
+									>
+										{admin.email}
+									</p>
+								</div>
+
+								<span className="shrink-0 text-xs uppercase tracking-[0.2em] text-zinc-500">
+									Подробнее
+								</span>
+							</button>
+						)
+					})}
 				</div>
 			)}
 
