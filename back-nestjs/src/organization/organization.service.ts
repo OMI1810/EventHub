@@ -10,6 +10,11 @@ import { OrganizationInviteService } from './organization-invite.service'
 import { CreateOrganizationDto } from './dto/create-organization.dto'
 import { UpdateOrganizationDto } from './dto/update-organization.dto'
 
+interface OrganizationEventsPaginationInput {
+	limit?: string
+	offset?: string
+}
+
 @Injectable()
 export class OrganizationService {
 	constructor(
@@ -148,7 +153,10 @@ export class OrganizationService {
 		return admins.map(({ user }) => user)
 	}
 
-	async getMyOrganizationEvents(ownerId: string) {
+	async getMyOrganizationEvents(
+		ownerId: string,
+		pagination?: OrganizationEventsPaginationInput
+	) {
 		const organization = await this.getOrganizationByOwnerId(ownerId)
 
 		if (!organization) {
@@ -156,6 +164,14 @@ export class OrganizationService {
 				'Панель организации доступна только владельцу организации'
 			)
 		}
+
+		const shouldPaginate = pagination?.limit !== undefined
+		const limit = shouldPaginate
+			? this.normalizeEventsLimit(pagination?.limit)
+			: undefined
+		const offset = shouldPaginate
+			? this.normalizeEventsOffset(pagination?.offset)
+			: 0
 
 		const events = await this.prisma.event.findMany({
 			where: {
@@ -182,10 +198,17 @@ export class OrganizationService {
 					}
 				}
 			},
-			orderBy: [{ dataStart: 'desc' }, { title: 'asc' }]
+			orderBy: [{ dataStart: 'desc' }, { title: 'asc' }],
+			...(shouldPaginate
+				? {
+						take: limit! + 1,
+						skip: offset
+				  }
+				: {})
 		})
 
-		return events.map(event => ({
+		const visibleEvents = shouldPaginate ? events.slice(0, limit) : events
+		const items = visibleEvents.map(event => ({
 			idEvent: event.idEvent,
 			title: event.title,
 			description: event.description,
@@ -202,6 +225,20 @@ export class OrganizationService {
 			participantsCount: event._count.participant,
 			teamsCount: event._count.teams
 		}))
+
+		if (!shouldPaginate) {
+			return items
+		}
+
+		const hasMore = events.length > limit!
+
+		return {
+			items,
+			limit,
+			offset,
+			nextOffset: hasMore ? offset + limit! : null,
+			hasMore
+		}
 	}
 
 	async removeAdminFromMyOrganization(ownerId: string, adminId: string) {
@@ -684,5 +721,25 @@ export class OrganizationService {
 	private optionalString(value?: string) {
 		const normalized = value?.trim()
 		return normalized ? normalized : null
+	}
+
+	private normalizeEventsLimit(value?: string) {
+		const parsed = Number(value)
+
+		if (!Number.isInteger(parsed) || parsed <= 0) {
+			return 30
+		}
+
+		return Math.min(parsed, 50)
+	}
+
+	private normalizeEventsOffset(value?: string) {
+		const parsed = Number(value)
+
+		if (!Number.isInteger(parsed) || parsed < 0) {
+			return 0
+		}
+
+		return parsed
 	}
 }

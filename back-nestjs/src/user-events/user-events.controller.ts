@@ -1,6 +1,6 @@
 import { Auth } from '@/auth/decorators/auth.decorator'
 import { CurrentUser } from '@/auth/decorators/user.decorator'
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common'
 import { RevokeUserEventPassDto } from './dto/revoke-user-event-pass.dto'
 import { SaveUserEventSolutionDto } from './dto/save-user-event-solution.dto'
 import { SelectUserEventCaseDto } from './dto/select-user-event-case.dto'
@@ -12,8 +12,15 @@ export class UserEventsController {
 
 	@Auth()
 	@Get('feed')
-	async getFeed(@CurrentUser('idUser') userId: string) {
-		return this.userEventsService.getFeed(userId)
+	async getFeed(
+		@CurrentUser('idUser') userId: string,
+		@Query('limit') limit?: string,
+		@Query('offset') offset?: string
+	) {
+		return this.userEventsService.getFeed(userId, {
+			limit: limit ? Number(limit) : undefined,
+			offset: offset ? Number(offset) : undefined
+		})
 	}
 
 	@Auth()

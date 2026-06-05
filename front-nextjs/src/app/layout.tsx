@@ -19,7 +19,7 @@ export default function RootLayout({
 	children: React.ReactNode
 }>) {
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
 			<body className={JetBrainsFont.className}>
 				<Providers>
 					<main className="flex min-h-screen w-full flex-col items-center justify-between p-1 sm:p-8">

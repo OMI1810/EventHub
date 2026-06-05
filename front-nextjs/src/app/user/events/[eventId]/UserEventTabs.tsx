@@ -49,7 +49,8 @@ function formatDateTime(date: string) {
 		month: '2-digit',
 		year: 'numeric',
 		hour: '2-digit',
-		minute: '2-digit'
+		minute: '2-digit',
+		timeZone: 'Europe/Moscow'
 	}).format(new Date(date))
 }
 
@@ -686,9 +687,9 @@ export function UserEventTabs({ event }: Props) {
 							</p>
 						</div>
 
-						<div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5">
-							<div className="flex gap-4">
-								<div className="relative flex w-8 shrink-0 justify-center">
+						<div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3 sm:p-5">
+							<div className="flex gap-2 sm:gap-4">
+								<div className="relative flex w-4 shrink-0 justify-center sm:w-8">
 									<div className="absolute bottom-3 top-3 left-1/2 w-px -translate-x-1/2 bg-zinc-800" />
 									<div className="relative z-10 flex w-full flex-col gap-3">
 										{statusSteps.map(step => (
@@ -723,14 +724,14 @@ export function UserEventTabs({ event }: Props) {
 												step.state === 'locked' ||
 												(step.key === 'participation' && participateMutation.isPending)
 											}
-											className="group flex min-h-[92px] w-full items-start justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-5 py-4 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-80"
+											className="group flex min-h-[92px] w-full items-start justify-between gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-3 py-4 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-80 sm:gap-4 sm:px-5"
 										>
 											<div className="min-w-0">
 												<p className="break-words text-sm font-semibold text-zinc-100">{step.title}</p>
 												<p className="mt-2 line-clamp-2 break-words text-sm text-zinc-400">{step.detail}</p>
 											</div>
 											<span
-												className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${getStepBadgeClass(step.state)}`}
+												className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium sm:px-3 sm:text-xs ${getStepBadgeClass(step.state)}`}
 											>
 												{getStepLabel(step.state)}
 											</span>

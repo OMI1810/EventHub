@@ -1,8 +1,10 @@
 'use client'
 
 import { MiniLoader } from '@/components/ui/MiniLoader'
+import { GUEST_PAGES } from '@/config/pages/guest.config'
 import publicEventService from '@/services/public-event.service'
 import { useQuery } from '@tanstack/react-query'
+import Link from 'next/link'
 import { GuestEventHeader } from './GuestEventHeader'
 import { GuestEventTabs } from './GuestEventTabs'
 
@@ -41,6 +43,12 @@ export function GuestEventPage({ eventId }: Props) {
 
 	return (
 		<div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 text-white">
+			<Link
+				href={GUEST_PAGES.HOME}
+				className="inline-flex w-fit text-sm font-semibold text-emerald-300 transition-colors hover:text-emerald-200 hover:underline"
+			>
+				Назад к ленте мероприятий
+			</Link>
 			<GuestEventHeader event={event} />
 			<GuestEventTabs event={event} />
 		</div>

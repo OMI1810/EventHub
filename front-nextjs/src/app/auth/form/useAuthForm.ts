@@ -1,8 +1,8 @@
 "use client";
 
-import { PUBLIC_PAGES } from "@/config/pages/public.config";
 import authService from "@/services/auth/auth.service";
 import { IFormData } from "@/types/auth.types";
+import { getRoleHomePath } from "@/utils/get-role-home-path";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { useRouter } from "next/navigation";
@@ -56,7 +56,9 @@ export function useAuthForm(
         return;
       }
 
-      if (authMode === "turniket" && response.data.user.role !== "TURNIKET") {
+      const authData = response.data;
+
+      if (authMode === "turniket" && authData.user.role !== "TURNIKET") {
         void authService.logout();
         toast.error("Этот вход предназначен только для турникетов");
         return;
@@ -64,7 +66,11 @@ export function useAuthForm(
 
       startTransition(() => {
         reset();
-        router.push(authMode === "turniket" ? "/turniket" : PUBLIC_PAGES.HOME);
+        router.push(
+          authMode === "turniket"
+            ? "/turniket"
+            : getRoleHomePath(authData.user.role),
+        );
       });
     },
     onError(error) {
@@ -91,11 +97,11 @@ export function useAuthForm(
           code,
         });
       },
-      onSuccess() {
+      onSuccess(response) {
         startTransition(() => {
           setTwoFactorState(null);
           reset();
-          router.push(PUBLIC_PAGES.HOME);
+          router.push(getRoleHomePath(response.data.user.role));
         });
       },
       onError(error) {
@@ -136,10 +142,10 @@ export function useAuthForm(
   const { mutate: mutateRegister, isPending: isRegisterPending } = useMutation({
     mutationKey: ["register"],
     mutationFn: (data: IFormData) => authService.main("register", data),
-    onSuccess() {
+    onSuccess(response) {
       startTransition(() => {
         reset();
-        router.push(PUBLIC_PAGES.HOME);
+        router.push(getRoleHomePath(response.data.user.role));
       });
     },
     onError(error) {

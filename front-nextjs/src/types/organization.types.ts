@@ -50,6 +50,14 @@ export interface IOrganizationEventSummary {
 	teamsCount: number
 }
 
+export interface IOrganizationEventsPage {
+	items: IOrganizationEventSummary[]
+	limit: number
+	offset: number
+	nextOffset: number | null
+	hasMore: boolean
+}
+
 export interface IUpdateOrganizationFormData {
 	phone?: string
 	contact?: string

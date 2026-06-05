@@ -387,6 +387,6 @@ export class AuthService {
   }
 
   private omitPassword(user: User) {
-    return omit(user, ["password"]);
+    return omit(user, ["password", "otpCode", "otpExpiresAt"]);
   }
 }

@@ -60,6 +60,14 @@ export interface IUserEventFeedItem {
 	tags?: EventTagOption[]
 }
 
+export interface IUserEventFeedPage {
+	items: IUserEventFeedItem[]
+	limit: number
+	offset: number
+	nextOffset: number | null
+	hasMore: boolean
+}
+
 export interface IUserMyEventItem {
 	idEvent: string
 	title: string
