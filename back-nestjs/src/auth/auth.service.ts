@@ -1,4 +1,3 @@
-import { VERIFY_EMAIL_URL } from "@/constants";
 import { EmailService } from "@/email/email.service";
 import { PrismaService } from "@/prisma.service";
 import { UserService } from "@/user/user.service";
@@ -9,6 +8,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Prisma, Role, type User } from "@prisma/client";
 import { hash, verify } from "argon2";
@@ -29,6 +29,7 @@ export class AuthService {
     private userService: UserService,
     private emailService: EmailService,
     private prisma: PrismaService,
+    private configService: ConfigService,
   ) {}
 
   private readonly TOKEN_EXPIRATION_ACCESS = "1h";
@@ -158,7 +159,7 @@ export class AuthService {
 
     await this.emailService.sendVerification(
       user.email,
-      `${VERIFY_EMAIL_URL}${user.verificationToken}`,
+      this.getVerificationUrl(user.verificationToken),
     );
 
     return this.buildResponseObject(user);
@@ -212,7 +213,7 @@ export class AuthService {
 
     await this.emailService.sendVerification(
       user.email,
-      `${VERIFY_EMAIL_URL}${user.verificationToken}`,
+      this.getVerificationUrl(user.verificationToken),
     );
 
     return { success: true };
@@ -384,6 +385,14 @@ export class AuthService {
     const allowedRoles: Role[] = [Role.USER, Role.ADMIN, Role.ORGANIZATOR];
 
     return allowedRoles.includes(role);
+  }
+
+  private getVerificationUrl(token: string | null) {
+    const backendUrl =
+      this.configService.get<string>("BACKEND_PUBLIC_URL") ||
+      `http://localhost:${this.configService.get<string>("PORT") || "4200"}`;
+
+    return `${backendUrl.replace(/\/+$/, "")}/verify-email?token=${encodeURIComponent(token || "")}`;
   }
 
   private omitPassword(user: User) {

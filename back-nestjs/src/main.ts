@@ -5,6 +5,15 @@ import { AppModule } from './app.module'
 
 async function bootstrap() {
 	const app = await NestFactory.create(AppModule)
+	const frontendUrls = (
+		process.env.FRONTEND_URLS ||
+		process.env.FRONTEND_URL ||
+		'http://localhost:3000'
+	)
+		.split(',')
+		.map(url => url.trim())
+		.filter(Boolean)
+	const port = Number(process.env.PORT || 4200)
 
 	app.setGlobalPrefix('api', {
 		exclude: [
@@ -14,11 +23,11 @@ async function bootstrap() {
 
 	app.use(cookieParser())
 	app.enableCors({
-		origin: ['http://localhost:3000'],
+		origin: frontendUrls,
 		credentials: true,
 		exposedHeaders: 'set-cookie'
 	})
 
-	await app.listen(4200)
+	await app.listen(port)
 }
 bootstrap()
