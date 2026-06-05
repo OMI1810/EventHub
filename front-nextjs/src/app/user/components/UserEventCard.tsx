@@ -18,7 +18,8 @@ function formatEventDates(start: string, end: string) {
 	const formatter = new Intl.DateTimeFormat('ru-RU', {
 		day: '2-digit',
 		month: '2-digit',
-		year: 'numeric'
+		year: 'numeric',
+		timeZone: 'Europe/Moscow'
 	})
 
 	return `${formatter.format(new Date(start))} - ${formatter.format(
@@ -32,7 +33,8 @@ function formatDateTime(date: string) {
 		month: '2-digit',
 		year: 'numeric',
 		hour: '2-digit',
-		minute: '2-digit'
+		minute: '2-digit',
+		timeZone: 'Europe/Moscow'
 	}).format(new Date(date))
 }
 
@@ -110,18 +112,18 @@ export function UserEventCard({ event }: Props) {
 				}}
 				className="group flex min-h-[320px] cursor-pointer flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5 transition-colors hover:border-zinc-700 hover:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
 			>
-				<div className="flex min-w-0 items-start justify-between gap-3">
+				<div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 					<div className="min-w-0 flex-1">
 						<p className="truncate text-xs uppercase tracking-[0.2em] text-zinc-500">
 							{event.organization.name}
 						</p>
-						<h3 className="mt-3 line-clamp-2 break-all text-2xl font-bold transition-colors group-hover:text-emerald-300">
+						<h3 className="mt-3 line-clamp-2 break-words text-2xl font-bold transition-colors group-hover:text-emerald-300">
 							{event.title}
 						</h3>
 					</div>
 
 					{event.isParticipating ? (
-						<span className="shrink-0 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+						<span className="w-fit shrink-0 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300 sm:max-w-[180px] sm:truncate">
 							Вы уже участвуете
 						</span>
 					) : null}

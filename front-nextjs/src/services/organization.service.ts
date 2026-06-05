@@ -1,6 +1,7 @@
 import { instance } from '@/api/axios'
 import {
 	IOrganizationAdminSummary,
+	IOrganizationEventsPage,
 	IOrganizationEventSummary,
 	IOrganizationInviteResponse,
 	IOrganizationJoinRequestSummary,
@@ -30,6 +31,12 @@ class OrganizationService {
 
 	async getMyOrganizationEvents() {
 		return instance.get<IOrganizationEventSummary[]>(`${this.BASE_URL}/me/events`)
+	}
+
+	async getMyOrganizationEventsPage(params?: { limit?: number; offset?: number }) {
+		return instance.get<IOrganizationEventsPage>(`${this.BASE_URL}/me/events`, {
+			params
+		})
 	}
 
 	async removeAdminFromMyOrganization(adminId: string) {

@@ -22,7 +22,8 @@ function formatCaseSchedule(start: string, end: string) {
 		day: '2-digit',
 		month: '2-digit',
 		hour: '2-digit',
-		minute: '2-digit'
+		minute: '2-digit',
+		timeZone: 'Europe/Moscow'
 	})
 
 	return `${formatter.format(new Date(start))} - ${formatter.format(new Date(end))}`

@@ -21,7 +21,8 @@ function formatDateRange(start: string, end: string) {
 		month: '2-digit',
 		year: 'numeric',
 		hour: '2-digit',
-		minute: '2-digit'
+		minute: '2-digit',
+		timeZone: 'Europe/Moscow'
 	})
 
 	return `${formatter.format(new Date(start))} - ${formatter.format(
@@ -35,7 +36,8 @@ function formatDateTime(date: string) {
 		month: '2-digit',
 		year: 'numeric',
 		hour: '2-digit',
-		minute: '2-digit'
+		minute: '2-digit',
+		timeZone: 'Europe/Moscow'
 	}).format(new Date(date))
 }
 

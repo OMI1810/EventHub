@@ -9,6 +9,7 @@ import {
 	Patch,
 	Param,
 	Post,
+	Query,
 	UsePipes,
 	ValidationPipe
 } from '@nestjs/common'
@@ -34,8 +35,15 @@ export class OrganizationController {
 
 	@Auth()
 	@Get('me/events')
-	async getMyOrganizationEvents(@CurrentUser('idUser') ownerId: string) {
-		return this.organizationService.getMyOrganizationEvents(ownerId)
+	async getMyOrganizationEvents(
+		@CurrentUser('idUser') ownerId: string,
+		@Query('limit') limit?: string,
+		@Query('offset') offset?: string
+	) {
+		return this.organizationService.getMyOrganizationEvents(ownerId, {
+			limit,
+			offset
+		})
 	}
 
 	@Auth()
