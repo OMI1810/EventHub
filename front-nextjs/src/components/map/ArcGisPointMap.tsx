@@ -9,9 +9,14 @@ import { useEffect, useRef, useState } from "react";
 interface ArcGisPointMapProps {
   cordinatX: number | null;
   cordinatY: number | null;
+  heightClassName?: string;
 }
 
-export function ArcGisPointMap({ cordinatX, cordinatY }: ArcGisPointMapProps) {
+export function ArcGisPointMap({
+  cordinatX,
+  cordinatY,
+  heightClassName = "h-72",
+}: ArcGisPointMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<MapView | null>(null);
   const [isViewReady, setIsViewReady] = useState(false);
@@ -75,7 +80,9 @@ export function ArcGisPointMap({ cordinatX, cordinatY }: ArcGisPointMapProps) {
   return (
     <div className="grid gap-2">
       <p className="text-sm text-zinc-300">Карта</p>
-      <div className="h-72 overflow-hidden rounded-md border border-zinc-700 bg-zinc-950">
+      <div
+        className={`${heightClassName} overflow-hidden rounded-md border border-zinc-700 bg-zinc-950`}
+      >
         <div ref={containerRef} className="h-full w-full" />
       </div>
       {cordinatX === null || cordinatY === null ? (

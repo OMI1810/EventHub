@@ -14,6 +14,7 @@ interface Props {
 
 export function AdminPendingRequestsSection({ requests, onSelect }: Props) {
 	const queryClient = useQueryClient()
+	const shouldScroll = requests.length > 5
 
 	const { mutate: mutateCancelRequest, isPending } = useMutation({
 		mutationKey: ['admin', 'organization-requests', 'cancel'],
@@ -43,7 +44,11 @@ export function AdminPendingRequestsSection({ requests, onSelect }: Props) {
 
 			<div className="mt-6">
 				{requests.length ? (
-					<div className="grid gap-3">
+					<div
+						className={`grid gap-3 ${
+							shouldScroll ? 'max-h-[30rem] overflow-y-auto pr-1' : ''
+						}`}
+					>
 						{requests.map(request => (
 							<div
 								key={request.idJoinTeam}

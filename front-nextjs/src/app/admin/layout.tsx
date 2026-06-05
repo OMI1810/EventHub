@@ -3,6 +3,7 @@
 import { MiniLoader } from "@/components/ui/MiniLoader";
 import { useProfile } from "@/hooks/useProfile";
 import { ReactNode } from "react";
+import { AdminShell } from "./AdminShell";
 
 function AdminAccessDenied() {
   return (
@@ -30,5 +31,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return <AdminAccessDenied />;
   }
 
-  return <>{children}</>;
+  return (
+    <div className="relative -mx-1 -mt-1 min-h-[calc(100dvh-0.25rem)] w-[calc(100%+0.5rem)] max-w-none self-stretch sm:-mx-8 sm:-mt-8 sm:min-h-[calc(100dvh-4rem)] sm:w-[calc(100%+4rem)]">
+      <AdminShell>{children}</AdminShell>
+    </div>
+  );
 }

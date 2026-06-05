@@ -13,6 +13,8 @@ export function AdminOrganizationsSection({
 	onSelect,
 	onAdd
 }: Props) {
+	const shouldScroll = organizations.length > 5
+
 	return (
 		<section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -34,7 +36,11 @@ export function AdminOrganizationsSection({
 
 			<div className="mt-6">
 				{organizations.length ? (
-					<div className="grid gap-3">
+					<div
+						className={`grid gap-3 ${
+							shouldScroll ? 'max-h-[24rem] overflow-y-auto pr-1' : ''
+						}`}
+					>
 						{organizations.map(organization => (
 							<button
 								key={organization.idOrganization}

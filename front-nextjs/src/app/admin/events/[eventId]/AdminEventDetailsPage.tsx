@@ -94,6 +94,58 @@ function toIsoDate(value: string) {
   return value ? new Date(value).toISOString() : undefined;
 }
 
+function formatEventType(type?: string | null) {
+  switch (type) {
+    case "HACKATHON":
+      return "Хакатон";
+    case "MASTER_CLASS":
+      return "Мастер-класс";
+    case "CONTEST":
+      return "Конкурс";
+    default:
+      return type || "Не указано";
+  }
+}
+
+function formatEventFormat(format?: string | null) {
+  switch (format) {
+    case "OFFLINE":
+      return "Офлайн";
+    case "ONLINE":
+      return "Онлайн";
+    case "HYBRID":
+      return "Гибрид";
+    default:
+      return format || "Не указано";
+  }
+}
+
+function formatEventStatus(status?: string | null) {
+  switch (status) {
+    case "PUBLISHED":
+      return "Опубликовано";
+    case "PRIVATE":
+      return "Приватное";
+    case "FINISHED":
+      return "Завершено";
+    default:
+      return status || "Не указано";
+  }
+}
+
+function getEventStatusBadgeClass(status?: string | null) {
+  switch (status) {
+    case "PUBLISHED":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-200";
+    case "PRIVATE":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-100";
+    case "FINISHED":
+      return "border-zinc-700 bg-zinc-900 text-zinc-300";
+    default:
+      return "border-zinc-700 bg-zinc-900 text-zinc-300";
+  }
+}
+
 function formatPersonName(user?: {
   name?: string | null;
   surname?: string | null;
@@ -244,9 +296,14 @@ function DetailPanel({
 }) {
   return (
     <section
-      className={`rounded-lg border border-zinc-800 bg-zinc-950 p-5 ${className ?? ""}`}
+      className={`rounded-[2rem] border border-zinc-800 bg-zinc-900/80 p-6 md:p-7 ${className ?? ""}`}
     >
-      <h2 className="mb-4 text-lg font-semibold text-zinc-100">{title}</h2>
+      <div className="mb-5">
+        <p className="text-[0.72rem] uppercase tracking-[0.34em] text-zinc-500">
+          Раздел
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold text-zinc-100">{title}</h2>
+      </div>
       {children}
     </section>
   );
@@ -257,6 +314,88 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
     <div>
       <p className="text-sm text-zinc-500">{label}</p>
       <div className="mt-1 text-sm text-zinc-100">{value}</div>
+    </div>
+  );
+}
+
+function SummaryMetric({
+  label,
+  value,
+  accentClassName,
+}: {
+  label: string;
+  value: ReactNode;
+  accentClassName?: string;
+}) {
+  return (
+    <div className="rounded-[1.5rem] border border-zinc-800 bg-black/30 p-5">
+      <p className="text-[0.7rem] uppercase tracking-[0.32em] text-zinc-500">
+        {label}
+      </p>
+      <div
+        className={`mt-4 text-3xl font-semibold leading-none text-zinc-100 ${accentClassName ?? ""}`}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InfoCard({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-[1.5rem] border border-zinc-800 bg-zinc-950/60 p-5 ${className ?? ""}`}
+    >
+      <p className="text-[0.7rem] uppercase tracking-[0.32em] text-zinc-500">
+        {label}
+      </p>
+      <div className="mt-3 text-sm leading-6 text-zinc-100">{value}</div>
+    </div>
+  );
+}
+
+function SegmentedControl({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm text-zinc-300">{label}</p>
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/50 p-2">
+        {options.map((option) => {
+          const isActive = option.value === value;
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChange(option.value)}
+              className={
+                isActive
+                  ? "min-w-[8rem] flex-1 rounded-xl border border-emerald-500/40 bg-emerald-500/12 px-4 py-2 text-center text-sm text-emerald-200 transition"
+                  : "min-w-[8rem] flex-1 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2 text-center text-sm text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900"
+              }
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -550,9 +689,9 @@ function TagSelector({
                 value.filter((selectedTag) => selectedTag.name !== tag.name),
               )
             }
-            className="rounded-full border border-primary/50 px-3 py-1 text-sm text-primary hover:bg-primary/10"
+            className="max-w-full overflow-hidden rounded-full border border-primary/50 px-3 py-1 text-sm text-primary hover:bg-primary/10"
           >
-            {tag.name}
+            <span className="block max-w-72 truncate">{tag.name}</span>
           </button>
         ))}
       </div>
@@ -653,7 +792,7 @@ function EditEventModal({
     >
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <label className="space-y-2">
+          <label className="space-y-2 md:col-span-2">
             <span className="text-sm text-zinc-400">Название</span>
             <input
               value={form.title ?? ""}
@@ -710,47 +849,41 @@ function EditEventModal({
           </label>
           <label className="space-y-2">
             <span className="text-sm text-zinc-400">Статус публикации</span>
-            <select
+            <SegmentedControl
+              label=""
               value={form.status ?? "PRIVATE"}
-              onChange={(event) =>
+              onChange={(value) =>
                 setForm((currentForm) => ({
                   ...currentForm,
-                  status: event.target.value as "PRIVATE" | "PUBLIC",
+                  status: value as "PRIVATE" | "PUBLIC",
                 }))
               }
-              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-primary"
-            >
-              <option value="PRIVATE">PRIVATE</option>
-              <option value="PUBLIC">PUBLIC</option>
-            </select>
+              options={[
+                { value: "PRIVATE", label: "Приватное" },
+                { value: "PUBLIC", label: "Опубликованное" },
+              ]}
+            />
           </label>
           <label className="space-y-2">
             <span className="text-sm text-zinc-400">Формат</span>
-            <select
+            <SegmentedControl
+              label=""
               value={form.format}
-              onChange={(event) =>
+              onChange={(value) =>
                 setForm((currentForm) => ({
                   ...currentForm,
-                  format: event.target
-                    .value as UpdateManagedEventGeneralData["format"],
-                  address:
-                    event.target.value === "ONLINE" ? "" : currentForm.address,
-                  cordinatX:
-                    event.target.value === "ONLINE"
-                      ? undefined
-                      : currentForm.cordinatX,
-                  cordinatY:
-                    event.target.value === "ONLINE"
-                      ? undefined
-                      : currentForm.cordinatY,
+                  format: value as UpdateManagedEventGeneralData["format"],
+                  address: value === "ONLINE" ? "" : currentForm.address,
+                  cordinatX: value === "ONLINE" ? undefined : currentForm.cordinatX,
+                  cordinatY: value === "ONLINE" ? undefined : currentForm.cordinatY,
                 }))
               }
-              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-primary"
-            >
-              <option value="OFFLINE">OFFLINE</option>
-              <option value="ONLINE">ONLINE</option>
-              <option value="HYBRID">HYBRID</option>
-            </select>
+              options={[
+                { value: "OFFLINE", label: "Офлайн" },
+                { value: "ONLINE", label: "Онлайн" },
+                { value: "HYBRID", label: "Гибрид" },
+              ]}
+            />
           </label>
           {form.status === "PUBLIC" ? (
             <>
@@ -820,7 +953,7 @@ function EditEventModal({
         </div>
 
         {event.hasMaterials ? (
-          <section className="space-y-4 border-t border-zinc-800 pt-5">
+          <section className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
             <div>
               <h3 className="text-base font-semibold text-zinc-100">
                 Материалы
@@ -855,7 +988,7 @@ function EditEventModal({
               <button
                 type="button"
                 onClick={addMaterial}
-                className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
+                className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 transition hover:bg-zinc-900"
               >
                 Добавить
               </button>
@@ -864,7 +997,7 @@ function EditEventModal({
               {materials.map((material, index) => (
                 <div
                   key={material.idMaterial ?? index}
-                  className="grid gap-3 rounded-md border border-zinc-800 bg-zinc-900/50 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                  className="grid gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
                 >
                   <input
                     value={material.title}
@@ -901,7 +1034,7 @@ function EditEventModal({
                         ),
                       )
                     }
-                    className="rounded-md border border-red-900/70 px-4 py-2 text-sm text-red-300 hover:bg-red-950/30"
+                    className="rounded-xl border border-red-900/70 px-4 py-2 text-sm text-red-300 transition hover:bg-red-950/30"
                   >
                     Удалить
                   </button>
@@ -1329,28 +1462,29 @@ function CaseDetailsModal({
         </div>
       ) : (
         <div className="space-y-5">
-          <InfoRow
-            label="Описание"
-            value={eventCase.description || "Не указано"}
-          />
           <div className="grid gap-4 md:grid-cols-2">
-            <InfoRow
+            <InfoCard
+              label="Описание кейса"
+              value={eventCase.description || "Не указано"}
+              className="md:col-span-2"
+            />
+            <InfoCard
               label="Кейсодержатель"
               value={eventCase.holder || "Не указано"}
             />
-            <InfoRow
+            <InfoCard
               label="Лимит команд"
               value={eventCase.teamLimit ?? "Не указан"}
             />
-            <InfoRow
+            <InfoCard
               label="Старт выбора"
               value={formatDate(eventCase.dateForStartSelected)}
             />
-            <InfoRow
+            <InfoCard
               label="Конец выбора"
               value={formatDate(eventCase.dateForEndSelected)}
             />
-            <InfoRow
+            <InfoCard
               label="Стоп-код"
               value={formatDate(eventCase.dateStopCode)}
             />
@@ -1362,9 +1496,10 @@ function CaseDetailsModal({
                 eventCase.tags.map((tag) => (
                   <span
                     key={tag.idTag ?? tag.name}
-                    className="rounded-full border border-primary/40 px-3 py-1 text-sm text-primary"
+                    className="max-w-full overflow-hidden rounded-full border border-primary/40 px-3 py-1 text-sm text-primary"
+                    title={tag.name}
                   >
-                    {tag.name}
+                    <span className="block max-w-72 truncate">{tag.name}</span>
                   </span>
                 ))
               ) : (
@@ -1760,80 +1895,133 @@ export function AdminEventDetailsPage() {
     ? "grid gap-6 lg:grid-cols-2"
     : "grid gap-6 lg:grid-cols-1";
 
+  const heroMetrics = [
+    { label: "Зарегистрировано", value: totalMembers },
+    { label: "Команд", value: event.hasTeams ? event.teams.length : "—" },
+    { label: "Кейсов", value: event.hasCases ? event.cases.length : "—" },
+    {
+      label: "Решений",
+      value: event.hasLoadedSolution ? event.solutions.length : "—",
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <div className="w-full min-w-0 max-w-none space-y-6">
+      <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/80 p-6 md:p-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <Link
             href={ADMIN_PAGES.EVENTS}
-            className="text-sm text-primary hover:underline"
+            className="inline-flex text-sm text-primary hover:underline"
           >
             Назад к мероприятиям
           </Link>
-          <h1 className="mt-3 text-3xl font-semibold text-zinc-100">
+          <div className="flex w-full flex-wrap gap-3 lg:w-auto lg:justify-end">
+            {event.permissions.hasFullAccess ? (
+              <button
+                type="button"
+                onClick={() => setIsAdminAccessOpen(true)}
+                className="rounded-xl border border-zinc-700 px-4 py-3 text-sm text-zinc-100 transition hover:bg-zinc-900"
+              >
+                Администраторы
+              </button>
+            ) : null}
+            {event.permissions.canExportCsv ? (
+              <button
+                type="button"
+                onClick={() => setIsCsvOpen(true)}
+                className="rounded-xl border border-zinc-700 px-4 py-3 text-sm text-zinc-100 transition hover:bg-zinc-900"
+              >
+                Экспорт CSV
+              </button>
+            ) : null}
+            {event.permissions.canEditGeneral ||
+            event.permissions.canEditMaterials ? (
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(true)}
+                className="rounded-xl bg-primary px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              >
+                Редактировать
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-6 min-w-0">
+          <p className="text-[0.72rem] uppercase tracking-[0.38em] text-zinc-500">
+            {event.organization.name}
+          </p>
+          <h1 className="mt-3 break-words text-3xl font-semibold leading-tight text-zinc-100 md:text-5xl">
             {event.title}
           </h1>
-          <p className="mt-2 max-w-3xl text-sm text-zinc-400">
-            {event.description}
+          <p className="mt-4 break-words text-sm leading-7 text-zinc-400 md:text-base">
+            {event.description || "Описание мероприятия пока не заполнено."}
           </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+              <span className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200">
+                {formatEventType(event.type)}
+              </span>
+              <span className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200">
+                {formatEventFormat(event.format)}
+              </span>
+              <span
+                className={`rounded-full border px-4 py-2 text-sm ${getEventStatusBadgeClass(event.status)}`}
+              >
+                {formatEventStatus(event.status)}
+              </span>
+              {event.hasEntryPass ? (
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">
+                  Пропуск
+                </span>
+              ) : null}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3">
-          {event.permissions.hasFullAccess ? (
-            <button
-              type="button"
-              onClick={() => setIsAdminAccessOpen(true)}
-              className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
-            >
-              Администраторы
-            </button>
-          ) : null}
-          {event.permissions.canExportCsv ? (
-            <button
-              type="button"
-              onClick={() => setIsCsvOpen(true)}
-              className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
-            >
-              Экспорт CSV
-            </button>
-          ) : null}
-          {event.permissions.canEditGeneral ||
-          event.permissions.canEditMaterials ? (
-          <button
-            type="button"
-            onClick={() => setIsEditOpen(true)}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white"
-          >
-            Редактировать
-          </button>
-          ) : null}
-        </div>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <DetailPanel title="Статус">
-          <p className="text-2xl font-semibold text-zinc-100">{event.status}</p>
-        </DetailPanel>
-        <DetailPanel title="Зарегистрировано">
-          <p className="text-2xl font-semibold text-zinc-100">{totalMembers}</p>
-        </DetailPanel>
-      </div>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {heroMetrics.map((metric) => (
+            <SummaryMetric
+              key={metric.label}
+              label={metric.label}
+              value={metric.value}
+            />
+          ))}
+        </div>
+      </section>
 
       <DetailPanel title="Основная информация">
-        <div className="grid gap-4 md:grid-cols-3">
-          <InfoRow label="Тип" value={event.type} />
-          <InfoRow label="Формат" value={event.format} />
-          <InfoRow label="Публикация" value={event.status} />
-          <InfoRow label="Начало" value={formatDate(event.dataStart)} />
-          <InfoRow label="Окончание" value={formatDate(event.dataEnd)} />
-          <InfoRow label="Дедлайн" value={formatDate(event.dateDeadLine)} />
-          <InfoRow label="Адрес" value={event.address || "Не указан"} />
-          <InfoRow
-            label="Старт регистрации"
-            value={formatDate(event.dataStartRegistration)}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <InfoCard label="Тип" value={formatEventType(event.type)} />
+          <InfoCard label="Формат" value={formatEventFormat(event.format)} />
+          <InfoCard label="Публикация" value={formatEventStatus(event.status)} />
+          <InfoCard label="Начало" value={formatDate(event.dataStart)} />
+          <InfoCard label="Окончание" value={formatDate(event.dataEnd)} />
+          <InfoCard
+            label="Дедлайн"
+            value={
+              event.dateDeadLine ? formatDate(event.dateDeadLine) : "Не указан"
+            }
           />
-          <InfoRow
+          <InfoCard
+            label="Старт регистрации"
+            value={
+              event.dataStartRegistration
+                ? formatDate(event.dataStartRegistration)
+                : "Не указан"
+            }
+          />
+          <InfoCard
             label="Конец регистрации"
-            value={formatDate(event.dataEndRegistration)}
+            value={
+              event.dataEndRegistration
+                ? formatDate(event.dataEndRegistration)
+                : "Не указан"
+            }
+          />
+          <InfoCard label="Участников" value={totalMembers} />
+          <InfoCard
+            label="Адрес"
+            value={event.address || "Не указан"}
+            className="lg:col-span-3"
           />
         </div>
       </DetailPanel>
@@ -1925,14 +2113,14 @@ export function AdminEventDetailsPage() {
 
         <>
           {event.hasCases ? (
-            <section className="rounded-lg border border-zinc-800 bg-zinc-950 p-5">
+            <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/80 p-6 md:p-7">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-zinc-100">Кейсы</h2>
                 {event.permissions.canEditCases ? (
                   <button
                     type="button"
                     onClick={() => setIsAddCaseOpen(true)}
-                  className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-900"
+                  className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 transition hover:bg-zinc-900"
                 >
                   Добавить
                   </button>
@@ -1944,7 +2132,7 @@ export function AdminEventDetailsPage() {
                     key={eventCase.idCase}
                     type="button"
                     onClick={() => setSelectedCase(eventCase)}
-                    className="block w-full rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-left hover:border-primary/60 hover:bg-zinc-900"
+                  className="block w-full rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 text-left transition hover:border-primary/60 hover:bg-zinc-900"
                   >
                     <p className="font-medium text-zinc-100">
                       {eventCase.title}
@@ -1956,9 +2144,12 @@ export function AdminEventDetailsPage() {
                       {(eventCase.tags ?? []).slice(0, 4).map((tag) => (
                         <span
                           key={tag.idTag ?? tag.name}
-                          className="rounded-full border border-primary/40 px-2 py-1 text-xs text-primary"
+                          className="max-w-full overflow-hidden rounded-full border border-primary/40 px-2 py-1 text-xs text-primary"
+                          title={tag.name}
                         >
-                          {tag.name}
+                          <span className="block max-w-44 truncate">
+                            {tag.name}
+                          </span>
                         </span>
                       ))}
                     </div>
@@ -1991,6 +2182,19 @@ export function AdminEventDetailsPage() {
 
       {event.hasMaterials ? (
         <DetailPanel title="Материалы">
+          {event.permissions.canEditMaterials ? (
+            <div className="mb-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(true)}
+                aria-label="Добавить материалы"
+                title="Добавить материалы"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-lg font-semibold text-white transition hover:opacity-90"
+              >
+                +
+              </button>
+            </div>
+          ) : null}
           <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
             {event.materials.length ? (
               event.materials.map((material: ManagedEventMaterial) => (
@@ -1999,9 +2203,14 @@ export function AdminEventDetailsPage() {
                   href={material.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="block rounded-md border border-zinc-800 bg-zinc-900/50 p-4 hover:border-primary/60"
+                  className="block rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 transition hover:border-primary/60"
                 >
-                  <p className="font-medium text-zinc-100">{material.title}</p>
+                  <p
+                    className="truncate font-medium text-zinc-100"
+                    title={material.title}
+                  >
+                    {material.title}
+                  </p>
                   <p className="mt-1 break-all text-sm text-primary">
                     {material.url}
                   </p>
