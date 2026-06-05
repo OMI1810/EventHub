@@ -39,7 +39,8 @@ const STATUS_STYLES: Record<UserRequestStatus, string> = {
 
 function formatDate(value: string) {
 	return new Intl.DateTimeFormat('ru-RU', {
-		dateStyle: 'medium'
+		dateStyle: 'medium',
+		timeZone: 'Europe/Moscow'
 	}).format(new Date(value))
 }
 

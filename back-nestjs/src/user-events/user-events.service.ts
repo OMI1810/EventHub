@@ -17,8 +17,14 @@ export class UserEventsService {
 		private readonly passService: PassService
 	) {}
 
-	async getFeed(userId: string) {
+	async getFeed(
+		userId: string,
+		pagination: { limit?: number; offset?: number } = {}
+	) {
 		await this.requireRegularUser(userId)
+
+		const limit = this.normalizeFeedLimit(pagination.limit)
+		const offset = this.normalizeFeedOffset(pagination.offset)
 
 		const events = await this.prisma.event.findMany({
 			where: {
@@ -78,10 +84,15 @@ export class UserEventsService {
 					}
 				}
 			},
-			orderBy: [{ dataStart: 'asc' }, { title: 'asc' }]
+			orderBy: [{ dataStart: 'asc' }, { title: 'asc' }],
+			take: limit + 1,
+			skip: offset
 		})
 
-		return events.map(event => {
+		const hasMore = events.length > limit
+		const pageEvents = hasMore ? events.slice(0, limit) : events
+
+		const items = pageEvents.map(event => {
 			const isParticipating = event.participant.length > 0
 			const timeState = getEventTimeState(event)
 
@@ -123,6 +134,14 @@ export class UserEventsService {
 					  })
 			}
 		})
+
+		return {
+			items,
+			limit,
+			offset,
+			nextOffset: hasMore ? offset + items.length : null,
+			hasMore
+		}
 	}
 
 	async getMyEvents(userId: string) {
@@ -1412,5 +1431,21 @@ export class UserEventsService {
 				updateAt: true
 			}
 		})
+	}
+
+	private normalizeFeedLimit(limit?: number) {
+		if (!Number.isFinite(limit)) {
+			return 30
+		}
+
+		return Math.min(Math.max(Math.trunc(limit!), 1), 50)
+	}
+
+	private normalizeFeedOffset(offset?: number) {
+		if (!Number.isFinite(offset)) {
+			return 0
+		}
+
+		return Math.max(Math.trunc(offset!), 0)
 	}
 }

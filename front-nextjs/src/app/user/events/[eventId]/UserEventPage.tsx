@@ -40,7 +40,7 @@ export function UserEventPage({ eventId }: Props) {
 	}
 
 	return (
-		<div className="grid gap-6">
+		<div className="grid min-w-0 max-w-full gap-6 overflow-hidden">
 			<UserEventHeader event={event} />
 			<UserEventTabs event={event} />
 		</div>

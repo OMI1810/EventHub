@@ -1,13 +1,22 @@
 'use client'
 
 import { IUserEventFeedItem } from '@/types/user-event.types'
+import { RefObject } from 'react'
 import { UserEventCard } from './UserEventCard'
 
 interface Props {
 	events: IUserEventFeedItem[]
+	loadMoreRef?: RefObject<HTMLDivElement | null>
+	hasMore?: boolean
+	isLoadingMore?: boolean
 }
 
-export function UserEventFeed({ events }: Props) {
+export function UserEventFeed({
+	events,
+	loadMoreRef,
+	hasMore = false,
+	isLoadingMore = false
+}: Props) {
 	return (
 		<section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
 			<div className="flex flex-col gap-2">
@@ -28,6 +37,22 @@ export function UserEventFeed({ events }: Props) {
 						Доступных мероприятий не найдено.
 					</div>
 				)}
+			</div>
+
+			<div ref={loadMoreRef} className="min-h-8">
+				{isLoadingMore ? (
+					<div className="flex justify-center py-6 text-sm text-zinc-500">
+						Загружаем ещё мероприятия...
+					</div>
+				) : hasMore ? (
+					<div className="py-4 text-center text-xs text-zinc-600">
+						Прокрутите ниже, чтобы загрузить ещё
+					</div>
+				) : events.length ? (
+					<div className="py-4 text-center text-xs text-zinc-600">
+						Все доступные мероприятия загружены
+					</div>
+				) : null}
 			</div>
 		</section>
 	)

@@ -4,6 +4,7 @@ import { ProfileInfoCard } from '@/app/profile/components/ProfileInfoCard'
 import { ProfileLayout } from '@/app/profile/components/ProfileLayout'
 import { ProfileTwoFactorSettings } from '@/app/profile/components/ProfileTwoFactorSettings'
 import { PUBLIC_PAGES } from '@/config/pages/public.config'
+import { USER_PAGES } from '@/config/pages/user.config'
 import authService from '@/services/auth/auth.service'
 import { IProfile } from '@/types/profile.types'
 import { useMutation } from '@tanstack/react-query'
@@ -38,6 +39,7 @@ export function UserProfilePage({ profile, refetchProfile }: Props) {
 		<ProfileLayout
 			onLogout={() => mutateLogout()}
 			isLogoutLoading={isLogoutPending || isPending}
+			homeHref={USER_PAGES.HOME}
 		>
 			<ProfileInfoCard
 				profile={profile}

@@ -42,7 +42,8 @@ export function getParticipationBlockedReason(
 		!event.timeState.isRegistrationStarted
 	) {
 		return `Регистрация ещё не началась. Старт: ${registrationStart.toLocaleString(
-			'ru-RU'
+			'ru-RU',
+			{ dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Moscow' }
 		)}.`
 	}
 
@@ -52,7 +53,8 @@ export function getParticipationBlockedReason(
 		event.timeState.isRegistrationFinished
 	) {
 		return `Регистрация уже завершена. Окончание: ${registrationEnd.toLocaleString(
-			'ru-RU'
+			'ru-RU',
+			{ dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Moscow' }
 		)}.`
 	}
 

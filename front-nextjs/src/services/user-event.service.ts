@@ -3,14 +3,17 @@ import {
 	ISaveUserEventSolutionFormData,
 	IUserEventDetails,
 	IUserEventFeedItem,
+	IUserEventFeedPage,
 	IUserMyEventItem
 } from '@/types/user-event.types'
 
 class UserEventService {
 	private readonly baseUrl = '/user-events'
 
-	async getFeed() {
-		return instance.get<IUserEventFeedItem[]>(`${this.baseUrl}/feed`)
+	async getFeed(params?: { limit?: number; offset?: number }) {
+		return instance.get<IUserEventFeedPage>(`${this.baseUrl}/feed`, {
+			params
+		})
 	}
 
 	async getMyEvents() {
