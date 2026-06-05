@@ -1,6 +1,7 @@
 'use client'
 
 import { EventTagOption } from '@/types/event-create.types'
+import { formatShortDateTimeRange } from '@/utils/date-format'
 import { useEffect, useRef, useState } from 'react'
 
 interface Props {
@@ -15,18 +16,6 @@ interface Props {
 	actionLabel: string
 	onAction: () => void
 	disabled?: boolean
-}
-
-function formatCaseSchedule(start: string, end: string) {
-	const formatter = new Intl.DateTimeFormat('ru-RU', {
-		day: '2-digit',
-		month: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit',
-		timeZone: 'Europe/Moscow'
-	})
-
-	return `${formatter.format(new Date(start))} - ${formatter.format(new Date(end))}`
 }
 
 function CaseDescriptionModal({
@@ -203,22 +192,22 @@ export function EventCaseCard({
 								{tag.name}
 							</span>
 						))}
-					{hiddenTagsCount > 0 ? (
-						<button
-							type="button"
-							onClick={() => setIsTagsOpen(true)}
-							className="rounded-full border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 transition-colors hover:border-primary/60 hover:text-primary"
-						>
-							+{hiddenTagsCount}
-						</button>
-					) : null}
-				</div>
+						{hiddenTagsCount > 0 ? (
+							<button
+								type="button"
+								onClick={() => setIsTagsOpen(true)}
+								className="rounded-full border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 transition-colors hover:border-primary/60 hover:text-primary"
+							>
+								+{hiddenTagsCount}
+							</button>
+						) : null}
+					</div>
 				) : (
 					<div className="mt-4 min-h-[28px]" />
 				)}
 
 				<p className="mt-4 text-xs text-zinc-500">
-					{formatCaseSchedule(dateForStartSelected, dateForEndSelected)}
+					{formatShortDateTimeRange(dateForStartSelected, dateForEndSelected)}
 				</p>
 
 				<div className="mt-auto flex flex-wrap gap-3 pt-5">

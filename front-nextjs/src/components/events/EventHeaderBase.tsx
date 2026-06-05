@@ -1,5 +1,6 @@
 'use client'
 
+import { formatEventDateRange } from '@/utils/date-format'
 import Link from 'next/link'
 import { ReactNode } from 'react'
 
@@ -16,21 +17,6 @@ interface Props {
 	detailsHref?: string
 }
 
-function formatDateRange(start: string, end: string) {
-	const formatter = new Intl.DateTimeFormat('ru-RU', {
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-		timeZone: 'Europe/Moscow'
-	})
-
-	return `${formatter.format(new Date(start))} - ${formatter.format(
-		new Date(end)
-	)}`
-}
-
 export function EventHeaderBase({
 	organizationName,
 	title,
@@ -43,8 +29,7 @@ export function EventHeaderBase({
 	actions,
 	detailsHref
 }: Props) {
-	const fallbackDescription = 'Описание мероприятия отсутствует.'
-	const descriptionText = description || fallbackDescription
+	const descriptionText = description || 'Описание мероприятия отсутствует.'
 	const shouldShowDetailsLink = Boolean(detailsHref)
 
 	return (
@@ -55,6 +40,7 @@ export function EventHeaderBase({
 						type="button"
 						onClick={onOpenOrganization}
 						className="max-w-full truncate text-left text-xs uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-300"
+						title={organizationName}
 					>
 						{organizationName}
 					</button>
@@ -82,7 +68,7 @@ export function EventHeaderBase({
 							{format}
 						</span>
 						<span className="max-w-full break-words rounded-full border border-zinc-800 px-3 py-1 [overflow-wrap:anywhere]">
-							{formatDateRange(dataStart, dataEnd)}
+							{formatEventDateRange(dataStart, dataEnd)}
 						</span>
 					</div>
 				</div>

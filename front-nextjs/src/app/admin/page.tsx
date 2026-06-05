@@ -4,3 +4,4 @@ import { redirect } from 'next/navigation'
 
 export default function Page() {
 	redirect(ADMIN_PAGES.EVENTS)
+}

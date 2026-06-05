@@ -2,9 +2,9 @@
 
 import { ProfileDeleteAccountModal } from '@/app/profile/components/ProfileDeleteAccountModal'
 import { PUBLIC_PAGES } from '@/config/pages/public.config'
+import adminProfileService from '@/services/admin-profile.service'
 import authTokenService from '@/services/auth/auth-token.service'
 import authService from '@/services/auth/auth.service'
-import adminProfileService from '@/services/admin-profile.service'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'

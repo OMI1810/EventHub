@@ -34,12 +34,14 @@ export function AdminPendingRequestsSection({ requests, onSelect }: Props) {
 	})
 
 	return (
-		<section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
-			<div>
+		<section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-xl sm:rounded-3xl sm:p-6 lg:p-8">
+			<div className="min-w-0">
 				<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 					Заявки
 				</p>
-				<h2 className="mt-3 text-2xl font-bold">Поданные заявки</h2>
+				<h2 className="mt-3 break-words text-2xl font-bold [overflow-wrap:anywhere]">
+					Поданные заявки
+				</h2>
 			</div>
 
 			<div className="mt-6">
@@ -52,18 +54,21 @@ export function AdminPendingRequestsSection({ requests, onSelect }: Props) {
 						{requests.map(request => (
 							<div
 								key={request.idJoinTeam}
-								className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-4"
+								className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-4 sm:px-5"
 							>
-								<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+								<div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 									<button
 										type="button"
 										onClick={() => onSelect(request)}
-										className="text-left"
+										className="min-w-0 text-left"
 									>
-										<p className="text-base font-semibold text-zinc-100">
+										<p
+											className="line-clamp-2 text-base font-semibold text-zinc-100 [overflow-wrap:anywhere]"
+											title={request.organization.name}
+										>
 											{request.organization.name}
 										</p>
-										<p className="mt-2 text-sm text-zinc-400">
+										<p className="mt-2 break-words text-sm text-zinc-400 [overflow-wrap:anywhere]">
 											Ожидает подтверждения владельцем организации.
 										</p>
 									</button>
@@ -72,7 +77,7 @@ export function AdminPendingRequestsSection({ requests, onSelect }: Props) {
 										type="button"
 										onClick={() => mutateCancelRequest(request.idJoinTeam)}
 										disabled={isPending}
-										className="flex min-w-[150px] items-center justify-center rounded-xl border border-rose-700 px-4 py-2.5 text-sm font-medium text-rose-200 transition-colors hover:bg-rose-950/50 disabled:cursor-not-allowed disabled:opacity-60"
+										className="flex w-full items-center justify-center rounded-xl border border-rose-700 px-4 py-2.5 text-sm font-medium text-rose-200 transition-colors hover:bg-rose-950/50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[150px]"
 									>
 										{isPending ? (
 											<MiniLoader width={18} height={18} />
@@ -85,8 +90,8 @@ export function AdminPendingRequestsSection({ requests, onSelect }: Props) {
 						))}
 					</div>
 				) : (
-					<div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-5 py-5">
-						<p className="text-sm text-zinc-400">
+					<div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-5 sm:px-5">
+						<p className="break-words text-sm text-zinc-400 [overflow-wrap:anywhere]">
 							Сейчас нет активных заявок на вступление в организации.
 						</p>
 					</div>

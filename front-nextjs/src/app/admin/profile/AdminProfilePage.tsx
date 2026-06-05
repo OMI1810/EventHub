@@ -4,6 +4,7 @@ import { ProfileInfoCard } from '@/app/profile/components/ProfileInfoCard'
 import { ProfileLayout } from '@/app/profile/components/ProfileLayout'
 import { ProfileTwoFactorSettings } from '@/app/profile/components/ProfileTwoFactorSettings'
 import { MiniLoader } from '@/components/ui/MiniLoader'
+import { ADMIN_PAGES } from '@/config/pages/admin.config'
 import { DASHBOARD_PAGES } from '@/config/pages/dashboard.config'
 import { PUBLIC_PAGES } from '@/config/pages/public.config'
 import { useProfile } from '@/hooks/useProfile'
@@ -97,11 +98,11 @@ export function AdminProfilePage() {
 
 	if (!adminProfile) {
 		return (
-			<div className="mx-auto max-w-3xl rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-white shadow-xl">
-				<h1 className="text-2xl font-bold">
+			<div className="mx-auto max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900 p-5 text-white shadow-xl sm:rounded-3xl sm:p-8">
+				<h1 className="break-words text-2xl font-bold [overflow-wrap:anywhere]">
 					Профиль администратора недоступен
 				</h1>
-				<p className="mt-4 text-sm text-zinc-400">
+				<p className="mt-4 break-words text-sm text-zinc-400 [overflow-wrap:anywhere]">
 					Не удалось загрузить данные администратора.
 				</p>
 			</div>
@@ -110,6 +111,7 @@ export function AdminProfilePage() {
 
 	return (
 		<ProfileLayout
+			homeHref={ADMIN_PAGES.EVENTS}
 			onLogout={() => mutateLogout()}
 			isLogoutLoading={isLogoutLoading}
 		>
@@ -154,15 +156,11 @@ export function AdminProfilePage() {
 			) : null}
 
 			{isDeleteModalOpen ? (
-				<AdminDeleteAccountModal
-					onClose={() => setIsDeleteModalOpen(false)}
-				/>
+				<AdminDeleteAccountModal onClose={() => setIsDeleteModalOpen(false)} />
 			) : null}
 
 			{isJoinModalOpen ? (
-				<AdminJoinOrganizationModal
-					onClose={() => setIsJoinModalOpen(false)}
-				/>
+				<AdminJoinOrganizationModal onClose={() => setIsJoinModalOpen(false)} />
 			) : null}
 		</ProfileLayout>
 	)

@@ -279,7 +279,7 @@ export function TurniketContent() {
 	}
 
 	return (
-		<div className="flex min-h-dvh flex-col gap-2 sm:gap-4">
+		<div className="flex min-h-dvh min-w-0 flex-col gap-3 sm:gap-4">
 			<TurniketHeader
 				isLoggingOut={logoutMutation.isPending}
 				onLogout={() => logoutMutation.mutate()}

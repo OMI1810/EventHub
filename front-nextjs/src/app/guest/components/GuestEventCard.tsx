@@ -3,23 +3,11 @@
 import { GUEST_PAGES } from '@/config/pages/guest.config'
 import { PUBLIC_PAGES } from '@/config/pages/public.config'
 import { IPublicEventFeedItem } from '@/types/public-event.types'
+import { formatEventDateRange } from '@/utils/date-format'
 import { useRouter } from 'next/navigation'
 
 interface Props {
 	event: IPublicEventFeedItem
-}
-
-function formatEventDates(start: string, end: string) {
-	const formatter = new Intl.DateTimeFormat('ru-RU', {
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-		timeZone: 'Europe/Moscow'
-	})
-
-	return `${formatter.format(new Date(start))} - ${formatter.format(
-		new Date(end)
-	)}`
 }
 
 export function GuestEventCard({ event }: Props) {
@@ -69,7 +57,7 @@ export function GuestEventCard({ event }: Props) {
 					{event.format}
 				</span>
 				<span className="max-w-full truncate rounded-full border border-zinc-800 px-3 py-1">
-					{formatEventDates(event.dataStart, event.dataEnd)}
+					{formatEventDateRange(event.dataStart, event.dataEnd)}
 				</span>
 			</div>
 

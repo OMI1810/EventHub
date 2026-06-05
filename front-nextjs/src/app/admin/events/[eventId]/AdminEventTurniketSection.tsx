@@ -157,7 +157,7 @@ export function AdminEventTurniketSection({
 
   if (isLoading || !data) {
     return (
-      <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/80 p-6">
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4 sm:rounded-[2rem] sm:p-6">
         <div className="flex min-h-40 items-center justify-center">
           <MiniLoader />
         </div>
@@ -166,17 +166,17 @@ export function AdminEventTurniketSection({
   }
 
   return (
-    <section className="space-y-6 rounded-[2rem] border border-zinc-800 bg-zinc-900/80 p-6">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold text-zinc-100">Турникеты и проходы</h2>
+    <section className="min-w-0 space-y-6 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4 sm:rounded-[2rem] sm:p-6">
+      <div className="flex min-w-0 flex-col gap-2">
+        <h2 className="break-words text-lg font-semibold text-zinc-100">Турникеты и проходы</h2>
         <p className="text-sm text-zinc-400">
           Здесь создаются турникеты именно для этого мероприятия и отображается
           общая статистика по проходам.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
             Сканирований
           </p>
@@ -184,7 +184,7 @@ export function AdminEventTurniketSection({
             {data.stats.totalScans}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+        <div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
             Успешных
           </p>
@@ -192,7 +192,7 @@ export function AdminEventTurniketSection({
             {data.stats.allowedEntries}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+        <div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
             Отказов
           </p>
@@ -200,7 +200,7 @@ export function AdminEventTurniketSection({
             {data.stats.deniedEntries}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+        <div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
             Уникально вошли
           </p>
@@ -210,10 +210,10 @@ export function AdminEventTurniketSection({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h3 className="text-base font-semibold text-zinc-100">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
+        <div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+          <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="break-words text-base font-semibold text-zinc-100">
               Турникеты мероприятия
             </h3>
             <span className="text-sm text-zinc-500">
@@ -232,14 +232,14 @@ export function AdminEventTurniketSection({
               {data.turnikets.map((turniket) => (
                 <div
                   key={turniket.idTurniket}
-                  className="rounded-2xl border border-zinc-800 bg-black/30 p-4"
+                  className="min-w-0 rounded-2xl border border-zinc-800 bg-black/30 p-4"
                 >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-zinc-100">
+                      <p className="break-words text-sm font-semibold text-zinc-100">
                         {turniket.label}
                       </p>
-                      <p className="mt-1 text-sm text-zinc-400">
+                      <p className="mt-1 break-words text-sm text-zinc-400">
                         Логин: {turniket.login}
                       </p>
                       <p className="mt-1 text-xs">
@@ -253,7 +253,10 @@ export function AdminEventTurniketSection({
                           {turniket.isActive ? "Включен" : "Выключен"}
                         </span>
                       </p>
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <p
+                        className="mt-1 max-w-full truncate text-xs text-zinc-500"
+                        title={`Создал: ${formatPersonName(turniket.createdByAdmin)} · ${formatDate(turniket.createdAt)}`}
+                      >
                         Создал: {formatPersonName(turniket.createdByAdmin)} ·{" "}
                         {formatDate(turniket.createdAt)}
                       </p>
@@ -263,7 +266,7 @@ export function AdminEventTurniketSection({
                     </div>
 
                     {data.canManage ? (
-                      <div className="flex flex-wrap gap-2">
+                      <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-[15.5rem]">
                         <button
                           type="button"
                           onClick={() =>
@@ -273,7 +276,7 @@ export function AdminEventTurniketSection({
                             })
                           }
                           disabled={toggleMutation.isPending}
-                          className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 disabled:opacity-60"
+                          className="w-full whitespace-nowrap rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 disabled:opacity-60"
                         >
                           {turniket.isActive ? "Выключить" : "Включить"}
                         </button>
@@ -281,7 +284,7 @@ export function AdminEventTurniketSection({
                           type="button"
                           onClick={() => deleteMutation.mutate(turniket.idTurniket)}
                           disabled={deleteMutation.isPending}
-                          className="rounded-md border border-rose-900/60 px-3 py-2 text-sm text-rose-300 hover:bg-rose-950/30 disabled:opacity-60"
+                          className="w-full whitespace-nowrap rounded-md border border-rose-900/60 px-3 py-2 text-sm text-rose-300 hover:bg-rose-950/30 disabled:opacity-60"
                         >
                           Удалить
                         </button>
@@ -289,7 +292,7 @@ export function AdminEventTurniketSection({
                     ) : null}
                   </div>
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <div>
                       <p className="text-xs text-zinc-500">Сканирований</p>
                       <p className="mt-1 text-sm font-medium text-zinc-100">
@@ -325,8 +328,8 @@ export function AdminEventTurniketSection({
           )}
         </div>
 
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-          <h3 className="text-base font-semibold text-zinc-100">
+        <div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+          <h3 className="break-words text-base font-semibold text-zinc-100">
             Создать турникет
           </h3>
 
@@ -339,7 +342,7 @@ export function AdminEventTurniketSection({
                   required
                   value={form.label}
                   onChange={(event) => updateField("label", event.target.value)}
-                  className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-primary"
+                  className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-primary"
                 />
               </label>
 
@@ -350,7 +353,7 @@ export function AdminEventTurniketSection({
                   required
                   value={form.login}
                   onChange={(event) => updateField("login", event.target.value)}
-                  className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-primary"
+                  className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-primary"
                 />
               </label>
 
@@ -362,14 +365,14 @@ export function AdminEventTurniketSection({
                   minLength={6}
                   value={form.password}
                   onChange={(event) => updateField("password", event.target.value)}
-                  className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-primary"
+                  className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-primary"
                 />
               </label>
 
               <button
                 type="submit"
                 disabled={createMutation.isPending}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60 sm:w-auto"
               >
                 {createMutation.isPending ? "Создаем..." : "Создать"}
               </button>
@@ -381,13 +384,13 @@ export function AdminEventTurniketSection({
           )}
 
           {createdCredentials ? (
-            <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-zinc-100">
+            <div className="mt-4 min-w-0 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-zinc-100">
               <p className="font-medium text-emerald-200">
                 Турникет создан. Данные для входа:
               </p>
-              <p className="mt-2">Логин: {createdCredentials.login}</p>
-              <p>Пароль: {createdCredentials.password}</p>
-              <p>Название: {createdCredentials.label}</p>
+              <p className="mt-2 break-words">Логин: {createdCredentials.login}</p>
+              <p className="break-words">Пароль: {createdCredentials.password}</p>
+              <p className="break-words">Название: {createdCredentials.label}</p>
             </div>
           ) : null}
 
@@ -404,8 +407,8 @@ export function AdminEventTurniketSection({
       </div>
 
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="text-base font-semibold text-zinc-100">
+        <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="break-words text-base font-semibold text-zinc-100">
             Последние проходы
           </h3>
           <span className="text-sm text-zinc-500">

@@ -3,6 +3,7 @@
 import { USER_PAGES } from '@/config/pages/user.config'
 import userEventService from '@/services/user-event.service'
 import { IUserEventFeedItem } from '@/types/user-event.types'
+import { formatDateTime, formatEventDateRange } from '@/utils/date-format'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -14,33 +15,18 @@ interface Props {
 	event: IUserEventFeedItem
 }
 
-function formatEventDates(start: string, end: string) {
-	const formatter = new Intl.DateTimeFormat('ru-RU', {
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-		timeZone: 'Europe/Moscow'
-	})
-
-	return `${formatter.format(new Date(start))} - ${formatter.format(
-		new Date(end)
-	)}`
-}
-
-function formatDateTime(date: string) {
-	return new Intl.DateTimeFormat('ru-RU', {
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-		timeZone: 'Europe/Moscow'
-	}).format(new Date(date))
-}
-
 function getParticipationUnavailableText(event: IUserEventFeedItem) {
 	if (!event.timeState.isRegistrationStarted && event.dataStartRegistration) {
-		return `Регистрация начнётся ${formatDateTime(event.dataStartRegistration)}`
+		return `Регистрация начнётся ${formatDateTime(
+			event.dataStartRegistration,
+			{
+				day: '2-digit',
+				month: '2-digit',
+				year: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit'
+			}
+		)}`
 	}
 
 	if (event.timeState.isRegistrationFinished) {
@@ -157,7 +143,7 @@ export function UserEventCard({ event }: Props) {
 						{event.format}
 					</span>
 					<span className="rounded-full border border-zinc-800 px-3 py-1">
-						{formatEventDates(event.dataStart, event.dataEnd)}
+						{formatEventDateRange(event.dataStart, event.dataEnd)}
 					</span>
 				</div>
 

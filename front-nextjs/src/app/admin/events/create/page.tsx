@@ -317,8 +317,8 @@ export default function CreateEventPage() {
     queryFn: () => eventService.getCreateOptions(),
   });
 
-  const organizations = options?.data.organizations ?? [];
-  const availableTags = options?.data.tags ?? [];
+  const organizations = options?.data?.organizations ?? [];
+  const availableTags = options?.data?.tags ?? [];
   const features = selectedFeatures;
 
   const filteredTags = useMemo(() => {
@@ -864,7 +864,12 @@ export default function CreateEventPage() {
                                   : "border-zinc-800 bg-zinc-950/70 text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900",
                               )}
                             >
-                              <p className="font-medium">{organization.name}</p>
+                              <p
+                                className="line-clamp-1 font-medium [overflow-wrap:anywhere]"
+                                title={organization.name}
+                              >
+                                {organization.name}
+                              </p>
                               <p className="mt-1 text-sm text-zinc-400">
                                 {organization.address || "Адрес организации пока не указан"}
                               </p>

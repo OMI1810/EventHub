@@ -265,7 +265,7 @@ function Modal({ title, children, onClose, footer, wide }: ModalProps) {
         }`}
       >
         <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-          <h2 className="text-lg font-semibold text-zinc-100">{title}</h2>
+          <h2 className="break-words text-lg font-semibold text-zinc-100">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -296,7 +296,7 @@ function DetailPanel({
 }) {
   return (
     <section
-      className={`rounded-[2rem] border border-zinc-800 bg-zinc-900/80 p-6 md:p-7 ${className ?? ""}`}
+      className={`min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4 sm:p-5 md:rounded-[2rem] md:p-7 ${className ?? ""}`}
     >
       <div className="mb-5">
         <p className="text-[0.72rem] uppercase tracking-[0.34em] text-zinc-500">
@@ -988,7 +988,7 @@ function EditEventModal({
               <button
                 type="button"
                 onClick={addMaterial}
-                className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 transition hover:bg-zinc-900"
+                className="w-full whitespace-nowrap rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 transition hover:bg-zinc-900 sm:w-auto"
               >
                 Добавить
               </button>
@@ -1120,7 +1120,7 @@ function ResultPlacesEditor({
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <p className="text-sm font-medium text-zinc-100">{title}</p>
+        <p className="text-sm break-words font-medium text-zinc-100">{title}</p>
         <button
           type="button"
           onClick={() => saveResultsMutation.mutate()}
@@ -1159,7 +1159,7 @@ function ResultPlacesEditor({
                 className="grid gap-3 rounded-md border border-zinc-800 bg-zinc-900/50 p-3 md:grid-cols-[1fr_120px]"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-zinc-100">
+                  <p className="truncate text-sm break-words font-medium text-zinc-100">
                     {target.label}
                   </p>
                   {target.description ? (
@@ -1231,7 +1231,7 @@ function TeamModal({
                 key={member.user.idUser}
                 className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3"
               >
-                <p className="text-sm font-medium text-zinc-100">
+                <p className="text-sm break-words font-medium text-zinc-100">
                   {formatPersonName(member.user)}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">
@@ -1534,7 +1534,7 @@ function CaseDetailsModal({
                         key={team.idTeam}
                         className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3"
                       >
-                        <p className="text-sm font-medium text-zinc-100">
+                        <p className="text-sm break-words font-medium text-zinc-100">
                           {team.name}
                         </p>
                         <p className="mt-2 text-xs text-zinc-500">
@@ -1563,7 +1563,7 @@ function CaseDetailsModal({
                       key={participant.user.idUser}
                       className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3"
                     >
-                      <p className="text-sm font-medium text-zinc-100">
+                      <p className="text-sm break-words font-medium text-zinc-100">
                         {formatPersonName(participant.user)}
                       </p>
                       <p className="mt-2 text-xs text-zinc-500">
@@ -1948,7 +1948,10 @@ export function AdminEventDetailsPage() {
         </div>
 
         <div className="mt-6 min-w-0">
-          <p className="text-[0.72rem] uppercase tracking-[0.38em] text-zinc-500">
+          <p
+            className="line-clamp-1 max-w-full break-words text-[0.72rem] uppercase tracking-[0.38em] text-zinc-500 [overflow-wrap:anywhere]"
+            title={event.organization.name}
+          >
             {event.organization.name}
           </p>
           <h1 className="mt-3 break-words text-3xl font-semibold leading-tight text-zinc-100 md:text-5xl">
@@ -2057,7 +2060,7 @@ export function AdminEventDetailsPage() {
                   }}
                   className="block w-full rounded-md border border-zinc-800 bg-zinc-900/50 p-4 text-left hover:border-primary/60 hover:bg-zinc-900"
                 >
-                  <p className="font-medium text-zinc-100">{team.name}</p>
+                  <p className="break-words font-medium text-zinc-100">{team.name}</p>
                   <p className="mt-2 text-sm text-zinc-500">
                     Участников: {team.membersCount}
                   </p>
@@ -2087,7 +2090,7 @@ export function AdminEventDetailsPage() {
                     key={participant.user.idUser}
                     className="rounded-md border border-zinc-800 bg-zinc-900/50 p-4"
                   >
-                    <p className="font-medium text-zinc-100">
+                    <p className="break-words font-medium text-zinc-100">
                       {formatPersonName(participant.user)}
                     </p>
                     <p className="mt-1 text-sm text-zinc-500">
@@ -2113,31 +2116,31 @@ export function AdminEventDetailsPage() {
 
         <>
           {event.hasCases ? (
-            <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/80 p-6 md:p-7">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-zinc-100">Кейсы</h2>
+            <section className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4 sm:p-5 md:rounded-[2rem] md:p-7">
+              <div className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="break-words text-lg font-semibold text-zinc-100">Кейсы</h2>
                 {event.permissions.canEditCases ? (
                   <button
                     type="button"
                     onClick={() => setIsAddCaseOpen(true)}
-                  className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 transition hover:bg-zinc-900"
+                  className="w-full whitespace-nowrap rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 transition hover:bg-zinc-900 sm:w-auto"
                 >
                   Добавить
                   </button>
                 ) : null}
               </div>
-              <div className="max-h-96 space-y-3 overflow-y-auto pr-2">
+              <div className="max-h-96 space-y-3 overflow-y-auto pr-1 sm:pr-2">
                 {event.cases.map((eventCase) => (
                   <button
                     key={eventCase.idCase}
                     type="button"
                     onClick={() => setSelectedCase(eventCase)}
-                  className="block w-full rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 text-left transition hover:border-primary/60 hover:bg-zinc-900"
+                  className="block min-w-0 w-full rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 text-left transition hover:border-primary/60 hover:bg-zinc-900"
                   >
-                    <p className="font-medium text-zinc-100">
+                    <p className="line-clamp-1 break-words font-medium text-zinc-100">
                       {eventCase.title}
                     </p>
-                    <p className="mt-2 line-clamp-2 text-sm text-zinc-500">
+                    <p className="mt-2 line-clamp-2 break-words text-sm text-zinc-500">
                       {eventCase.description}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -2206,7 +2209,7 @@ export function AdminEventDetailsPage() {
                   className="block rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 transition hover:border-primary/60"
                 >
                   <p
-                    className="truncate font-medium text-zinc-100"
+                    className="truncate break-words font-medium text-zinc-100"
                     title={material.title}
                   >
                     {material.title}

@@ -1,5 +1,6 @@
 "use client";
 
+import { CsvExportModalFrame } from "@/components/csv/CsvExportModalFrame";
 import eventService from "@/services/event.service";
 import {
   ManagedEventAdminAccessOptions,
@@ -23,7 +24,6 @@ interface AdminEventCsvExportModalProps {
   event: ManagedEventDetails;
   onClose: () => void;
 }
-
 const optionLabels: Record<ExportOption, string> = {
   event: "Основная информация мероприятия",
   eventAdmins: "Администраторы мероприятия и права",
@@ -396,47 +396,36 @@ export function AdminEventCsvExportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-2xl overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-          <h2 className="text-lg font-semibold text-zinc-100">
-            Экспорт данных мероприятия
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md px-2 py-1 text-xl text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+    <CsvExportModalFrame
+      title="Экспорт данных мероприятия"
+      onClose={onClose}
+      footer={
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={selectedOptions.length === 0}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        >
+          Скачать CSV
+        </button>
+      }
+    >
+      <div className="space-y-3">
+        {availableOptions.map((option) => (
+          <label
+            key={option}
+            className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/50 p-3 text-sm text-zinc-100"
           >
-            x
-          </button>
-        </div>
-        <div className="space-y-3 px-5 py-4">
-          {availableOptions.map((option) => (
-            <label
-              key={option}
-              className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/50 p-3 text-sm text-zinc-100"
-            >
-              <input
-                type="checkbox"
-                checked={selectedOptions.includes(option)}
-                onChange={() => toggleOption(option)}
-                className="h-4 w-4"
-              />
-              {optionLabels[option]}
-            </label>
-          ))}
-        </div>
-        <div className="flex justify-end gap-3 border-t border-zinc-800 px-5 py-4">
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={selectedOptions.length === 0}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-          >
-            Скачать CSV
-          </button>
-        </div>
+            <input
+              type="checkbox"
+              checked={selectedOptions.includes(option)}
+              onChange={() => toggleOption(option)}
+              className="h-4 w-4"
+            />
+            {optionLabels[option]}
+          </label>
+        ))}
       </div>
-    </div>
+    </CsvExportModalFrame>
   );
 }

@@ -47,7 +47,9 @@ export function AdminJoinOrganizationModal({ onClose }: Props) {
 			isPending={isPending}
 			onClose={onClose}
 			onDetected={() => {
-				toast.success('QR-код считан. Проверьте код и отправьте заявку.')
+				toast.success(
+					'QR-код считан. Проверьте код и отправьте заявку.'
+				)
 			}}
 			onSubmit={code => mutateCreateRequest(code)}
 		/>

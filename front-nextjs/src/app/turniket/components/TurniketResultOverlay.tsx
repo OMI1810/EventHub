@@ -14,18 +14,18 @@ export function TurniketResultOverlay({
 	return (
 		<div
 			onClick={onClose}
-			className={`fixed inset-0 z-50 flex cursor-pointer items-center justify-center px-6 ${
+			className={`fixed inset-0 z-50 flex cursor-pointer items-center justify-center px-4 py-6 ${
 				type === 'allow' ? 'bg-emerald-500' : 'bg-rose-600'
 			}`}
 		>
-			<div className="text-center text-white">
-				<div className="text-[8rem] font-black leading-none sm:text-[10rem]">
-					{type === 'allow' ? '✓' : '✕'}
+			<div className="max-w-full text-center text-white">
+				<div className="text-[6rem] font-black leading-none sm:text-[10rem]">
+					{type === 'allow' ? '✓' : '×'}
 				</div>
-				<p className="mt-4 text-3xl font-black uppercase tracking-[0.08em] sm:text-5xl">
+				<p className="mt-4 break-words text-2xl font-black uppercase tracking-[0.08em] sm:text-5xl">
 					{title}
 				</p>
-				<p className="mx-auto mt-4 max-w-xl text-base font-medium leading-snug opacity-95 sm:text-2xl">
+				<p className="mx-auto mt-4 max-w-xl break-words text-base font-medium leading-snug opacity-95 sm:text-2xl">
 					{description}
 				</p>
 			</div>

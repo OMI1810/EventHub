@@ -60,7 +60,6 @@ interface EventFeaturePreset {
   hasResualt: boolean;
   hasEntryPass: boolean;
 }
-
 interface EventInvitePayload extends BaseInvitePayload {
   eventId: string;
   createdByUserId: string;
@@ -927,7 +926,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!turniket) {
-      throw new NotFoundException("РўСѓСЂРЅРёРєРµС‚ РЅРµ РЅР°Р№РґРµРЅ");
+      throw new NotFoundException("Турникет не найден");
     }
 
     await this.prisma.eventTurniket.update({
@@ -2836,22 +2835,6 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     }
 
     return slug;
-  }
-
-  private validateEventDateRange(start: string, end: string) {
-    if (new Date(start) > new Date(end)) {
-      throw new BadRequestException(
-        "Дата окончания мероприятия не может быть раньше даты начала",
-      );
-    }
-  }
-
-  private validateRegistrationDateRange(start: string, end: string) {
-    if (new Date(start) > new Date(end)) {
-      throw new BadRequestException(
-        "Дата окончания регистрации не может быть раньше даты начала регистрации",
-      );
-    }
   }
 
   private toSlug(value: string) {

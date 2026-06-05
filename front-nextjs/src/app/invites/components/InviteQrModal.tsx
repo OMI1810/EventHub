@@ -41,24 +41,24 @@ export function InviteQrModal({ label, title, code, onClose }: Props) {
 	}, [code])
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-			<div className="w-full max-w-xl rounded-3xl border border-zinc-800 bg-zinc-900 p-6 text-white shadow-2xl">
-				<div className="flex items-start justify-between gap-4">
-					<div>
-						<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{label}</p>
-						<h3 className="mt-3 text-2xl font-bold">{title}</h3>
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-3 py-4 sm:px-4">
+			<div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-zinc-800 bg-zinc-900 p-4 text-white shadow-2xl sm:p-6">
+				<div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+					<div className="min-w-0">
+						<p className="break-words text-xs uppercase tracking-[0.2em] text-zinc-500">{label}</p>
+						<h3 className="mt-3 break-words text-2xl font-bold">{title}</h3>
 					</div>
 
 					<button
 						type="button"
 						onClick={onClose}
-						className="rounded-xl border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
+						className="shrink-0 self-end whitespace-nowrap rounded-xl border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 sm:self-start"
 					>
 						Закрыть
 					</button>
 				</div>
 
-				<div className="mt-6 rounded-3xl border border-zinc-800 bg-white p-6">
+				<div className="mt-6 rounded-3xl border border-zinc-800 bg-white p-3 sm:p-6">
 					{qrDataUrl ? (
 						<img
 							src={qrDataUrl}
@@ -76,7 +76,7 @@ export function InviteQrModal({ label, title, code, onClose }: Props) {
 					<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
 						Код, зашитый в QR
 					</p>
-					<p className="mt-3 font-mono text-xl font-bold tracking-[0.2em] text-emerald-400">
+					<p className="mt-3 break-all font-mono text-xl font-bold tracking-[0.2em] text-emerald-400">
 						{code}
 					</p>
 				</div>
